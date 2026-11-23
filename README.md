@@ -1,6 +1,7 @@
 # projeto-quant
 
-> Working title. Early stage: the tooling is in place, the analysis code is not written yet.
+> Working title. Early stage: returns, currency conversion and calendar alignment work;
+> risk measures are next. `scripts/demo_report.py` runs everything on synthetic data.
 
 ## The problem
 
@@ -40,6 +41,7 @@ uv run ruff check .                      # lint
 uv run ruff format .                     # format
 uv run python -m pyright                 # type check (strict)
 uv run python -m pre_commit install      # run all checks before each commit
+uv run python scripts/demo_report.py     # HTML report of the example portfolio
 ```
 
 Tools are called as `python -m <tool>` because Windows Smart App Control blocks the

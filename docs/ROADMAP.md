@@ -19,10 +19,11 @@ rate of the same day).
 - *Decided (2026-11-23):* base currency EUR. Assets: B3 stocks (BRL), European stocks
   (EUR, possibly GBP/CHF), crypto (usually quoted in USD). Broker not chosen yet, so the
   holdings CSV is a simple hand-made template.
-- *Done so far:* `simple_returns`, `portfolio_returns` (fixed quantities, weights drift),
-  `to_base_currency` (same-date rate, gaps stay NaN).
-- *Still to do:* calendar alignment (B3, European exchanges and 24/7 crypto have different
-  trading days and holidays), holdings CSV loader, data sources. Candidate for FX: ECB
+- *Done so far:* `simple_returns`, `portfolio_value`, `portfolio_returns` (fixed
+  quantities, weights drift), `to_base_currency` (same-date rate, gaps stay NaN),
+  `align_to_dates` (last value at or before each date, max 5 days old), `load_holdings`,
+  and `scripts/demo_report.py` (HTML report on synthetic data).
+- *Still to do:* real data sources for prices and FX. Candidate for FX: ECB
   euro reference rates (official, free; quoted as foreign units per 1 EUR, so invert).
 
 ## 2. Descriptive risk

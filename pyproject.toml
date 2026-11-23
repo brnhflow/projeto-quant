@@ -55,12 +55,13 @@ convention = "numpy"
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D"]
 ".claude/**" = ["D"]
+"scripts/**" = ["E501"]  # HTML/SVG templates
 
 # ---------------------------------------------------------------- pyright
 # Type checker. (mypy is the usual choice, but its compiled parts are blocked by
 # Windows Smart App Control on my machine; pyright runs on Node and is not.)
 [tool.pyright]
-include = ["src", "tests"]
+include = ["src", "tests", "scripts"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
 venvPath = "."
