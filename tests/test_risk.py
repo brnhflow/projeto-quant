@@ -201,3 +201,30 @@ def test_var_exact_quantile_position_is_not_rounded_down() -> None:
 def test_max_drawdown_rejects_empty() -> None:
     with pytest.raises(ValueError):
         max_drawdown(pd.Series([], dtype=float))
+
+
+@pytest.mark.parametrize("level", [0.0, 1.0, 1.5])
+def test_var_rejects_invalid_level(level: float) -> None:
+    with pytest.raises(ValueError, match="level"):
+        historical_var_es(pd.Series([0.01] * 50), level=level)
+
+
+def test_var_rejects_missing_returns() -> None:
+    returns = pd.Series([0.01] * 30)
+    returns.iloc[5] = float("nan")
+
+    with pytest.raises(ValueError, match="missing"):
+        historical_var_es(returns)
+
+
+def test_risk_contributions_rejects_zero_variance() -> None:
+    returns = pd.DataFrame({"A": [0.01] * 30, "B": [0.02] * 30})
+
+    with pytest.raises(ValueError, match="variance"):
+        risk_contributions(returns, pd.Series({"A": 0.5, "B": 0.5}))
+
+
+@pytest.mark.parametrize("weights", [[0.5, -0.5], [0.0, 0.0], [0.5, float("nan")]])
+def test_effective_number_rejects_bad_weights(weights: list[float]) -> None:
+    with pytest.raises(ValueError):
+        effective_number_of_positions(pd.Series(weights))

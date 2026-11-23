@@ -164,7 +164,9 @@ def risk_contributions(returns: pd.DataFrame, weights: pd.Series) -> pd.Series:
     cov = returns[w.index].cov()
     marginal = cov.to_numpy() @ w.to_numpy()
     variance = float(w.to_numpy() @ marginal)
-    if variance <= 0:
+    # Constant returns leave ~1e-36 of rounding noise instead of exactly 0; a daily
+    # volatility below 1e-8 (variance 1e-16) is treated as no risk at all.
+    if variance <= 1e-16:
         raise ValueError("portfolio variance is zero")
     return pd.Series(w.to_numpy() * marginal / variance, index=w.index)
 
