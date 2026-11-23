@@ -89,3 +89,22 @@ def test_asset_labels_shorten_unless_ambiguous() -> None:
     labels = asset_labels(["PETR4.SA", "ASML.AS", "ASML", "BTC-USD", "IWDA.AS"])
 
     assert labels == ["PETR4", "ASML.AS", "ASML", "BTC-USD", "IWDA"]
+
+
+def test_cash_row_needs_its_currency_as_symbol(tmp_path: Path) -> None:
+    path = tmp_path / "h.csv"
+    path.write_text(
+        "asset,quantity,currency,source,symbol\nCaixa,10,BRL,cash,EUR\n", encoding="utf-8"
+    )
+
+    with pytest.raises(ValueError, match="cash row"):
+        load_holdings(path)
+
+
+def test_cash_row_is_read(tmp_path: Path) -> None:
+    path = tmp_path / "h.csv"
+    path.write_text(
+        "asset,quantity,currency,source,symbol\nCaixa BRL,10,BRL,cash,BRL\n", encoding="utf-8"
+    )
+
+    assert load_holdings(path).loc["Caixa BRL", "source"] == "cash"

@@ -19,7 +19,7 @@
 .results {
   position: absolute; z-index: 5; left: 0; right: 0; top: 56px; margin: 0; padding: 6px 0;
   list-style: none; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14); max-height: 360px; overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14); max-height: 420px; overflow-y: auto;
 }
 .results li {
   display: grid; grid-template-columns: 120px 1fr auto; gap: 14px; align-items: center;
@@ -32,6 +32,36 @@
 .results .ex { color: var(--ink-2); font-size: 12px; white-space: nowrap; }
 .results .state-row { display: block; color: var(--ink-2); cursor: default; }
 .results .state-row:hover { background: transparent; }
+.results .ex { text-align: right; }
+.results .ex small { display: block; font-size: 11px; color: var(--ink-3); }
+.results .filter-row {
+  display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 10px 10px; cursor: default;
+  border-bottom: 1px solid var(--rule); margin-bottom: 4px; position: sticky; top: -6px;
+  background: var(--paper); z-index: 1;
+}
+.results .filter-row:hover { background: var(--paper); }
+.chip {
+  font: inherit; font-size: 12px; padding: 4px 10px; min-height: 28px; border-radius: 999px;
+  border: 1px solid var(--rule); background: transparent; color: var(--ink-2); cursor: pointer;
+}
+.chip span { margin-left: 6px; color: var(--ink-2); font-variant-numeric: tabular-nums; opacity: 0.7; }
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.chip[aria-pressed="true"] span { color: var(--paper); }
+.results .more-row { display: block; padding: 8px 14px; cursor: default; }
+.results .more-row:hover { background: transparent; }
+.more {
+  font: inherit; font-size: 13px; width: 100%; padding: 8px; border-radius: 6px; cursor: pointer;
+  border: 1px dashed var(--rule); background: transparent; color: var(--ink);
+}
+.more:disabled { color: var(--ink-2); cursor: default; }
+
+.cash-add { margin-top: 18px; }
+.cash-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.cash-row select {
+  font: inherit; font-size: 15px; min-height: 44px; padding: 0 12px; color: var(--ink);
+  background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; min-width: 240px;
+}
+.cash-row select:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px var(--s1-soft); }
 
 /* ---------------------------------------------------------------- holdings table */
 .holdings td { vertical-align: middle; }
@@ -75,6 +105,7 @@
 
 @media (max-width: 640px) {
   .results li { grid-template-columns: 1fr; gap: 2px; }
+  .results .ex { text-align: left; }
   .primary { width: 100%; }
   /* Each position becomes a card: name on top, then price, quantity and value. */
   .holdings, .holdings tbody { display: block; width: 100%; }

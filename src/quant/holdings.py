@@ -6,14 +6,14 @@ import numpy as np
 import pandas as pd
 
 REQUIRED_COLUMNS = ("asset", "quantity", "currency")
-SOURCES = ("yahoo", "kraken")
+SOURCES = ("yahoo", "kraken", "cash")  # cash: money in ``currency``, ``symbol`` = that code
 
 
 def load_holdings(path: str | Path) -> pd.DataFrame:
     """Read holdings from a CSV with columns ``asset``, ``quantity``, ``currency``.
 
     Optional columns say where to download prices: ``symbol`` (the ticker at the source,
-    e.g. ``PETR4.SA``; defaults to ``asset``) and ``source`` (``yahoo`` or ``kraken``;
+    e.g. ``PETR4.SA``; defaults to ``asset``) and ``source`` (``yahoo``, ``kraken`` or ``cash``;
     defaults to ``yahoo``). See ``data/holdings.example.csv``. Keep the real file in
     ``data/private/`` (git-ignored).
 
@@ -72,6 +72,9 @@ def load_holdings(path: str | Path) -> pd.DataFrame:
         raise ValueError(f"unknown source {unknown}; use one of {list(SOURCES)}")
     symbol = raw["symbol"].fillna("").str.strip() if "symbol" in raw.columns else asset
     symbol = symbol.where(symbol != "", asset)
+    cash = source == "cash"
+    if (symbol[cash] != currency[cash]).any():
+        raise ValueError("a cash row needs its currency as symbol, e.g. symbol BRL, currency BRL")
 
     return pd.DataFrame(
         {

@@ -14,6 +14,7 @@ Parsing is separated from downloading so it can be tested on saved responses.
 from __future__ import annotations
 
 import functools
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, ParamSpec, TypeVar
@@ -23,7 +24,8 @@ import pandas as pd
 
 YAHOO = "yahoo"
 KRAKEN = "kraken"
-SOURCES = (YAHOO, KRAKEN)
+CASH = "cash"  # money held in a currency: price 1 in that currency, no download
+SOURCES = (YAHOO, KRAKEN, CASH)
 
 # Quotes in minor units: price / divisor gives the major currency.
 MINOR_UNITS = {
@@ -181,9 +183,107 @@ HOLDABLE_TYPES = {"EQUITY", "ETF", "MUTUALFUND", "CRYPTOCURRENCY"}
 # Yahoo's internal codes for venues that are not exchanges.
 EXCHANGE_NAMES = {"CCC": "Cripto", "CCY": "Câmbio"}
 
+# Yahoo exchange codes: display name and region (used to filter search results).
+EXCHANGE_CODES: dict[str, tuple[str, str]] = {
+    # Brazil
+    "SAO": ("São Paulo", "BR"),
+    # United States
+    "NYQ": ("NYSE", "US"),
+    "NMS": ("NASDAQ", "US"),
+    "NGM": ("NASDAQ", "US"),
+    "NCM": ("NASDAQ", "US"),
+    "NAS": ("NASDAQ", "US"),
+    "PCX": ("NYSE Arca", "US"),
+    "ASE": ("NYSE American", "US"),
+    "BTS": ("Cboe BZX", "US"),
+    "PNK": ("OTC EUA", "US"),
+    "OQX": ("OTC EUA", "US"),
+    "OQB": ("OTC EUA", "US"),
+    # Europe
+    "AMS": ("Amsterdã", "EU"),
+    "GER": ("XETRA", "EU"),
+    "FRA": ("Frankfurt", "EU"),
+    "DUS": ("Düsseldorf", "EU"),
+    "MUN": ("Munique", "EU"),
+    "STU": ("Stuttgart", "EU"),
+    "HAM": ("Hamburgo", "EU"),
+    "HAN": ("Hanôver", "EU"),
+    "BER": ("Berlim", "EU"),
+    "LSE": ("Londres", "EU"),
+    "IOB": ("Londres IOB", "EU"),
+    "PAR": ("Paris", "EU"),
+    "MIL": ("Milão", "EU"),
+    "MCE": ("Madri", "EU"),
+    "EBS": ("Suíça", "EU"),
+    "VTX": ("Suíça", "EU"),
+    "BRU": ("Bruxelas", "EU"),
+    "LIS": ("Lisboa", "EU"),
+    "VIE": ("Viena", "EU"),
+    "STO": ("Estocolmo", "EU"),
+    "CPH": ("Copenhague", "EU"),
+    "HEL": ("Helsinque", "EU"),
+    "OSL": ("Oslo", "EU"),
+    "ISE": ("Dublin", "EU"),
+    "ATH": ("Atenas", "EU"),
+    "WSE": ("Varsóvia", "EU"),
+    "PRA": ("Praga", "EU"),
+    "BUD": ("Budapeste", "EU"),
+    "BVB": ("Bucareste", "EU"),
+    "CXE": ("Cboe Europa", "EU"),
+    "DXE": ("Cboe Europa", "EU"),
+    "AQS": ("Aquis", "EU"),
+    # Crypto
+    "CCC": ("Cripto", "CRYPTO"),
+    # Rest of the world
+    "IST": ("Istambul", "OTHER"),
+    "TOR": ("Toronto", "OTHER"),
+    "VAN": ("TSX Venture", "OTHER"),
+    "NEO": ("Cboe Canadá", "OTHER"),
+    "CNQ": ("CSE Canadá", "OTHER"),
+    "MEX": ("México", "OTHER"),
+    "BUE": ("Buenos Aires", "OTHER"),
+    "SGO": ("Santiago", "OTHER"),
+    "BVC": ("Bogotá", "OTHER"),
+    "LIM": ("Lima", "OTHER"),
+    "HKG": ("Hong Kong", "OTHER"),
+    "SHH": ("Xangai", "OTHER"),
+    "SHZ": ("Shenzhen", "OTHER"),
+    "JPX": ("Tóquio", "OTHER"),
+    "TYO": ("Tóquio", "OTHER"),
+    "KSC": ("Coreia", "OTHER"),
+    "KOE": ("Coreia", "OTHER"),
+    "TAI": ("Taiwan", "OTHER"),
+    "TWO": ("Taiwan", "OTHER"),
+    "NSI": ("NSE Índia", "OTHER"),
+    "BSE": ("BSE Índia", "OTHER"),
+    "ASX": ("Austrália", "OTHER"),
+    "NZE": ("Nova Zelândia", "OTHER"),
+    "SES": ("Singapura", "OTHER"),
+    "KLS": ("Malásia", "OTHER"),
+    "JKT": ("Jacarta", "OTHER"),
+    "SET": ("Tailândia", "OTHER"),
+    "SAU": ("Arábia Saudita", "OTHER"),
+    "TLV": ("Tel Aviv", "OTHER"),
+    "JNB": ("Joanesburgo", "OTHER"),
+}
+REGIONS = ("BR", "US", "EU", "CRYPTO", "OTHER")
+
+# B3 lists the same share again under suffixes: F (fractional lot), Q and M. Holding is
+# always recorded on the main ticker.
+_B3_VARIANT = re.compile(r"^[A-Z]{4}\d{1,2}[FQM]\.SA$")
+
 
 def _clean(text: Any) -> str:
     return " ".join(str(text or "").split())
+
+
+def exchange_info(code: str, symbol: str) -> tuple[str, str]:
+    """Display name and region for a Yahoo exchange code (unknown codes keep the code)."""
+    if code in EXCHANGE_CODES:
+        return EXCHANGE_CODES[code]
+    if symbol.endswith(".SA"):
+        return ("São Paulo", "BR")
+    return (EXCHANGE_NAMES.get(code, code), "OTHER")
 
 
 @dataclass(frozen=True)
@@ -195,10 +295,27 @@ class SearchHit:
     exchange: str
     kind: str
     detail: str = ""  # the exchange's short name, e.g. "PETROBRAS PN N2" (share class)
+    region: str = "OTHER"  # one of REGIONS, to filter results
+
+
+def _hit(
+    symbol: str, kind: str, code: str, long_name: str, short_name: str, shown: str = ""
+) -> SearchHit:
+    name = long_name or short_name or symbol
+    detail = short_name if long_name and short_name and short_name != long_name else ""
+    exchange, region = exchange_info(code, symbol)
+    if code not in EXCHANGE_CODES and shown:
+        exchange = EXCHANGE_NAMES.get(shown, shown)
+    if kind == "CRYPTOCURRENCY":
+        region = "CRYPTO"
+    return SearchHit(symbol, name, exchange, kind, detail, region)
 
 
 def yahoo_search_url(text: str, count: int = 10) -> str:
-    """Search API URL for instruments matching ``text`` (name or ticker)."""
+    """Search API URL for instruments matching ``text`` (name or ticker).
+
+    Well ranked, but returns at most 7 instruments; :func:`yahoo_lookup_url` lists all.
+    """
     query = urlencode({"q": text, "quotesCount": count, "newsCount": 0, "listsCount": 0})
     return f"https://query1.finance.yahoo.com/v1/finance/search?{query}"
 
@@ -225,14 +342,82 @@ def parse_yahoo_search(payload: dict[str, Any]) -> list[SearchHit]:
         symbol = _field(item, "symbol")
         if kind not in HOLDABLE_TYPES or not symbol:
             continue
-        long_name, short_name = _clean(_field(item, "longname")), _clean(_field(item, "shortname"))
-        name = long_name or short_name or str(symbol)
-        detail = short_name if long_name and short_name and short_name != long_name else ""
-        exchange = _clean(_field(item, "exchDisp") or _field(item, "exchange"))
         hits.append(
-            SearchHit(str(symbol), name, EXCHANGE_NAMES.get(exchange, exchange), kind, detail)
+            _hit(
+                str(symbol),
+                kind,
+                _clean(_field(item, "exchange")),
+                _clean(_field(item, "longname")),
+                _clean(_field(item, "shortname")),
+                _clean(_field(item, "exchDisp")),
+            )
         )
     return hits
+
+
+def yahoo_lookup_url(text: str, start: int = 0, count: int = 25) -> str:
+    """Lookup API URL: every instrument matching ``text``, paged with ``start``."""
+    query = urlencode({"query": text, "type": "all", "start": start, "count": count})
+    return f"https://query1.finance.yahoo.com/v1/finance/lookup?{query}"
+
+
+@_tolerant
+def parse_yahoo_lookup(payload: dict[str, Any]) -> tuple[list[SearchHit], int]:
+    """Instruments from one page of the lookup API, and how many holdable ones exist.
+
+    Returns
+    -------
+    hits : list of SearchHit
+        Holdable instruments on this page, in the source's order.
+    total : int
+        Matches over all pages for the holdable types (to know whether to offer more).
+
+    """
+    result: Any = _field(payload, "finance", "result", 0) or {}
+    total = sum(int(_field(result, "lookupTotals", k.lower()) or 0) for k in HOLDABLE_TYPES)
+    hits: list[SearchHit] = []
+    documents: list[Any] = _field(result, "documents") or []
+    for item in documents:
+        kind = str(_field(item, "quoteType") or "").upper()
+        symbol = _field(item, "symbol")
+        if kind not in HOLDABLE_TYPES or not symbol:
+            continue
+        hits.append(
+            _hit(
+                str(symbol),
+                kind,
+                _clean(_field(item, "exchange")),
+                _clean(_field(item, "longName")),
+                _clean(_field(item, "shortName")),
+            )
+        )
+    return hits, total
+
+
+def merge_hits(text: str, *groups: list[SearchHit]) -> list[SearchHit]:
+    """Combine result lists: no duplicates, exact ticker first, B3 lot variants hidden.
+
+    A variant such as ``PETR4F.SA`` (fractional lot) is the same share as ``PETR4.SA``;
+    it is kept only when the user typed exactly that ticker.
+    """
+    typed = text.strip().upper()
+    seen: set[str] = set()
+    merged: list[SearchHit] = []
+    for group in groups:
+        for hit in group:
+            key = hit.symbol.upper()
+            if key in seen:
+                continue
+            if _B3_VARIANT.match(key) and typed not in (key, key.removesuffix(".SA")):
+                continue
+            seen.add(key)
+            merged.append(hit)
+
+    def exact(hit: SearchHit) -> bool:
+        s = hit.symbol.upper()
+        return typed in (s, s.split(".")[0], s.split("-")[0])
+
+    return sorted(merged, key=lambda h: not exact(h))  # stable: keeps source ranking
 
 
 @dataclass(frozen=True)

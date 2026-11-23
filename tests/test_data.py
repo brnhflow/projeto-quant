@@ -11,9 +11,12 @@ import pytest
 from quant.data import DataConfigError, update_market_data
 from quant.data.http import fetch_json
 from quant.data.sources import (
+    SearchHit,
+    merge_hits,
     parse_frankfurter,
     parse_kraken_ohlc,
     parse_yahoo_chart,
+    parse_yahoo_lookup,
     parse_yahoo_search,
     parse_yahoo_snapshot,
 )
@@ -211,6 +214,24 @@ def test_update_downloads_caches_and_reports_status(tmp_path: Path) -> None:
     assert (tmp_path / "fx_EUR.csv").exists()
 
 
+def test_cash_is_worth_one_unit_every_business_day_without_download(tmp_path: Path) -> None:
+    holdings = _holdings([("Caixa BRL", "BRL", "cash", "BRL")])
+
+    def fetch(url: str) -> Any:
+        assert "frankfurter" in url  # only the exchange rate is downloaded
+        return _fixture("frankfurter")
+
+    data = update_market_data(holdings, START, tmp_path, fetch=fetch, now=NOW, pause=0)
+
+    cash = data.prices["Caixa BRL"]
+    assert (cash == 1.0).all()
+    assert cash.index[0] == pd.Timestamp("2026-11-02")  # START is a Sunday
+    assert cash.index[-1] == pd.Timestamp("2026-11-23")
+    assert len(cash) == 16  # business days from 2 to 23 November
+    assert "BRL" in data.fx.columns
+    assert data.problems == []
+
+
 def test_failed_source_falls_back_to_cache_and_says_so(tmp_path: Path) -> None:
     holdings = _holdings([("PETR4", "BRL", "yahoo", "PETR4.SA")])
     first = update_market_data(
@@ -284,6 +305,48 @@ def test_search_drops_futures() -> None:
     assert next(h for h in hits if h.symbol == "BTC-USD").exchange == "Cripto"
     assert all(h.kind != "FUTURE" for h in hits)
     assert all(not h.symbol.endswith("=F") for h in hits)
+
+
+def test_lookup_lists_every_holdable_match_with_exchange_and_region() -> None:
+    hits, total = parse_yahoo_lookup(_fixture("yahoo_lookup_petrobras"))
+
+    by_symbol = {h.symbol: h for h in hits}
+    assert total == 44  # 43 equities + 1 tokenized crypto, over all pages
+    assert by_symbol["PETR3.SA"].exchange == "São Paulo"
+    assert by_symbol["PETR3.SA"].region == "BR"
+    assert by_symbol["PBR"].exchange == "NYSE"
+    assert by_symbol["PBR"].region == "US"
+    assert by_symbol["PJXC.F"].region == "EU"
+    assert all(h.kind in {"EQUITY", "ETF", "MUTUALFUND", "CRYPTOCURRENCY"} for h in hits)
+
+
+def test_lookup_without_results() -> None:
+    assert parse_yahoo_lookup({"finance": {"result": [{"documents": []}]}}) == ([], 0)
+    assert parse_yahoo_lookup({}) == ([], 0)
+
+
+def _h(symbol: str) -> SearchHit:
+    return SearchHit(symbol, symbol, "X", "EQUITY")
+
+
+def test_merge_removes_duplicates_and_keeps_source_order() -> None:
+    merged = merge_hits("petrobras", [_h("PBR"), _h("PETR4.SA")], [_h("PETR4.SA"), _h("PETR3.SA")])
+
+    assert [h.symbol for h in merged] == ["PBR", "PETR4.SA", "PETR3.SA"]
+
+
+def test_merge_puts_the_exact_ticker_first() -> None:
+    merged = merge_hits("petr3", [_h("PBR"), _h("PETR4.SA"), _h("PETR3.SA")])
+
+    assert merged[0].symbol == "PETR3.SA"
+    assert [h.symbol for h in merged[1:]] == ["PBR", "PETR4.SA"]
+
+
+def test_merge_hides_b3_lot_variants_unless_typed() -> None:
+    hits = [_h("PETR4.SA"), _h("PETR4F.SA"), _h("PETR4Q.SA"), _h("ITSA4.SA")]
+
+    assert [h.symbol for h in merge_hits("petrobras", hits)] == ["PETR4.SA", "ITSA4.SA"]
+    assert merge_hits("PETR4F", hits)[0].symbol == "PETR4F.SA"
 
 
 def test_search_without_results() -> None:

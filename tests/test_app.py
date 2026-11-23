@@ -22,6 +22,8 @@ def _fixture(name: str) -> Any:
 def fake_fetch(url: str) -> Any:
     if "/v1/finance/search" in url:
         return _fixture("yahoo_search_petrobras")
+    if "/v1/finance/lookup" in url:
+        return _fixture("yahoo_lookup_petrobras")
     if "ASML.AS" in url:
         return _fixture("yahoo_asml_quote")
     if "PETR4.SA" in url:
@@ -117,7 +119,54 @@ def test_empty_search_returns_nothing_without_network(app: tuple[AppConfig, int]
     status, _, body = _request(app[1], "GET", "/api/search?q=")
 
     assert status == 200
-    assert json.loads(body) == {"results": []}
+    assert json.loads(body) == {"results": [], "next": None}
+
+
+def test_search_lists_every_match_and_pages(app: tuple[AppConfig, int]) -> None:
+    status, _, body = _request(app[1], "GET", "/api/search?q=petrobras")
+
+    data = json.loads(body)
+    symbols = [r["symbol"] for r in data["results"]]
+    assert status == 200
+    assert len(symbols) > 7  # more than the search API alone ever returns
+    assert len(symbols) == len(set(symbols))
+    assert {"PETR3.SA", "PETR4.SA", "PBR"} <= set(symbols)
+    assert data["next"] == 25  # 44 matches, 25 per page
+
+    _, _, body = _request(app[1], "GET", "/api/search?q=petrobras&start=25")
+    assert json.loads(body)["next"] is None
+
+
+def test_search_survives_one_source_down(app: tuple[AppConfig, int]) -> None:
+    def lookup_down(url: str) -> Any:
+        if "/v1/finance/lookup" in url:
+            raise ConnectionError("HTTP 503")
+        return fake_fetch(url)
+
+    app[0].fetch = lookup_down
+    status, _, body = _request(app[1], "GET", "/api/search?q=petrobras")
+
+    assert status == 200
+    assert "PETR4.SA" in [r["symbol"] for r in json.loads(body)["results"]]
+
+
+def test_search_with_every_source_down_is_a_gateway_error(app: tuple[AppConfig, int]) -> None:
+    def down(url: str) -> Any:
+        raise ConnectionError("HTTP 503")
+
+    app[0].fetch = down
+    status, _, body = _request(app[1], "GET", "/api/search?q=petrobras")
+
+    assert status == 502
+    assert "indisponível" in json.loads(body)["error"]
+
+
+@pytest.mark.parametrize("start", ["-1", "abc", "5000"])
+def test_search_rejects_bad_page(app: tuple[AppConfig, int], start: str) -> None:
+    status, _, body = _request(app[1], "GET", f"/api/search?q=petr&start={start}")
+
+    assert status == 200
+    assert json.loads(body)["results"] == []
 
 
 def test_quote_gives_currency_and_price(app: tuple[AppConfig, int]) -> None:
@@ -162,7 +211,52 @@ def test_analysis_saves_portfolio_and_serves_report(app: tuple[AppConfig, int]) 
         "symbol": "ASML.AS",
         "quantity": 2.5,
         "currency": "EUR",
+        "kind": "instrument",
     }
+
+
+def test_cash_is_analysed_saved_and_restored(app: tuple[AppConfig, int]) -> None:
+    config, port = app
+    positions = [
+        *POSITIONS,
+        {"symbol": "BRL", "quantity": 5000, "currency": "BRL", "kind": "cash"},
+        {"symbol": "EUR", "quantity": 1000, "currency": "EUR", "kind": "cash"},
+    ]
+
+    status, _, body = _request(port, "POST", "/api/report", {"years": 1, "positions": positions})
+
+    assert status == 200, body
+    saved = load_holdings(config.holdings_path)
+    assert saved.index.tolist() == ["PETR4", "ASML", "Caixa BRL", "Caixa EUR"]
+    assert saved.loc["Caixa BRL", "source"] == "cash"
+    _, _, holdings = _request(port, "GET", "/api/holdings")
+    assert json.loads(holdings)["positions"][2] == {
+        "symbol": "BRL",
+        "quantity": 5000.0,
+        "currency": "BRL",
+        "kind": "cash",
+    }
+
+
+def test_cash_and_a_ticker_with_the_same_code_can_coexist() -> None:
+    holdings, _ = parse_positions(
+        {
+            "positions": [
+                {"symbol": "USD", "quantity": 3, "currency": "USD"},
+                {"symbol": "USD", "quantity": 100, "currency": "USD", "kind": "cash"},
+            ]
+        }
+    )
+
+    assert holdings.index.tolist() == ["USD", "Caixa USD"]
+    assert holdings["source"].tolist() == ["yahoo", "cash"]
+
+
+def test_cash_in_another_currency_than_its_code_is_refused() -> None:
+    with pytest.raises(BadRequestError, match="moeda precisa ser BRL"):
+        parse_positions(
+            {"positions": [{"symbol": "BRL", "quantity": 1, "currency": "EUR", "kind": "cash"}]}
+        )
 
 
 def test_wrong_currency_is_reported_to_the_page(app: tuple[AppConfig, int]) -> None:

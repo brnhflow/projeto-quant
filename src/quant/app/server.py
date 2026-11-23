@@ -27,8 +27,14 @@ from quant.data import DataConfigError, update_market_data
 from quant.data.http import fetch_json
 from quant.data.market import Fetch
 from quant.data.sources import (
+    CASH,
+    YAHOO,
+    SearchHit,
+    merge_hits,
+    parse_yahoo_lookup,
     parse_yahoo_search,
     parse_yahoo_snapshot,
+    yahoo_lookup_url,
     yahoo_search_url,
     yahoo_snapshot_url,
 )
@@ -38,6 +44,7 @@ from quant.report import build_report
 SYMBOL = re.compile(r"^[A-Za-z0-9.\-=^&]{1,24}$")  # & appears in real tickers (M&M.NS)
 CURRENCY = re.compile(r"^[A-Z]{3}$")
 YEARS = (1, 2, 3, 5)
+PAGE = 25  # lookup results per page
 MAX_BODY = 64 * 1024
 MAX_POSITIONS = 100
 MAX_QUANTITY = 1e12
@@ -70,13 +77,26 @@ class BadRequestError(ValueError):
     """Input from the page that cannot be used; the message is shown to the user."""
 
 
+def _labels(symbols: list[str], sources: list[str]) -> list[str]:
+    """Report names: short tickers for instruments, "Caixa BRL" for cash."""
+    tickers = iter(
+        asset_labels([s for s, src in zip(symbols, sources, strict=True) if src != CASH])
+    )
+    return [
+        f"Caixa {s}" if src == CASH else next(tickers)
+        for s, src in zip(symbols, sources, strict=True)
+    ]
+
+
 def parse_positions(body: Any) -> tuple[pd.DataFrame, int]:
     """Validate the analysis request and turn it into holdings plus years of history.
 
     Parameters
     ----------
     body : Any
-        Decoded JSON: ``{"positions": [{"symbol", "quantity", "currency"}], "years": int}``.
+        Decoded JSON: ``{"positions": [{"symbol", "quantity", "currency", "kind"}],
+        "years": int}``. ``kind`` is ``"cash"`` for money held in ``currency`` (then
+        ``symbol`` is the currency code); anything else is an instrument on Yahoo.
 
     Returns
     -------
@@ -105,13 +125,18 @@ def parse_positions(body: Any) -> tuple[pd.DataFrame, int]:
     symbols: list[str] = []
     quantities: list[float] = []
     currencies: list[str] = []
+    sources: list[str] = []
+    seen: set[tuple[bool, str]] = set()
     for raw_item in positions:
         item = cast(dict[str, Any], raw_item) if isinstance(raw_item, dict) else {}
         symbol = str(item.get("symbol", ""))
         if not SYMBOL.match(symbol):
             raise BadRequestError(f"Código inválido: {symbol or '(vazio)'}.")
-        if symbol.upper() in (s.upper() for s in symbols):
+        cash = item.get("kind") == "cash"
+        key = (cash, symbol.upper())
+        if key in seen:
             raise BadRequestError(f"{symbol} aparece duas vezes.")
+        seen.add(key)
         quantity: Any = item.get("quantity")
         if isinstance(quantity, bool) or not isinstance(quantity, int | float):
             raise BadRequestError(f"Quantidade de {symbol} precisa ser um número maior que zero.")
@@ -126,18 +151,21 @@ def parse_positions(body: Any) -> tuple[pd.DataFrame, int]:
             raise BadRequestError(
                 f"Moeda de {symbol} desconhecida; remova e adicione o ativo de novo."
             )
+        if cash and symbol != currency:
+            raise BadRequestError(f"Caixa em {symbol}: a moeda precisa ser {symbol}.")
         symbols.append(symbol)
         quantities.append(float(quantity))
         currencies.append(currency)
+        sources.append(CASH if cash else YAHOO)
 
     holdings = pd.DataFrame(
         {
             "quantity": quantities,
             "currency": currencies,
-            "source": ["yahoo"] * len(symbols),
+            "source": sources,
             "symbol": symbols,
         },
-        index=pd.Index(asset_labels(symbols), name="asset"),
+        index=pd.Index(_labels(symbols, sources), name="asset"),
     )
     return holdings, int(years)
 
@@ -166,6 +194,42 @@ def analyse(config: AppConfig, holdings: pd.DataFrame, years: int) -> dict[str, 
     return {"url": "/report", "status": [asdict(s) for s in market.status]}
 
 
+def search(config: AppConfig, text: str, start: int = 0) -> dict[str, Any]:
+    """Instruments matching ``text``: the best-ranked first, then every other match.
+
+    The first page joins the search API (well ranked, at most 7 results) with the
+    lookup API (every match, poorly ranked); later pages come from the lookup alone.
+    ``next`` is the ``start`` of the following page, or None when there is no more.
+
+    Raises
+    ------
+    ConnectionError
+        If neither source answers.
+
+    """
+    groups: list[list[SearchHit]] = []
+    errors: list[str] = []
+    if start == 0:
+        try:
+            groups.append(parse_yahoo_search(config.fetch(yahoo_search_url(text))))
+        except (ConnectionError, ValueError) as error:
+            errors.append(str(error))
+    total = 0
+    try:
+        page, total = parse_yahoo_lookup(config.fetch(yahoo_lookup_url(text, start, PAGE)))
+        groups.append(page)
+    except (ConnectionError, ValueError) as error:
+        errors.append(str(error))
+    if not groups:
+        raise ConnectionError("; ".join(errors))
+    hits = [h for h in merge_hits(text, *groups) if SYMBOL.match(h.symbol)]
+    following = start + PAGE
+    return {
+        "results": [asdict(h) for h in hits],
+        "next": following if following < total else None,
+    }
+
+
 def saved_positions(config: AppConfig) -> list[dict[str, Any]]:
     """Return the last saved portfolio, or an empty list when there is none yet."""
     if not config.holdings_path.exists():
@@ -176,9 +240,10 @@ def saved_positions(config: AppConfig) -> list[dict[str, Any]]:
             "symbol": str(row["symbol"]),
             "quantity": float(row["quantity"]),
             "currency": str(row["currency"]),
+            "kind": "cash" if row["source"] == CASH else "instrument",
         }
         for _, row in holdings.iterrows()
-        if row["source"] == "yahoo"
+        if row["source"] in (YAHOO, CASH)
     ]
 
 
@@ -266,19 +331,14 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
                     )
             elif url.path == "/api/search":
                 text = (query.get("q") or [""])[0].strip()
-                if not 1 <= len(text) <= 60:
-                    self._json(HTTPStatus.OK, {"results": []})
+                start = (query.get("start") or ["0"])[0]
+                if not 1 <= len(text) <= 60 or not start.isdigit() or int(start) > 1000:
+                    self._json(HTTPStatus.OK, {"results": [], "next": None})
                     return
                 try:
-                    hits = [
-                        h
-                        for h in parse_yahoo_search(config.fetch(yahoo_search_url(text)))
-                        if SYMBOL.match(h.symbol)
-                    ]
-                except (ConnectionError, ValueError) as error:
+                    self._json(HTTPStatus.OK, search(config, text, int(start)))
+                except ConnectionError as error:
                     self._error(HTTPStatus.BAD_GATEWAY, f"Busca indisponível agora ({error}).")
-                    return
-                self._json(HTTPStatus.OK, {"results": [asdict(h) for h in hits]})
             elif url.path == "/api/quote":
                 symbol = (query.get("symbol") or [""])[0]
                 if not SYMBOL.match(symbol):

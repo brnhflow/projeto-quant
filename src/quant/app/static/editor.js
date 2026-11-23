@@ -5,7 +5,7 @@
   const DRAFT = "quant.portfolio.draft";
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-  /** @type {{symbol:string,name:string,exchange:string,currency:string,price:number|null,live:boolean,quantity:number|null,loading:boolean,error:string|null}[]} */
+  /** @type {{symbol:string,kind:string,name:string,exchange:string,currency:string,price:number|null,live:boolean,quantity:number|null,loading:boolean,error:string|null}[]} */
   let rows = [];
   let years = 2;
 
@@ -33,11 +33,19 @@
 
   // ---------------------------------------------------------------- state
   function saveDraft() {
-    const data = rows.map((r) => ({ symbol: r.symbol, quantity: r.quantity, currency: r.currency }));
+    const data = rows.map((r) => ({ symbol: r.symbol, quantity: r.quantity, currency: r.currency, kind: r.kind }));
     localStorage.setItem(DRAFT, JSON.stringify({ rows: data, years }));
   }
 
+  // Cash and a ticker can share a code (the ETF "USD" and dollars), so rows have a key.
+  const keyOf = (r) => (r.kind === "cash" ? `cash:${r.symbol}` : r.symbol);
+  const CURRENCY_NAMES = { EUR: "euro", BRL: "real", USD: "dólar americano", GBP: "libra", CHF: "franco suíço", JPY: "iene", CAD: "dólar canadense", AUD: "dólar australiano", SEK: "coroa sueca", NOK: "coroa norueguesa", DKK: "coroa dinamarquesa", PLN: "zloty", CNY: "yuan", HKD: "dólar de Hong Kong", MXN: "peso mexicano" };
+  function cashRow(currency, quantity) {
+    return { symbol: currency, kind: "cash", name: `Dinheiro em ${CURRENCY_NAMES[currency] || currency}`, exchange: "Caixa", currency, price: 1, live: false, quantity, loading: false, error: null };
+  }
+
   async function loadQuote(row) {
+    if (row.kind === "cash") return;
     row.loading = true; row.error = null;
     updateRow(row);
     try {
@@ -53,18 +61,18 @@
   async function add(hit) {
     closeResults();
     $("search").value = "";
-    const existing = rows.find((r) => r.symbol === hit.symbol);
-    if (existing) { focusQty(existing.symbol); return; }
-    const row = { symbol: hit.symbol, name: hit.name, exchange: hit.exchange, currency: "", price: null, live: false, quantity: null, loading: true, error: null };
+    const existing = rows.find((r) => keyOf(r) === hit.symbol);
+    if (existing) { focusQty(keyOf(existing)); return; }
+    const row = { symbol: hit.symbol, kind: "instrument", name: hit.name, exchange: hit.exchange, currency: "", price: null, live: false, quantity: null, loading: true, error: null };
     rows.push(row);
     render();
-    focusQty(row.symbol);
+    focusQty(keyOf(row));
     await loadQuote(row);
     saveDraft();
   }
 
-  function focusQty(symbol) {
-    const input = document.querySelector(`.qty[data-symbol="${CSS.escape(symbol)}"]`);
+  function focusQty(key) {
+    const input = document.querySelector(`.qty[data-key="${CSS.escape(key)}"]`);
     if (input) input.focus();
   }
 
@@ -75,10 +83,10 @@
 
   function cells(r) {
     return {
-      asset: `${esc(r.symbol)}<span class="name">${esc(r.error || r.name || "")}</span>`,
+      asset: `${esc(r.kind === "cash" ? `Caixa ${r.symbol}` : r.symbol)}<span class="name">${esc(r.error || r.name || "")}</span>`,
       exchange: esc(r.exchange || ""),
       currency: esc(r.currency || ""),
-      price: esc(r.loading ? "buscando…" : r.error ? "sem cotação" : fmtMoney(r.price, r.currency)) +
+      price: r.kind === "cash" ? "—" : esc(r.loading ? "buscando…" : r.error ? "sem cotação" : fmtMoney(r.price, r.currency)) +
         (r.live ? `<span class="live">negociando agora</span>` : ""),
       value: esc(r.price !== null && r.quantity > 0 ? fmtMoney(r.price * r.quantity, r.currency) : "—"),
     };
@@ -91,15 +99,15 @@
     body.innerHTML = rows.map((r) => {
       const c = cells(r);
       const qtyText = r.quantity === null || !(r.quantity > 0) ? "" : fmtQty(r.quantity);
-      return `<tr data-row="${esc(r.symbol)}" class="${r.loading ? "row-loading" : ""}">
+      return `<tr data-row="${esc(keyOf(r))}" class="${r.loading ? "row-loading" : ""}">
         <td class="asset" data-cell="asset">${c.asset}</td>
         <td data-cell="exchange">${c.exchange}</td>
         <td data-cell="currency">${c.currency}</td>
         <td class="r" data-cell="price">${c.price}</td>
-        <td class="r"><input class="qty" data-symbol="${esc(r.symbol)}" inputmode="decimal" value="${esc(qtyText)}"
+        <td class="r"><input class="qty" data-key="${esc(keyOf(r))}" inputmode="decimal" value="${esc(qtyText)}"
           aria-label="Quantidade de ${esc(r.symbol)}" placeholder="0"></td>
         <td class="r" data-cell="value">${c.value}</td>
-        <td class="r"><button type="button" class="remove" data-remove="${esc(r.symbol)}" aria-label="Remover ${esc(r.symbol)}" title="Remover">${X_ICON}</button></td>
+        <td class="r"><button type="button" class="remove" data-remove="${esc(keyOf(r))}" aria-label="Remover ${esc(r.symbol)}" title="Remover">${X_ICON}</button></td>
       </tr>`;
     }).join("");
     $("positions-lede").textContent = rows.length === 0 ? "Nenhum ativo ainda."
@@ -108,7 +116,7 @@
   }
 
   function updateRow(r) {
-    const tr = document.querySelector(`tr[data-row="${CSS.escape(r.symbol)}"]`);
+    const tr = document.querySelector(`tr[data-row="${CSS.escape(keyOf(r))}"]`);
     if (!tr) return;
     const c = cells(r);
     for (const key of Object.keys(c)) tr.querySelector(`[data-cell="${key}"]`).innerHTML = c[key];
@@ -124,7 +132,7 @@
   $("holdings").addEventListener("input", (ev) => {
     const input = ev.target.closest(".qty");
     if (!input) return;
-    const row = rows.find((r) => r.symbol === input.dataset.symbol);
+    const row = rows.find((r) => keyOf(r) === input.dataset.key);
     const q = parseQuantity(input.value);
     row.quantity = q === null || Number.isNaN(q) ? (input.value.trim() ? -1 : null) : q;
     input.setAttribute("aria-invalid", String(row.quantity !== null && !(row.quantity > 0)));
@@ -134,21 +142,25 @@
   $("holdings").addEventListener("change", (ev) => {
     const input = ev.target.closest(".qty");
     if (!input) return;
-    const row = rows.find((r) => r.symbol === input.dataset.symbol);
+    const row = rows.find((r) => keyOf(r) === input.dataset.key);
     if (row.quantity > 0) input.value = fmtQty(row.quantity);
   });
   $("holdings").addEventListener("click", (ev) => {
     const button = ev.target.closest("[data-remove]");
     if (!button) return;
-    rows = rows.filter((r) => r.symbol !== button.dataset.remove);
+    rows = rows.filter((r) => keyOf(r) !== button.dataset.remove);
     render();
     saveDraft();
     $("search").focus();
   });
 
   // ---------------------------------------------------------------- search
+  // Every match is listed: the best-ranked first, then the rest page by page. Filters
+  // narrow the loaded results by market without a new request.
   const input = $("search"), list = $("results"), combo = $("combo");
-  let hits = [], active = -1, timer = 0, seq = 0;
+  const REGIONS = [["", "Todos"], ["BR", "Brasil"], ["US", "EUA"], ["EU", "Europa"], ["CRYPTO", "Cripto"], ["OTHER", "Outros"]];
+  const KINDS = { EQUITY: "Ação", ETF: "ETF", MUTUALFUND: "Fundo", CRYPTOCURRENCY: "Cripto" };
+  let hits = [], shown = [], active = -1, timer = 0, seq = 0, region = "", next = null, query = "", loadingMore = false;
 
   function closeResults() {
     list.hidden = true; combo.setAttribute("aria-expanded", "false"); active = -1;
@@ -159,17 +171,47 @@
   }
   function showHits() {
     if (!hits.length) { showState("Nada encontrado. Tente o código, como PETR4 ou ASML."); return; }
-    list.innerHTML = hits.map((h, i) =>
-      `<li role="option" id="hit-${i}" data-i="${i}" aria-selected="${i === active}">` +
-      `<span class="sym">${esc(h.symbol)}</span><span class="nm">${esc(h.name)}${h.detail ? `<small>${esc(h.detail)}</small>` : ""}</span><span class="ex">${esc(h.exchange)}</span></li>`
+    shown = region ? hits.filter((h) => h.region === region) : hits;
+    if (active >= shown.length) active = shown.length - 1;
+    const counts = {};
+    hits.forEach((h) => { counts[h.region] = (counts[h.region] || 0) + 1; });
+    const chips = REGIONS.filter(([key]) => !key || counts[key]).map(([key, label]) =>
+      `<button type="button" class="chip" data-region="${key}" aria-pressed="${key === region}">${label}<span>${key ? counts[key] : hits.length}</span></button>`
     ).join("");
+    const rowsHtml = shown.map((h, i) =>
+      `<li role="option" id="hit-${i}" data-i="${i}" aria-selected="${i === active}">` +
+      `<span class="sym">${esc(h.symbol)}</span><span class="nm">${esc(h.name)}${h.detail ? `<small>${esc(h.detail)}</small>` : ""}</span>` +
+      `<span class="ex">${esc(h.exchange)}<small>${esc(KINDS[h.kind] || h.kind)}</small></span></li>`
+    ).join("");
+    const empty = shown.length ? "" : `<li class="state-row" aria-disabled="true">Nenhum resultado nesse mercado entre os carregados.</li>`;
+    const more = next === null ? "" :
+      `<li class="more-row" role="option" aria-disabled="true"><button type="button" class="more" ${loadingMore ? "disabled" : ""}>${loadingMore ? "Carregando…" : "Mostrar mais resultados"}</button></li>`;
+    list.innerHTML = `<li class="filter-row" role="presentation">${chips}</li>${rowsHtml}${empty}${more}`;
     list.hidden = false; combo.setAttribute("aria-expanded", "true");
     input.setAttribute("aria-activedescendant", active >= 0 ? `hit-${active}` : "");
+    const current = active >= 0 && $(`hit-${active}`);
+    if (current) current.scrollIntoView({ block: "nearest" });
+  }
+  async function loadMore() {
+    if (next === null || loadingMore) return;
+    const mine = seq;
+    loadingMore = true; showHits();
+    try {
+      const data = await api(`/api/search?q=${encodeURIComponent(query)}&start=${next}`);
+      if (mine !== seq) return;
+      const known = new Set(hits.map((h) => h.symbol));
+      hits = hits.concat(data.results.filter((h) => !known.has(h.symbol)));
+      next = data.next;
+    } catch (e) {
+      if (mine === seq) next = null;
+    } finally {
+      if (mine === seq) { loadingMore = false; showHits(); }
+    }
   }
   input.addEventListener("input", () => {
     clearTimeout(timer);
     // Results on screen belong to the previous text: forget them so Enter cannot add one.
-    hits = []; active = -1; seq++;
+    hits = []; shown = []; active = -1; next = null; loadingMore = false; seq++;
     const text = input.value.trim();
     if (!text) { closeResults(); return; }
     showState("Buscando…");
@@ -178,7 +220,7 @@
       try {
         const data = await api(`/api/search?q=${encodeURIComponent(text)}`);
         if (mine !== seq) return;
-        hits = data.results; active = hits.length ? 0 : -1;
+        query = text; hits = data.results; next = data.next; active = hits.length ? 0 : -1;
         showHits();
       } catch (e) {
         if (mine === seq) showState(e.message);
@@ -186,17 +228,32 @@
     }, 280);
   });
   input.addEventListener("keydown", (ev) => {
-    if (list.hidden || !hits.length) return;
-    if (ev.key === "ArrowDown") { active = (active + 1) % hits.length; showHits(); ev.preventDefault(); }
-    else if (ev.key === "ArrowUp") { active = (active - 1 + hits.length) % hits.length; showHits(); ev.preventDefault(); }
-    else if (ev.key === "Enter" && active >= 0) { add(hits[active]); ev.preventDefault(); }
+    if (list.hidden || !shown.length) return;
+    if (ev.key === "ArrowDown") { active = (active + 1) % shown.length; showHits(); ev.preventDefault(); }
+    else if (ev.key === "ArrowUp") { active = (active - 1 + shown.length) % shown.length; showHits(); ev.preventDefault(); }
+    else if (ev.key === "Enter" && active >= 0) { add(shown[active]); ev.preventDefault(); }
     else if (ev.key === "Escape") closeResults();
   });
   list.addEventListener("mousedown", (ev) => {
+    // Keep focus in the input so the list stays open while using chips and "more".
+    ev.preventDefault();
+    const chip = ev.target.closest(".chip");
+    if (chip) { region = chip.dataset.region; active = 0; showHits(); return; }
+    if (ev.target.closest(".more")) { loadMore(); return; }
     const li = ev.target.closest("li[data-i]");
-    if (li) { ev.preventDefault(); add(hits[+li.dataset.i]); }
+    if (li) add(shown[+li.dataset.i]);
+  });
+  list.addEventListener("scroll", () => {
+    if (list.scrollTop + list.clientHeight >= list.scrollHeight - 40) loadMore();
   });
   input.addEventListener("blur", () => setTimeout(closeResults, 120));
+
+  $("cash-add").addEventListener("click", () => {
+    const currency = $("cash-currency").value;
+    const existing = rows.find((r) => keyOf(r) === `cash:${currency}`);
+    if (!existing) { rows.push(cashRow(currency, null)); render(); saveDraft(); }
+    focusQty(`cash:${currency}`);
+  });
 
   // ---------------------------------------------------------------- analyse
   document.querySelectorAll("#years button").forEach((b) => b.addEventListener("click", () => {
@@ -213,7 +270,7 @@
       const result = await api("/api/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ years, positions: rows.map((r) => ({ symbol: r.symbol, quantity: r.quantity, currency: r.currency })) }),
+        body: JSON.stringify({ years, positions: rows.map((r) => ({ symbol: r.symbol, quantity: r.quantity, currency: r.currency, kind: r.kind })) }),
       });
       localStorage.removeItem(DRAFT);
       window.location.href = result.url;
@@ -238,7 +295,8 @@
       years = draft.years;
       document.querySelectorAll("#years button").forEach((x) => x.setAttribute("aria-pressed", String(+x.dataset.years === years)));
     }
-    rows = source.map((p) => ({ symbol: p.symbol, name: "", exchange: "", currency: p.currency || "", price: null, live: false, quantity: p.quantity, loading: true, error: null }));
+    rows = source.map((p) => p.kind === "cash" ? cashRow(p.currency, p.quantity)
+      : { symbol: p.symbol, kind: "instrument", name: "", exchange: "", currency: p.currency || "", price: null, live: false, quantity: p.quantity, loading: true, error: null });
     render();
     await Promise.all(rows.map(loadQuote));
     const r = await fetch("/report", { redirect: "manual" });

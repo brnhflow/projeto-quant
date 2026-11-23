@@ -261,7 +261,7 @@
     if (D.editUrl) { $("edit").href = D.editUrl; $("edit").hidden = false; }
   }
 
-  const SOURCE_NAME = { yahoo: "Yahoo Finance", kraken: "Kraken", ecb: "BCE (via Frankfurter)" };
+  const SOURCE_NAME = { yahoo: "Yahoo Finance", kraken: "Kraken", ecb: "BCE (via Frankfurter)", cash: "Caixa (valor fixo)" };
 
   function addNotice(html) {
     const box = $("notice");

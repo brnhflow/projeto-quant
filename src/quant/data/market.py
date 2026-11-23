@@ -14,6 +14,7 @@ import pandas as pd
 
 from quant.data.http import fetch_json
 from quant.data.sources import (
+    CASH,
     KRAKEN,
     YAHOO,
     frankfurter_url,
@@ -150,6 +151,15 @@ def update_market_data(
     for asset, row in holdings.iterrows():
         name, source, symbol = str(asset), str(row["source"]), str(row["symbol"])
         currency = str(row["currency"])
+        if source == CASH:
+            # One unit of a currency is worth 1 in that currency on every business day;
+            # its risk in euro comes only from the exchange rate.
+            today = now.tz_convert(None).normalize()
+            columns[name] = pd.Series(1.0, index=pd.bdate_range(start.normalize(), today))
+            statuses.append(
+                SeriesStatus(name, source, symbol, f"{columns[name].index[-1]:%Y-%m-%d}")
+            )
+            continue
         path = _cache_file(cache_dir, source, symbol)
         try:
             if offline:
