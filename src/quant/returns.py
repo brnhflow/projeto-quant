@@ -48,12 +48,10 @@ def simple_returns(prices: pd.DataFrame) -> pd.DataFrame:
     return returns.iloc[1:]
 
 
-def portfolio_returns(prices: pd.DataFrame, quantities: pd.Series) -> pd.Series:
-    """Compute the simple returns of a portfolio that holds fixed quantities of each asset.
+def portfolio_value(prices: pd.DataFrame, quantities: pd.Series) -> pd.Series:
+    """Compute the value of fixed quantities of each asset on every date.
 
-    The portfolio value is ``V_t = sum_i q_i * P_{i,t}`` and its return is
-    ``V_t / V_{t-1} - 1``. Because quantities stay fixed, the weights drift with prices,
-    as they do in a real account where nobody rebalances every day.
+    ``V_t = sum_i q_i * P_{i,t}``.
 
     Parameters
     ----------
@@ -66,21 +64,18 @@ def portfolio_returns(prices: pd.DataFrame, quantities: pd.Series) -> pd.Series:
     Returns
     -------
     pd.Series
-        Portfolio returns as decimals, named ``"portfolio"``, dates from the second row on.
+        Portfolio value in the currency of ``prices``, named ``"value"``.
 
     Raises
     ------
     ValueError
-        If a held asset has no price column, a quantity is negative, all quantities are zero,
-        or the prices fail the checks of :func:`simple_returns`.
+        If a held asset has no price column, a quantity is negative or NaN, all quantities
+        are zero, or the prices fail the checks of :func:`simple_returns`.
 
     Assumptions
     -----------
-    - Long-only, buy-and-hold: no trades, deposits or withdrawals inside the period.
-      Cash flows would show up as fake returns.
-    - Prices are adjusted for splits and dividends and are in one currency.
-    - If any held asset has no price on a date, the portfolio value of that date is unknown
-      (NaN), and so are the returns that use it.
+    - If any held asset has no price on a date, the value of that date is unknown (NaN)
+      rather than silently smaller.
 
     """
     missing = quantities.index.difference(prices.columns)
@@ -90,8 +85,43 @@ def portfolio_returns(prices: pd.DataFrame, quantities: pd.Series) -> pd.Series:
         raise ValueError("quantities must be non-negative with at least one position")
     held = prices[quantities.index]
     _check_prices(held)
-
     # skipna=False: a missing price makes the total unknown instead of silently smaller.
     value = held.mul(quantities, axis="columns").sum(axis="columns", skipna=False)
+    return value.rename("value")
+
+
+def portfolio_returns(prices: pd.DataFrame, quantities: pd.Series) -> pd.Series:
+    """Compute the simple returns of a portfolio that holds fixed quantities of each asset.
+
+    The return is ``V_t / V_{t-1} - 1`` with ``V`` from :func:`portfolio_value`. Because
+    quantities stay fixed, the weights drift with prices, as they do in a real account where
+    nobody rebalances every day.
+
+    Parameters
+    ----------
+    prices : pd.DataFrame
+        As in :func:`portfolio_value`.
+    quantities : pd.Series
+        As in :func:`portfolio_value`.
+
+    Returns
+    -------
+    pd.Series
+        Portfolio returns as decimals, named ``"portfolio"``, dates from the second row on.
+
+    Raises
+    ------
+    ValueError
+        Same conditions as :func:`portfolio_value`.
+
+    Assumptions
+    -----------
+    - Long-only, buy-and-hold: no trades, deposits or withdrawals inside the period.
+      Cash flows would show up as fake returns.
+    - Prices are adjusted for splits and dividends and are in one currency.
+    - A date with an unknown value makes the returns that use it NaN.
+
+    """
+    value = portfolio_value(prices, quantities)
     returns = value / value.shift(1) - 1
     return returns.iloc[1:].rename("portfolio")

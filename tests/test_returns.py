@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from quant.returns import portfolio_returns, simple_returns
+from quant.returns import portfolio_returns, portfolio_value, simple_returns
 
 
 def _prices(data: dict[str, list[float]], start: str = "2026-01-05") -> pd.DataFrame:
@@ -141,3 +141,17 @@ def test_portfolio_rejects_short_or_empty_holdings(quantities: dict[str, float])
 
     with pytest.raises(ValueError, match="quantities"):
         portfolio_returns(prices, pd.Series(quantities))
+
+
+# ---------------------------------------------------------------- portfolio_value
+
+
+def test_portfolio_value_known_answer() -> None:
+    # 1*100 + 2*50 = 200; 1*110 + 2*50 = 210
+    prices = _prices({"A": [100.0, 110.0], "B": [50.0, 50.0]})
+
+    value = portfolio_value(prices, pd.Series({"A": 1.0, "B": 2.0}))
+
+    pd.testing.assert_series_equal(
+        value, pd.Series([200.0, 210.0], index=prices.index, name="value")
+    )
