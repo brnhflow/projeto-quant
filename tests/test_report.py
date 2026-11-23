@@ -175,7 +175,7 @@ def test_build_report_returns_a_full_page() -> None:
 
     assert page.startswith("<!DOCTYPE html>")
     assert '"synthetic": true' in page
-    assert page.count("<section") == 9
+    assert page.count("<section") == 10
 
 
 def test_late_starting_asset_is_named_as_the_history_limit() -> None:

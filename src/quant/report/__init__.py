@@ -32,7 +32,12 @@ def render_html(data: dict[str, Any]) -> str:
     assets = resources.files("quant.report")
     template = (assets / "template.html").read_text(encoding="utf-8")
     css = (assets / "report.css").read_text(encoding="utf-8")
-    js = (assets / "report.js").read_text(encoding="utf-8")
+    # Pure functions tested with Node, then the page script that calls them.
+    quantity = resources.files("quant.app") / "static" / "quantity.js"
+    js = "\n".join(
+        f.read_text(encoding="utf-8")
+        for f in (quantity, assets / "rebalance.js", assets / "report.js")
+    )
     # "</" inside the JSON would close the <script> tag early.
     payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     return (

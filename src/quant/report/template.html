@@ -105,8 +105,35 @@
   <div class="table-wrap"><table class="positions" id="positions"></table></div>
 </section>
 
+<section class="block" id="rebalance">
+  <h2><span class="num">8</span>Rebalancear</h2>
+  <p class="lede" id="reb-lede">Defina a meta de cada ativo e veja o que comprar e vender, quanto custa e como o risco muda. As metas ficam salvas neste navegador.</p>
+  <div class="reb-controls">
+    <div>
+      <p class="field-label" id="reb-mode-label">Como chegar lá</p>
+      <div class="segmented" id="reb-mode" role="group" aria-labelledby="reb-mode-label">
+        <button type="button" data-mode="full" aria-pressed="true">Comprar e vender</button>
+        <button type="button" data-mode="contribute">Só aportar</button>
+      </div>
+    </div>
+    <label class="reb-field"><span class="field-label">Aporte novo (€)</span><input id="reb-contribution" inputmode="decimal" value="0"></label>
+    <label class="reb-field"><span class="field-label">Custo por operação (%)</span><input id="reb-cost" inputmode="decimal" value="0,10"></label>
+    <label class="reb-field"><span class="field-label">Tarifa fixa (€)</span><input id="reb-fee" inputmode="decimal" value="0"></label>
+    <label class="reb-field" id="reb-band-field"><span class="field-label">Tolerância (p.p.)</span><input id="reb-band" inputmode="decimal" value="2"></label>
+  </div>
+  <div class="presets" id="reb-presets" role="group" aria-label="Metas prontas">
+    <button type="button" class="chip" data-target="current">Pesos atuais</button>
+    <button type="button" class="chip" data-target="equal">Pesos iguais</button>
+    <button type="button" class="chip" data-target="parity">Paridade de risco</button>
+    <button type="button" class="chip" data-target="saved" hidden>Minhas metas salvas</button>
+  </div>
+  <div class="table-wrap"><table class="positions reb-table" id="reb-table"></table></div>
+  <div class="reb-summary" id="reb-summary" aria-live="polite"></div>
+  <label class="reb-check"><input type="checkbox" id="reb-whole" checked> Ações e ETFs em quantidades inteiras (cripto e caixa aceitam frações)</label>
+</section>
+
 <section class="block method">
-  <h2><span class="num">8</span>Como ler e premissas</h2>
+  <h2><span class="num">9</span>Como ler e premissas</h2>
   <dl class="defs">
     <dt>Retorno no período</dt>
     <dd>Variação do valor da carteira em euros entre o fechamento do primeiro e do último dia,
@@ -164,6 +191,16 @@
     <dt>Beta</dt>
     <dd>Quanto o ativo costuma se mover quando o índice se move 1%: beta 1,4 significa
     1,4% em média. R² diz quanto do movimento o índice explica (de 0 a 100%).</dd>
+    <dt>Rebalancear</dt>
+    <dd>"Comprar e vender" leva cada ativo fora da tolerância de volta à meta; dentro da
+    tolerância, não mexe (operar pouco economiza custos). "Só aportar" usa só o dinheiro novo,
+    começando pelos ativos mais abaixo da meta, sem vender nada (útil para não gerar imposto).
+    Preços de hoje convertidos para euro; o custo é uma estimativa (corretagem e spread).
+    Não considera imposto sobre ganho de capital.</dd>
+    <dt>Paridade de risco</dt>
+    <dd>Pesos em que cada ativo responde pela mesma parcela das oscilações: ativos calmos
+    ganham mais peso, voláteis menos. Usa as covariâncias dos últimos 12 meses; caixa fica
+    fora da conta. É a ideia por trás de fundos como o All Weather, da Bridgewater.</dd>
     <dt>Calendário e câmbio</dt>
     <dd>Dias úteis europeus. Num feriado de outra bolsa, o ativo vale o último fechamento (até
     5 dias); o fim de semana das criptomoedas entra na segunda-feira. Cada preço é convertido

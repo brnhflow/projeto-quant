@@ -192,6 +192,35 @@ def _period_data(
     }
 
 
+COVARIANCE_DAYS = 252
+
+
+def _kind(holdings: pd.DataFrame, asset: Any) -> str:
+    """How a position trades: ``cash``, ``crypto`` (fractional) or ``security`` (whole units)."""
+    source = str(holdings.loc[asset, "source"]) if "source" in holdings.columns else "yahoo"
+    symbol = str(holdings.loc[asset, "symbol"]) if "symbol" in holdings.columns else str(asset)
+    if source == "cash":
+        return "cash"
+    if source == "kraken" or symbol.endswith(("-USD", "-EUR", "-BRL", "-GBP")):
+        return "crypto"
+    return "security"
+
+
+def _covariance(base_prices: pd.DataFrame, order: list[str]) -> dict[str, Any] | None:
+    """Annualized covariance of daily euro returns over the last year, for what-if weights."""
+    returns = simple_returns(base_prices[order]).iloc[-COVARIANCE_DAYS:]
+    if len(returns) < MIN_DAYS_COVARIANCE:
+        return None
+    matrix = (returns.cov() * 252).to_numpy(dtype=float)
+    return {
+        "assets": order,
+        "days": len(returns),
+        "matrix": [
+            [_num(float(matrix[i, j]), 10) for j in range(len(order))] for i in range(len(order))
+        ],
+    }
+
+
 def backtest_window(n: int) -> int | None:
     """Days of history behind each VaR forecast, or None if the sample is too short.
 
@@ -492,9 +521,11 @@ def build_report_data(
                 "priceBase": _num(float(base_prices[a].iloc[-1]), 4),
                 "value": _num(float(position_value[a]), 2),
                 "weight": _num(float(weights_now[a])),
+                "kind": _kind(holdings, a),
             }
             for a in order
         ],
+        "covariance": _covariance(base_prices, order),
         "currencies": [
             {
                 "code": str(c),
