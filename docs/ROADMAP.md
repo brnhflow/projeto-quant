@@ -16,7 +16,14 @@ rate of the same day).
 - *Useful because:* everything else depends on clean returns.
 - *Done when:* returns match a hand-computed spreadsheet for 3 assets over 10 days, including
   one FX conversion and one missing price day handled explicitly.
-- *Decide here:* first data source (free, documented; its known flaws written in the module).
+- *Decided (2026-11-23):* base currency EUR. Assets: B3 stocks (BRL), European stocks
+  (EUR, possibly GBP/CHF), crypto (usually quoted in USD). Broker not chosen yet, so the
+  holdings CSV is a simple hand-made template.
+- *Done so far:* `simple_returns`, `portfolio_returns` (fixed quantities, weights drift),
+  `to_base_currency` (same-date rate, gaps stay NaN).
+- *Still to do:* calendar alignment (B3, European exchanges and 24/7 crypto have different
+  trading days and holidays), holdings CSV loader, data sources. Candidate for FX: ECB
+  euro reference rates (official, free; quoted as foreign units per 1 EUR, so invert).
 
 ## 2. Descriptive risk
 
