@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
 
-from quant.data.http import fetch_json
-from quant.data.market import Fetch, SeriesStatus, update_market_data
+from quant.data.http import fetch_bytes, fetch_json
+from quant.data.market import Fetch, MarketData, SeriesStatus, update_market_data
+from quant.data.news import Headline, google_news_url, news_query, parse_google_news
 from quant.report import build_report
 from quant.stress import HISTORY_START, PROXIES
 
@@ -39,6 +42,38 @@ def proxy_holdings() -> pd.DataFrame:
     )
 
 
+FetchText = Callable[[str], bytes]
+NO_NEWS_KINDS = {"ETF", "MUTUALFUND"}  # funds rarely make news of their own
+
+
+def fetch_news(
+    holdings: pd.DataFrame, market: MarketData, fetch_text: FetchText, workers: int = 4
+) -> dict[str, list[Headline] | None]:
+    """Headlines for each stock and crypto held; None where the feed could not be read.
+
+    Funds and cash are skipped. One failed feed never stops the others.
+    """
+    jobs: dict[str, str] = {}
+    for asset, row in holdings.iterrows():
+        name = str(asset)
+        detail = market.details.get(name)
+        if row["source"] == "cash" or detail is None or detail.kind in NO_NEWS_KINDS:
+            continue
+        query = news_query(str(row["symbol"]), detail.name or name)
+        if query is not None:
+            jobs[name] = google_news_url(*query)
+
+    def one(url: str) -> list[Headline] | None:
+        try:
+            return parse_google_news(fetch_text(url))
+        except (ConnectionError, ValueError):
+            return None
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        results = dict(zip(jobs, pool.map(one, jobs.values()), strict=True))
+    return results
+
+
 def analyse_portfolio(
     holdings: pd.DataFrame,
     years: int,
@@ -50,6 +85,7 @@ def analyse_portfolio(
     offline: bool = False,
     pause: float = 0.2,
     edit_url: str | None = None,
+    fetch_text: FetchText = fetch_bytes,
 ) -> Analysis:
     """Download fresh data for ``holdings`` and build the report over ``years`` of history.
 
@@ -87,6 +123,8 @@ def analyse_portfolio(
     except (ConnectionError, ValueError):
         proxy_prices = None
 
+    news = {} if offline else fetch_news(holdings, market, fetch_text)
+
     calendar = pd.bdate_range(start, pd.Timestamp(market.prices.index.max()))
     page = build_report(
         holdings,
@@ -97,5 +135,7 @@ def analyse_portfolio(
         status=market.status,
         edit_url=edit_url,
         proxy_prices=proxy_prices,
+        details=market.details,
+        news=news,
     )
     return Analysis(page, market.status)

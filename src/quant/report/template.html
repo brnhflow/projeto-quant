@@ -34,8 +34,19 @@
   <div class="chart" id="chart-drawdown" data-height="130"></div>
 </section>
 
+<section class="block" id="watch">
+  <h2><span class="num">2</span>Esta semana</h2>
+  <p class="lede" id="watch-lede"></p>
+  <div class="watch-grid" id="watch-grid"></div>
+  <div id="income-block">
+    <h3 class="chart-title">Proventos recebidos nos últimos 12 meses</h3>
+    <p class="caption" id="income-lede"></p>
+    <div class="table-wrap"><table class="positions compact" id="income"></table></div>
+  </div>
+</section>
+
 <section class="block">
-  <h2><span class="num">2</span>Composição hoje</h2>
+  <h2><span class="num">3</span>Composição hoje</h2>
   <p class="lede" id="mix-lede"></p>
   <div class="two-col">
     <div><h3 class="chart-title">Por ativo</h3><div class="barlist" id="mix-assets"></div></div>
@@ -44,14 +55,14 @@
 </section>
 
 <section class="block">
-  <h2><span class="num">3</span>De onde veio o resultado</h2>
+  <h2><span class="num">4</span>De onde veio o resultado</h2>
   <p class="lede" id="attr-lede"></p>
   <div class="legend" id="attr-legend"></div>
   <div class="chart" id="chart-attribution"></div>
 </section>
 
 <section class="block">
-  <h2><span class="num">4</span>Risco</h2>
+  <h2><span class="num">5</span>Risco</h2>
   <p class="lede" id="risk-lede"></p>
   <div class="two-col">
     <div>
@@ -68,7 +79,7 @@
 </section>
 
 <section class="block" id="factors">
-  <h2><span class="num">5</span>Do que a carteira depende de verdade</h2>
+  <h2><span class="num">6</span>Do que a carteira depende de verdade</h2>
   <p class="lede" id="factors-lede"></p>
   <div class="two-col factors-cols">
     <div>
@@ -85,7 +96,7 @@
 </section>
 
 <section class="block" id="stress">
-  <h2><span class="num">6</span>E se uma crise acontecesse hoje</h2>
+  <h2><span class="num">7</span>E se uma crise acontecesse hoje</h2>
   <p class="lede" id="stress-lede"></p>
   <h3 class="chart-title">Crises reais, aplicadas à carteira de hoje</h3>
   <div class="scenarios" id="scenarios"></div>
@@ -100,7 +111,7 @@
 </section>
 
 <section class="block" id="trust">
-  <h2><span class="num">7</span>Quanto confiar nestes números</h2>
+  <h2><span class="num">8</span>Quanto confiar nestes números</h2>
   <p class="lede" id="trust-lede"></p>
   <div id="backtest-block">
     <h3 class="chart-title">A perda de dia ruim prevista contra o que aconteceu</h3>
@@ -117,13 +128,13 @@
 </section>
 
 <section class="block">
-  <h2><span class="num">8</span>Posições</h2>
+  <h2><span class="num">9</span>Posições</h2>
   <p class="lede">Clique no nome de uma coluna para ordenar.</p>
   <div class="table-wrap"><table class="positions" id="positions"></table></div>
 </section>
 
 <section class="block" id="rebalance">
-  <h2><span class="num">9</span>Rebalancear</h2>
+  <h2><span class="num">10</span>Rebalancear</h2>
   <p class="lede" id="reb-lede">Defina a meta de cada ativo e veja o que comprar e vender, quanto custa e como o risco muda. As metas ficam salvas neste navegador.</p>
   <div class="reb-controls">
     <div>
@@ -150,7 +161,7 @@
 </section>
 
 <section class="block method">
-  <h2><span class="num">10</span>Como ler e premissas</h2>
+  <h2><span class="num">11</span>Como ler e premissas</h2>
   <dl class="defs">
     <dt>Retorno no período</dt>
     <dd>Variação do valor da carteira em euros entre o fechamento do primeiro e do último dia,
@@ -227,6 +238,17 @@
     <dd>Toda semana o modelo é ajustado só com as semanas anteriores e tenta explicar a
     seguinte. Se explica bem dentro da amostra mas mal fora dela, as exposições mudaram com
     o tempo e não devem ser usadas para decidir.</dd>
+    <dt>Movimento fora do normal</dt>
+    <dd>O último dia ou a última semana do ativo, comparados com o tamanho típico das suas
+    oscilações no ano anterior. Acima de 2,5 vezes esse tamanho (acontece em cerca de 1% dos
+    dias) o ativo é destacado, com as notícias ao lado. Notícia explica, não prevê.</dd>
+    <dt>Notícias</dt>
+    <dd>Manchetes dos últimos 14 dias do Google News: ações da B3 pelo código, em português;
+    as demais pelo nome da empresa, em inglês. Fundos e caixa não têm busca própria.</dd>
+    <dt>Proventos</dt>
+    <dd>Dividendos e juros sobre capital pagos nos últimos 12 meses, informados pela Yahoo,
+    multiplicados pelas quantidades de hoje e convertidos pelo câmbio de hoje. Valores
+    brutos, antes de impostos. Já estão incluídos no retorno do relatório.</dd>
     <dt>Calendário e câmbio</dt>
     <dd>Dias úteis europeus. Num feriado de outra bolsa, o ativo vale o último fechamento (até
     5 dias); o fim de semana das criptomoedas entra na segunda-feira. Cada preço é convertido

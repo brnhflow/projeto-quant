@@ -15,6 +15,8 @@ import pandas as pd
 from quant.align import align_to_dates
 from quant.attribution import return_attribution
 from quant.data.market import SeriesStatus
+from quant.data.news import Headline
+from quant.data.sources import Quote
 from quant.factors import factor_exposure
 from quant.fx import to_base_currency
 from quant.returns import portfolio_value, simple_returns
@@ -469,6 +471,104 @@ def _factors(
     }
 
 
+UNUSUAL_Z = 2.5  # a move this many standard deviations from zero happens ~1% of days
+MOVE_HISTORY = 250
+
+
+def unusual_moves(local: pd.DataFrame) -> dict[str, dict[str, Any]]:
+    """Last day's and last week's move of each asset against its own usual size.
+
+    The usual size is the standard deviation of daily returns over the year before the
+    move (the move itself excluded); a week scales it by sqrt(5). ``unusual`` is True when
+    either move is beyond :data:`UNUSUAL_Z` standard deviations.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for asset in local.columns:
+        prices = local[asset].dropna()
+        if len(prices) < 60:
+            continue
+        returns = prices.pct_change().dropna()
+        history = returns.iloc[-MOVE_HISTORY - 5 : -5]
+        sd = float(history.std())
+        if not sd > 0:
+            continue
+        day = float(prices.iloc[-1] / prices.iloc[-2] - 1)
+        week = float(prices.iloc[-1] / prices.iloc[-6] - 1)
+        z_day, z_week = day / sd, week / (sd * math.sqrt(5))
+        out[str(asset)] = {
+            "date": _iso(pd.Timestamp(prices.index[-1])),
+            "day": _num(day),
+            "week": _num(week),
+            "zDay": _num(z_day, 2),
+            "zWeek": _num(z_week, 2),
+            "unusual": abs(z_day) >= UNUSUAL_Z or abs(z_week) >= UNUSUAL_Z,
+        }
+    return out
+
+
+def dividend_income(
+    details: dict[str, Quote],
+    quantities: pd.Series,
+    rates: pd.Series,
+    position_value: pd.Series,
+    currencies: pd.Series,
+    last: pd.Timestamp,
+    base: str,
+) -> dict[str, Any] | None:
+    """Dividends paid in the last 12 months on today's quantities, in base currency."""
+    since = last - pd.DateOffset(years=1)
+    rows: list[dict[str, Any]] = []
+    for asset in quantities.index:
+        quote = details.get(str(asset))
+        if quote is None or quote.dividends is None or quote.dividends.empty:
+            continue
+        paid = quote.dividends[(quote.dividends.index > since) & (quote.dividends.index <= last)]
+        if paid.empty:
+            continue
+        currency = str(currencies[asset])
+        rate = 1.0 if currency == base else float(rates.get(currency, float("nan")))
+        if not math.isfinite(rate):
+            continue
+        amount = float(paid.sum()) * float(quantities[asset]) * rate
+        rows.append(
+            {
+                "asset": str(asset),
+                "payments": len(paid),
+                "perUnit": _num(float(paid.sum()), 6),
+                "currency": currency,
+                "amount": _num(amount, 2),
+                "yield": _num(amount / float(position_value[asset])),
+                "last": _iso(pd.Timestamp(paid.index[-1])),
+            }
+        )
+    if not rows:
+        return None
+    total = sum(float(r["amount"]) for r in rows)
+    return {
+        "since": _iso(since),
+        "total": _num(total, 2),
+        "yield": _num(total / float(position_value.sum())),
+        "rows": sorted(rows, key=lambda r: -float(r["amount"])),
+    }
+
+
+def _news(news: dict[str, list[Headline] | None]) -> dict[str, Any]:
+    return {
+        asset: None
+        if items is None
+        else [
+            {
+                "title": h.title,
+                "source": h.source,
+                "url": h.url,
+                "published": h.published.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            }
+            for h in items
+        ]
+        for asset, items in news.items()
+    }
+
+
 def _history_limit(
     calendar: pd.DatetimeIndex,
     used: pd.DatetimeIndex,
@@ -496,6 +596,8 @@ def build_report_data(
     status: list[SeriesStatus] | None = None,
     edit_url: str | None = None,
     proxy_prices: pd.DataFrame | None = None,
+    details: dict[str, Quote] | None = None,
+    news: dict[str, list[Headline] | None] | None = None,
 ) -> dict[str, Any]:
     """Assemble the report content as plain JSON-ready data.
 
@@ -526,6 +628,10 @@ def build_report_data(
         Market indices of :data:`quant.stress.PROXIES` in their own currencies, for the
         stress tests; ``local_prices`` and ``fx_rates`` should then reach back to 2007.
         Without it the report has no stress section.
+    details : dict, optional
+        Live downloads by asset (name, instrument type, dividends), for income.
+    news : dict, optional
+        Headlines by asset (None where the feed failed).
 
     Returns
     -------
@@ -625,6 +731,20 @@ def build_report_data(
         ],
         "validation": _validation(value),
         "stress": stress,
+        "moves": unusual_moves(local),
+        "income": None
+        if not details
+        else dividend_income(
+            details,
+            quantities,
+            rates.iloc[-1] if not rates.empty else pd.Series(dtype=float),
+            position_value,
+            currencies,
+            pd.Timestamp(value.index[-1]),
+            base,
+        ),
+        "news": None if news is None else _news(news),
+        "names": {a: q.name for a, q in (details or {}).items() if q.name},
         "factors": None
         if proxy_prices is None
         else _factors(

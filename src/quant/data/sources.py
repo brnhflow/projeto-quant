@@ -57,6 +57,9 @@ class Quote:
     currency: str
     in_progress: bool
     last_update: pd.Timestamp
+    name: str = ""
+    kind: str = ""  # the source's instrument type, e.g. EQUITY, ETF, CRYPTOCURRENCY
+    dividends: pd.Series | None = None  # cash paid per unit, by payment date, in currency
 
 
 P = ParamSpec("P")
@@ -174,7 +177,30 @@ def parse_yahoo_chart(payload: dict[str, Any], now: pd.Timestamp) -> Quote:
     session_date = session_start.tz_convert(zone).normalize().tz_localize(None)
     in_progress = bool(prices.index[-1] == session_date and session_start <= now < session_end)
     last_update = pd.Timestamp(int(meta.get("regularMarketTime", stamps[-1])), unit="s", tz="UTC")
-    return Quote(prices.rename(str(meta.get("symbol", ""))), currency, in_progress, last_update)
+    divisor = MINOR_UNITS[str(meta["currency"])][1] if str(meta["currency"]) in MINOR_UNITS else 1.0
+    events: Any = _field(result, "events", "dividends") or {}
+    paid = {
+        pd.Timestamp(int(e["date"]), unit="s", tz="UTC")
+        .tz_convert(zone)
+        .normalize()
+        .tz_localize(None): float(e["amount"]) / divisor
+        for e in events.values()
+        if e.get("amount") is not None and e.get("date") is not None
+    }
+    dividends = (
+        pd.Series(paid, dtype=float).sort_index()
+        if paid
+        else pd.Series(dtype=float, index=pd.DatetimeIndex([]))
+    )
+    return Quote(
+        prices.rename(str(meta.get("symbol", ""))),
+        currency,
+        in_progress,
+        last_update,
+        name=_clean(meta.get("longName") or meta.get("shortName") or ""),
+        kind=str(meta.get("instrumentType") or ""),
+        dividends=dividends,
+    )
 
 
 # Instrument types that make sense to hold; futures and options expire, indices are not

@@ -54,6 +54,7 @@ class MarketData:
     prices: pd.DataFrame
     fx: pd.DataFrame
     status: list[SeriesStatus] = field(default_factory=lambda: [])
+    details: dict[str, Quote] = field(default_factory=lambda: {})  # live downloads only
 
     @property
     def problems(self) -> list[SeriesStatus]:
@@ -163,6 +164,7 @@ def update_market_data(
     now = now if now is not None else pd.Timestamp.now(tz="UTC")
     statuses: list[SeriesStatus] = []
     columns: dict[str, pd.Series] = {}
+    details: dict[str, Quote] = {}
 
     downloads: dict[str, Future[Quote]] = {}
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
@@ -211,6 +213,7 @@ def update_market_data(
                 raise ValueError(f"no prices since {start:%Y-%m-%d}")
             _save_series(path, series, currency, start)
             columns[name] = series
+            details[name] = quote
             statuses.append(
                 SeriesStatus(
                     name, source, symbol, f"{series.index[-1]:%Y-%m-%d}", quote.in_progress
@@ -273,4 +276,4 @@ def update_market_data(
             )
 
     prices = pd.concat(columns, axis="columns", sort=True)
-    return MarketData(prices=prices, fx=fx, status=statuses)
+    return MarketData(prices=prices, fx=fx, status=statuses, details=details)

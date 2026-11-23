@@ -10,6 +10,8 @@ from typing import Any
 import pandas as pd
 
 from quant.data.market import SeriesStatus
+from quant.data.news import Headline
+from quant.data.sources import Quote
 from quant.report.data import PERIODS, Period, build_report_data, period_start
 
 __all__ = ["PERIODS", "Period", "build_report", "build_report_data", "period_start", "render_html"]
@@ -60,6 +62,8 @@ def build_report(
     status: list[SeriesStatus] | None = None,
     edit_url: str | None = None,
     proxy_prices: pd.DataFrame | None = None,
+    details: dict[str, Quote] | None = None,
+    news: dict[str, list[Headline] | None] | None = None,
 ) -> str:
     """Compute the report data and render it; see :func:`build_report_data` for arguments."""
     data = build_report_data(
@@ -73,5 +77,7 @@ def build_report(
         status=status,
         edit_url=edit_url,
         proxy_prices=proxy_prices,
+        details=details,
+        news=news,
     )
     return render_html(data)
