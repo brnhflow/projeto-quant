@@ -67,14 +67,31 @@
   </div>
 </section>
 
+<section class="block" id="trust">
+  <h2><span class="num">5</span>Quanto confiar nestes números</h2>
+  <p class="lede" id="trust-lede"></p>
+  <div id="backtest-block">
+    <h3 class="chart-title">A perda de dia ruim prevista contra o que aconteceu</h3>
+    <div class="verdicts" id="verdicts"></div>
+    <div class="legend" id="backtest-legend"></div>
+    <div class="chart" id="chart-backtest" data-height="240"></div>
+    <p class="caption" id="backtest-caption"></p>
+  </div>
+  <div id="intervals-block">
+    <h3 class="chart-title">Margem de erro de cada número</h3>
+    <p class="caption" id="intervals-lede"></p>
+    <div class="intervals" id="intervals"></div>
+  </div>
+</section>
+
 <section class="block">
-  <h2><span class="num">5</span>Posições</h2>
+  <h2><span class="num">6</span>Posições</h2>
   <p class="lede">Clique no nome de uma coluna para ordenar.</p>
   <div class="table-wrap"><table class="positions" id="positions"></table></div>
 </section>
 
 <section class="block method">
-  <h2><span class="num">6</span>Como ler e premissas</h2>
+  <h2><span class="num">7</span>Como ler e premissas</h2>
   <dl class="defs">
     <dt>Retorno no período</dt>
     <dd>Variação do valor da carteira em euros entre o fechamento do primeiro e do último dia,
@@ -100,6 +117,29 @@
     <dt>Correlação</dt>
     <dd>De −1 a 1: quanto os retornos diários de dois ativos andam juntos. Perto de 1, um
     não protege o outro.</dd>
+    <dt>Teste da perda de dia ruim (backtest)</dt>
+    <dd>Para cada dia, o VaR é recalculado só com o ano anterior àquele dia, como se fosse
+    calculado naquela manhã, e comparado com o que aconteceu. Um modelo correto erra em cerca
+    de 1 a cada 20 dias. As quantidades de hoje valem para todo o histórico.</dd>
+    <dt>Teste de Kupiec</dt>
+    <dd>Pergunta se o número de dias em que a perda passou do previsto é compatível com 1 em
+    20. Reprova quando a chance de um modelo correto errar tanto (ou tão pouco) é menor que
+    5% (Kupiec, 1995).</dd>
+    <dt>Teste de Christoffersen</dt>
+    <dd>Pergunta se esses dias vêm em grupos. Se um dia ruim torna o seguinte mais provável, o
+    risco em crises é maior do que o número sugere (Christoffersen, 1998).</dd>
+    <dt>Zona de Basileia</dt>
+    <dd>A regra que os bancos seguem para validar seus modelos de risco: verde até onde um
+    modelo correto chegaria em 95% das vezes, vermelha a partir de 99,99% (Comitê de Basileia,
+    1996).</dd>
+    <dt>Faixa provável</dt>
+    <dd>Recalcula cada número em 2.000 históricos alternativos, montados sorteando blocos de
+    dias seguidos do histórico real, para manter juntos os períodos calmos e os de crise
+    (bootstrap estacionário). Em 90% dos sorteios o número ficou dentro da faixa. Não inventa
+    crises que o histórico não teve.</dd>
+    <dt>Índice de Sharpe</dt>
+    <dd>Retorno médio anual dividido pela volatilidade anual: quanto a carteira rendeu por
+    unidade de oscilação. Aqui sem descontar a taxa livre de risco.</dd>
     <dt>Calendário e câmbio</dt>
     <dd>Dias úteis europeus. Num feriado de outra bolsa, o ativo vale o último fechamento (até
     5 dias); o fim de semana das criptomoedas entra na segunda-feira. Cada preço é convertido

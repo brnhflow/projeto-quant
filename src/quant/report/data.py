@@ -24,10 +24,21 @@ from quant.risk import (
     historical_var_es,
     risk_contributions,
 )
+from quant.validation import (
+    annualized_return,
+    annualized_vol,
+    backtest_var,
+    bootstrap_interval,
+    sharpe_ratio,
+    var_95,
+)
 
 MIN_DAYS_VAR = 100
 MIN_DAYS_COVARIANCE = 20
 VAR_LEVEL = 0.95
+BACKTEST_WINDOW = 250  # one year of days to estimate each day's VaR
+MIN_TESTED_DAYS = 125  # below half a year of tested days the tests mean little
+MIN_DAYS_INTERVALS = 60
 
 
 @dataclass(frozen=True)
@@ -173,6 +184,68 @@ def _period_data(
     }
 
 
+def backtest_window(n: int) -> int | None:
+    """Days of history behind each VaR forecast, or None if the sample is too short.
+
+    A year (250 days) when at least a year is left to test; otherwise half the sample,
+    as long as both halves have at least :data:`MIN_TESTED_DAYS` days.
+    """
+    if n >= BACKTEST_WINDOW + MIN_TESTED_DAYS:
+        return BACKTEST_WINDOW if n - BACKTEST_WINDOW >= BACKTEST_WINDOW else n // 2
+    return None
+
+
+def _validation(value: pd.Series) -> dict[str, Any]:
+    """How far to trust the risk numbers: VaR backtest and bootstrap intervals."""
+    returns = simple_returns(value.to_frame())["value"]
+    n = len(returns)
+    out: dict[str, Any] = {
+        "days": n,
+        "start": _iso(value.index[0]),
+        "end": _iso(value.index[-1]),
+        "backtest": None,
+        "intervals": None,
+    }
+
+    window = backtest_window(n)
+    if window is not None:
+        bt = backtest_var(returns, level=VAR_LEVEL, window=window)
+        table = bt.table
+        out["backtest"] = {
+            "level": bt.level,
+            "window": bt.window,
+            "days": bt.days,
+            "breaches": bt.breaches,
+            "expected": _num(bt.expected, 2),
+            "kupiecP": _num(bt.kupiec.p_value, 4),
+            "independenceP": _num(bt.independence.p_value, 4),
+            "conditionalP": _num(bt.conditional_p_value, 4),
+            "zone": bt.zone,
+            "dates": [_iso(d) for d in table.index],
+            "returns": [_num(float(x)) for x in table["return"]],
+            "var": [_num(float(x)) for x in table["var"]],
+            "breachDates": [_iso(d) for d in table.index[table["breach"].to_numpy()]],
+        }
+
+    if n >= MIN_DAYS_INTERVALS:
+        stats = {
+            "annualReturn": annualized_return,
+            "volatility": annualized_vol,
+            "sharpe": sharpe_ratio,
+            "var": var_95,
+        }
+        intervals: dict[str, Any] = {}
+        for key, fn in stats.items():
+            interval = bootstrap_interval(returns, fn, level=0.90, seed=7)
+            intervals[key] = {
+                "estimate": _num(interval.estimate),
+                "low": _num(interval.low),
+                "high": _num(interval.high),
+            }
+        out["intervals"] = {"level": 0.90, "values": intervals, "start": _iso(value.index[0])}
+    return out
+
+
 def _history_limit(
     calendar: pd.DatetimeIndex,
     used: pd.DatetimeIndex,
@@ -306,6 +379,7 @@ def build_report_data(
             }
             for c, v in by_currency.items()
         ],
+        "validation": _validation(value),
         "effectivePositions": _num(effective_number_of_positions(position_value), 3),
         "minDaysVar": MIN_DAYS_VAR,
         "minDaysCovariance": MIN_DAYS_COVARIANCE,

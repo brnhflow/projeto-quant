@@ -8,9 +8,10 @@ import pytest
 
 from quant.fx import to_base_currency
 from quant.report import PERIODS, build_report, build_report_data, period_start, render_html
-from quant.report.data import MIN_DAYS_VAR
+from quant.report.data import MIN_DAYS_VAR, backtest_window
 from quant.returns import portfolio_value
 from quant.risk import annualized_volatility, historical_var_es, max_drawdown
+from quant.validation import backtest_var
 
 BY_KEY = {p.key: p for p in PERIODS}
 
@@ -174,7 +175,7 @@ def test_build_report_returns_a_full_page() -> None:
 
     assert page.startswith("<!DOCTYPE html>")
     assert '"synthetic": true' in page
-    assert page.count("<section") == 7
+    assert page.count("<section") == 8
 
 
 def test_late_starting_asset_is_named_as_the_history_limit() -> None:
@@ -194,3 +195,44 @@ def test_full_history_has_no_limit_notice() -> None:
     holdings, prices, fx, calendar = _market(60)
 
     assert build_report_data(holdings, prices, fx, calendar, title="T")["historyLimit"] is None
+
+
+# ---------------------------------------------------------------- validation
+
+
+@pytest.mark.parametrize(
+    ("days", "window"), [(100, None), (374, None), (375, 187), (499, 249), (500, 250), (900, 250)]
+)
+def test_backtest_window_keeps_enough_days_on_both_sides(days: int, window: int | None) -> None:
+    assert backtest_window(days) == window
+
+
+def test_validation_matches_the_tested_functions() -> None:
+    holdings, prices, fx, calendar = _market(600)
+
+    data = build_report_data(holdings, prices, fx, calendar, title="T")
+
+    value = portfolio_value(
+        to_base_currency(prices, holdings["currency"], fx), holdings["quantity"]
+    )
+    returns = value.pct_change().iloc[1:]
+    expected = backtest_var(returns, level=0.95, window=250)
+    bt = data["validation"]["backtest"]
+    assert bt["days"] == len(returns) - 250
+    assert bt["breaches"] == expected.breaches
+    assert bt["kupiecP"] == pytest.approx(expected.kupiec.p_value, abs=1e-4)
+    assert bt["zone"] == expected.zone
+    assert len(bt["dates"]) == len(bt["returns"]) == len(bt["var"]) == bt["days"]
+    assert len(bt["breachDates"]) == bt["breaches"]
+    vol = data["validation"]["intervals"]["values"]["volatility"]
+    assert vol["estimate"] == pytest.approx(annualized_volatility(returns), abs=1e-6)
+    assert vol["low"] < vol["estimate"] < vol["high"]
+
+
+def test_short_history_has_intervals_but_no_backtest() -> None:
+    holdings, prices, fx, calendar = _market(200)
+
+    validation = build_report_data(holdings, prices, fx, calendar, title="T")["validation"]
+
+    assert validation["backtest"] is None
+    assert validation["intervals"] is not None
