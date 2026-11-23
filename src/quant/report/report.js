@@ -232,6 +232,7 @@
     $("title").textContent = D.title;
     $("meta").innerHTML = `Valores em ${CURRENCY[D.base] || D.base} · dados até ${dateLong(D.asOf)}` +
       (D.synthetic ? `<span class="flag">Dados simulados</span>` : "");
+    renderSources();
     $("min-var").textContent = D.minDaysVar;
     $("min-cov").textContent = D.minDaysCovariance;
     $("dropped").textContent = D.droppedDates > 0
@@ -251,6 +252,38 @@
       box.appendChild(b);
     });
     $("print").addEventListener("click", () => window.print());
+  }
+
+  const SOURCE_NAME = { yahoo: "Yahoo Finance", kraken: "Kraken", ecb: "BCE (via Frankfurter)" };
+
+  function renderSources() {
+    const list = (D.sources || []).map((s) => (s.name === "FX" ? Object.assign({}, s, { name: "Câmbio" }) : s));
+    if (!list.length) return;
+    const live = list.filter((s) => s.inProgress).map((s) => s.name);
+    if (live.length) {
+      $("meta").insertAdjacentHTML("beforeend", ` · negociando agora: ${esc(live.join(", "))}`);
+    }
+    const failed = list.filter((s) => s.error);
+    if (failed.length) {
+      const box = $("notice");
+      box.innerHTML = `<strong>Nem tudo foi atualizado.</strong> ` + failed.map((s) =>
+        `${esc(s.name)}: usando dados salvos até ${dateLong(s.lastDate)}`).join("; ") +
+        ". Veja os detalhes em Fonte e atualização dos dados, no fim da página.";
+      box.hidden = false;
+    }
+    const state = (s) => s.error
+      ? { color: "var(--s2)", text: `Falhou, usando cópia salva (${s.error})` }
+      : s.fromCache ? { color: "var(--ink-3)", text: "Cópia salva (modo offline)" }
+      : s.inProgress ? { color: "var(--s1)", text: "Negociando agora: último preço, não o fechamento" }
+      : { color: "var(--pos)", text: "Atualizado" };
+    $("freshness").innerHTML = `<thead><tr><th>Série</th><th>Fonte</th><th>Código</th><th>Último dado</th><th>Situação</th></tr></thead><tbody>` +
+      list.map((s) => {
+        const st = state(s);
+        return `<tr><td class="asset">${esc(s.name)}</td><td>${esc(SOURCE_NAME[s.source] || s.source)}</td>` +
+          `<td>${esc(s.symbol)}</td><td>${s.lastDate ? dateLong(s.lastDate) : "—"}</td>` +
+          `<td><span class="state"><i class="dot-state" style="background:${st.color}"></i>${esc(st.text)}</span></td></tr>`;
+      }).join("") + "</tbody>";
+    $("freshness-block").hidden = false;
   }
 
   function figure(label, value, note, cls) {

@@ -6,12 +6,15 @@ import numpy as np
 import pandas as pd
 
 REQUIRED_COLUMNS = ("asset", "quantity", "currency")
+SOURCES = ("yahoo", "kraken")
 
 
 def load_holdings(path: str | Path) -> pd.DataFrame:
     """Read holdings from a CSV with columns ``asset``, ``quantity``, ``currency``.
 
-    See ``data/holdings.example.csv`` for the format. Keep the real file in
+    Optional columns say where to download prices: ``symbol`` (the ticker at the source,
+    e.g. ``PETR4.SA``; defaults to ``asset``) and ``source`` (``yahoo`` or ``kraken``;
+    defaults to ``yahoo``). See ``data/holdings.example.csv``. Keep the real file in
     ``data/private/`` (git-ignored).
 
     Parameters
@@ -22,14 +25,14 @@ def load_holdings(path: str | Path) -> pd.DataFrame:
     Returns
     -------
     pd.DataFrame
-        Indexed by ``asset``, with ``quantity`` (float, units held) and ``currency``
-        (upper-case ISO 4217 code of the asset's quote currency).
+        Indexed by ``asset``, with ``quantity`` (float, units held), ``currency``
+        (upper-case ISO 4217 code of the asset's quote currency), ``source`` and ``symbol``.
 
     Raises
     ------
     ValueError
         If a column is missing, the file has no rows, an asset appears twice, a quantity is
-        not a positive number, or a currency is not a three-letter code.
+        not a positive number, a currency is not a three-letter code, or a source is unknown.
 
     Assumptions
     -----------
@@ -59,7 +62,23 @@ def load_holdings(path: str | Path) -> pd.DataFrame:
     if not currency.str.fullmatch(r"[A-Z]{3}").all():
         raise ValueError("every currency must be a three-letter code such as EUR, BRL, USD")
 
+    source = (
+        raw["source"].fillna("").str.strip().str.lower().replace("", "yahoo")
+        if "source" in raw.columns
+        else pd.Series("yahoo", index=raw.index)
+    )
+    unknown = sorted(set(source) - set(SOURCES))
+    if unknown:
+        raise ValueError(f"unknown source {unknown}; use one of {list(SOURCES)}")
+    symbol = raw["symbol"].fillna("").str.strip() if "symbol" in raw.columns else asset
+    symbol = symbol.where(symbol != "", asset)
+
     return pd.DataFrame(
-        {"quantity": quantity.astype(float).to_numpy(), "currency": currency.to_numpy()},
+        {
+            "quantity": quantity.astype(float).to_numpy(),
+            "currency": currency.to_numpy(),
+            "source": source.to_numpy(),
+            "symbol": symbol.to_numpy(),
+        },
         index=pd.Index(asset.to_numpy(), name="asset"),
     )

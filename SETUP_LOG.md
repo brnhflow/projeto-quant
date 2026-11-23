@@ -59,3 +59,17 @@ From code.claude.com/docs/en/costs and /best-practices:
 | Market data | **No MCP.** The registry's finance servers are paid, company-data products, or brokers whose tools include account access and trading (Webull, Clear Street), which this project rules out. Data will be fetched by tested Python code with read-only, documented sources (decided in roadmap step 1). | Keeps data flow reproducible and testable instead of hidden in a chat tool. |
 | C++ build | **Not installed yet** (CMake, MSVC Build Tools ~several GB, scikit-build-core, pybind11/nanobind). Only needed at roadmap step 9. Note: Smart App Control may block the compiled test binaries; WSL2 is the likely way out. | Avoids a large install with no use for months. |
 | gitleaks (secret scanner) | **Not installed.** Its compiled binary would likely be blocked by Smart App Control; `.gitignore` + deny rules + `detect-private-key` cover the current risk. | Revisit before the repo goes public. |
+
+## Market data (2026-11-23)
+
+Tested live before choosing; no new dependency (HTTP with the standard library).
+
+| Source | Use | Verdict |
+|---|---|---|
+| Yahoo Finance `/v8/finance/chart` | B3, European stocks and ETFs, crypto | Used. Unofficial; community reports 429 rate limits and endpoint changes in 2026, so: one request per asset, 0.5 s apart, retries with backoff, cache fallback. |
+| Kraken public OHLC | Crypto | Used. Official, no key, 720-day limit. |
+| Frankfurter (ECB reference rates) | FX | Used. Open source, no key, daily. |
+| ECB Data Portal API | FX | Not reachable during testing (503 / connection failure). |
+| Stooq CSV | Stocks | Rejected: now behind a JavaScript proof-of-work check. |
+| brapi.dev | B3 | Rejected: free access without key only for a few test tickers. |
+| Twelve Data, Marketstack, Alpha Vantage | Stocks | Not used: need a key, and free tiers are limited or US-only for live data. |

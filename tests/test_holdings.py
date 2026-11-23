@@ -17,7 +17,7 @@ def _write(tmp_path: Path, text: str) -> Path:
 def test_reads_example_file() -> None:
     holdings = load_holdings(EXAMPLE)
 
-    assert list(holdings.columns) == ["quantity", "currency"]
+    assert list(holdings.columns) == ["quantity", "currency", "source", "symbol"]
     assert holdings.index.name == "asset"
     assert (holdings["quantity"] > 0).all()
     assert set(holdings["currency"]) <= {"EUR", "BRL", "USD"}
@@ -29,7 +29,12 @@ def test_known_values_and_cleanup(tmp_path: Path) -> None:
     holdings = load_holdings(path)
 
     expected = pd.DataFrame(
-        {"quantity": [100.0, 0.05], "currency": ["BRL", "USD"]},
+        {
+            "quantity": [100.0, 0.05],
+            "currency": ["BRL", "USD"],
+            "source": ["yahoo", "yahoo"],
+            "symbol": ["PETR4", "BTC"],
+        },
         index=pd.Index(["PETR4", "BTC"], name="asset"),
     )
     pd.testing.assert_frame_equal(holdings, expected)
@@ -44,8 +49,28 @@ def test_known_values_and_cleanup(tmp_path: Path) -> None:
         ("asset,quantity,currency\nA,abc,EUR\n", "quantity"),
         ("asset,quantity,currency\nA,1,EURO\n", "currency"),
         ("asset,quantity,currency\n", "no positions"),
+        ("asset,quantity,currency\nA,inf,EUR\n", "quantity"),
+        ("asset,quantity,currency\n,5,EUR\n", "asset name"),
+        ("asset,quantity,currency,source\nA,1,EUR,stooq\n", "unknown source"),
     ],
 )
 def test_rejects_bad_files(tmp_path: Path, text: str, message: str) -> None:
     with pytest.raises(ValueError, match=message):
         load_holdings(_write(tmp_path, text))
+
+
+def test_source_and_symbol_columns(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        (
+            "asset,quantity,currency,source,symbol\n"
+            "PETR4,1,BRL,,PETR4.SA\n"
+            "BTC,1,USD,Kraken,XBTUSD\n"
+            "X,1,EUR,yahoo,\n"
+        ),
+    )
+
+    holdings = load_holdings(path)
+
+    assert holdings["source"].tolist() == ["yahoo", "kraken", "yahoo"]
+    assert holdings["symbol"].tolist() == ["PETR4.SA", "XBTUSD", "X"]

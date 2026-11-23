@@ -1,6 +1,6 @@
-asset,quantity,currency
-PETR4,200,BRL
-VALE3,150,BRL
-ASML,4,EUR
-IWDA,60,EUR
-BTC,0.05,USD
+asset,quantity,currency,source,symbol
+PETR4,200,BRL,yahoo,PETR4.SA
+VALE3,150,BRL,yahoo,VALE3.SA
+ASML,4,EUR,yahoo,ASML.AS
+IWDA,60,EUR,yahoo,IWDA.AS
+BTC,0.05,USD,kraken,XBTUSD

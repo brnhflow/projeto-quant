@@ -14,6 +14,7 @@ import pandas as pd
 
 from quant.align import align_to_dates
 from quant.attribution import return_attribution
+from quant.data.market import SeriesStatus
 from quant.fx import to_base_currency
 from quant.returns import portfolio_value, simple_returns
 from quant.risk import (
@@ -182,6 +183,7 @@ def build_report_data(
     base: str = "EUR",
     synthetic: bool = False,
     generated: date | None = None,
+    status: list[SeriesStatus] | None = None,
 ) -> dict[str, Any]:
     """Assemble the report content as plain JSON-ready data.
 
@@ -204,6 +206,8 @@ def build_report_data(
         Marks the report as built on simulated data.
     generated : date, optional
         Generation date shown in the report; today if omitted.
+    status : list of SeriesStatus, optional
+        Where each series came from and whether its update failed, shown in the report.
 
     Returns
     -------
@@ -287,4 +291,16 @@ def build_report_data(
         "minDaysCovariance": MIN_DAYS_COVARIANCE,
         "defaultPeriod": default,
         "periods": periods,
+        "sources": [
+            {
+                "name": s.name,
+                "source": s.source,
+                "symbol": s.symbol,
+                "lastDate": s.last_date,
+                "inProgress": s.in_progress,
+                "fromCache": s.from_cache,
+                "error": s.error,
+            }
+            for s in (status or [])
+        ],
     }

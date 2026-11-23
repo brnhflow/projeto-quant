@@ -7,7 +7,7 @@ sounds. Each step ships only when its "done when" holds, with tests that check k
 
 uv, ruff, mypy (strict), pytest, pre-commit, GitHub Actions CI.
 
-## 1. Portfolio and prices in, returns out
+## 1. Portfolio and prices in, returns out (done)
 
 Load my holdings from a CSV I export by hand; fetch daily prices for them; compute simple and
 log returns, in a single base currency (positions in other currencies converted with the FX
@@ -23,7 +23,10 @@ rate of the same day).
   quantities, weights drift), `to_base_currency` (same-date rate, gaps stay NaN),
   `align_to_dates` (last value at or before each date, max 5 days old), `load_holdings`,
   and `scripts/demo_report.py` (HTML report on synthetic data).
-- *Still to do:* real data sources for prices and FX.
+- *Data sources (2026-11-23):* Yahoo Finance chart API for stocks/ETFs, Kraken for crypto,
+  ECB reference rates via Frankfurter; local cache with fallback; `python -m quant report`.
+  Stooq (now behind a browser check) and brapi (free tier limited to test tickers) were
+  tested and rejected. The direct ECB API was down during testing.
 
 Steps 2 and 3 below were built early (2026-11-23) because the report needed them:
 `annualized_volatility`, `drawdown`/`max_drawdown`, `historical_var_es`,

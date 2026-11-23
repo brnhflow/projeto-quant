@@ -1,8 +1,8 @@
 # projeto-quant
 
-> Working title. Working today: returns, currency conversion, calendar alignment, risk
-> measures, return attribution and an HTML report. Real market data is next;
-> `scripts/demo_report.py` runs everything on synthetic data meanwhile.
+> Working title. Working today: live market data (B3, European exchanges, crypto, ECB
+> exchange rates), returns, currency conversion, calendar alignment, risk measures, return
+> attribution and an HTML report.
 
 ## The problem
 
@@ -42,7 +42,8 @@ uv run ruff check .                      # lint
 uv run ruff format .                     # format
 uv run python -m pyright                 # type check (strict)
 uv run python -m pre_commit install      # run all checks before each commit
-uv run python scripts/demo_report.py     # HTML report of the example portfolio (synthetic data)
+uv run python -m quant report            # download prices, write reports/carteira.html
+uv run python scripts/demo_report.py     # same report on synthetic data, no network
 ```
 
 Tools are called as `python -m <tool>` because Windows Smart App Control blocks the
@@ -60,6 +61,44 @@ page only draws them. It has:
 - return attribution per asset, split into price and exchange-rate effects;
 - weight versus share of risk, and the correlation matrix;
 - a sortable positions table, plain-language definitions, light/dark mode, and print to PDF.
+
+## Market data
+
+`python -m quant report` re-downloads the full history of every holding on each run
+(adjusted prices change after dividends, so appending would mix adjustments), keeps a copy
+in `data/cache/`, and falls back to that copy if a source is down. The report says, per
+series, where it came from, the date of the last price, whether that price is from a
+session still trading, and whether it is a stale cached copy.
+
+| Data | Source | Notes |
+|---|---|---|
+| Stocks, ETFs (B3 `PETR4.SA`, Euronext `ASML.AS`, London `VOD.L`...) | Yahoo Finance chart API | Unofficial and undocumented: can rate-limit or change. Prices adjusted for splits and dividends. Pence converted to pounds. |
+| Crypto | Kraken public API (or Yahoo, e.g. `BTC-USD`) | Official, no key. Kraken returns at most 720 days. |
+| Exchange rates | ECB euro reference rates, via [Frankfurter](https://frankfurter.dev) | One rate per TARGET business day, set around 16:00 CET. |
+
+Each holding names its source and ticker in the holdings CSV (see
+`data/holdings.example.csv`). The currency in the file must match what the source reports,
+or the update stops with an error instead of mixing currencies.
+
+### Keeping it up to date on Windows
+
+The data is only as fresh as the last run. To run it every weekday evening (after B3 closes)
+and at every log-on, register a scheduled task once, from the project folder in PowerShell:
+
+```powershell
+$uv = (Get-Command uv).Source
+$action = New-ScheduledTaskAction -Execute "cmd.exe" -WorkingDirectory $PWD `
+  -Argument "/c `"`"$uv`" run python -m quant report >> reports\update.log 2>&1`""
+$triggers = @(
+  New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At 22:45
+  New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+)
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+Register-ScheduledTask -TaskName "Relatorio de carteira" -Action $action -Trigger $triggers -Settings $settings
+```
+
+Remove it with `Unregister-ScheduledTask -TaskName "Relatorio de carteira"`. A missed run
+(computer off) happens at the next start-up.
 
 ## Data and privacy
 
