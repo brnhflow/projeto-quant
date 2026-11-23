@@ -1,0 +1,41 @@
+# Runs before every commit (install once: uv run python -m pre_commit install).
+# Hooks call "python -m <tool>" instead of the tool's .exe launcher, because Windows
+# Smart App Control blocks unsigned launchers on my machine. Same checks as CI.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - { id: check-yaml, entry: python -m pre_commit_hooks.check_yaml }
+      - { id: check-toml, entry: python -m pre_commit_hooks.check_toml }
+      - { id: end-of-file-fixer, entry: python -m pre_commit_hooks.end_of_file_fixer }
+      - { id: trailing-whitespace, entry: python -m pre_commit_hooks.trailing_whitespace_fixer }
+      - { id: mixed-line-ending, entry: python -m pre_commit_hooks.mixed_line_ending, args: [--fix=lf] }
+      - { id: check-added-large-files, entry: python -m pre_commit_hooks.check_added_large_files, args: [--maxkb=500] }
+      - { id: detect-private-key, entry: python -m pre_commit_hooks.detect_private_key }
+      - { id: check-merge-conflict, entry: python -m pre_commit_hooks.check_merge_conflict }
+
+  # Project tools run from the project's own environment (uv.lock pins the versions).
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --frozen ruff check --fix
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --frozen ruff format
+        language: system
+        types_or: [python, pyi]
+      - id: pyright
+        name: pyright (strict)
+        entry: uv run --frozen python -m pyright
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+      - id: pytest
+        name: pytest
+        entry: uv run --frozen python -m pytest -q
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false

@@ -1,0 +1,49 @@
+# Secrets: never committed. Copy .env.example to .env and fill it locally.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Personal financial data (holdings, statements, broker exports): local only.
+data/private/
+data/raw/
+*.ofx
+*.qfx
+
+# Cached market data can be rebuilt; don't version it.
+data/cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Notebooks: keep outputs out of history (strip them or export to docs/)
+.ipynb_checkpoints/
+
+# C++ (future)
+cmake-build-*/
+*.pyd
+*.so
+*.dll
+*.exe
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude Code personal files
+.claude/settings.local.json
+CLAUDE.local.md
