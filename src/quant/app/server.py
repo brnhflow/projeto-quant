@@ -6,8 +6,11 @@ is fetched from the public sources in :mod:`quant.data` when the user asks for a
 
 from __future__ import annotations
 
+import contextlib
 import json
+import math
 import re
+import sys
 import threading
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
@@ -32,15 +35,18 @@ from quant.data.sources import (
 from quant.holdings import asset_labels, load_holdings, save_holdings
 from quant.report import build_report
 
-SYMBOL = re.compile(r"^[A-Za-z0-9.\-=^]{1,24}$")
+SYMBOL = re.compile(r"^[A-Za-z0-9.\-=^&]{1,24}$")  # & appears in real tickers (M&M.NS)
 CURRENCY = re.compile(r"^[A-Z]{3}$")
 YEARS = (1, 2, 3, 5)
 MAX_BODY = 64 * 1024
 MAX_POSITIONS = 100
+MAX_QUANTITY = 1e12
+API_HEADER = "X-Quant-App"
 STATIC = {
     "/": ("quant.app", "static/editor.html", "text/html; charset=utf-8"),
     "/editor.css": ("quant.app", "static/editor.css", "text/css; charset=utf-8"),
     "/editor.js": ("quant.app", "static/editor.js", "text/javascript; charset=utf-8"),
+    "/quantity.js": ("quant.app", "static/quantity.js", "text/javascript; charset=utf-8"),
     "/base.css": ("quant.report", "report.css", "text/css; charset=utf-8"),
 }
 
@@ -104,10 +110,16 @@ def parse_positions(body: Any) -> tuple[pd.DataFrame, int]:
         symbol = str(item.get("symbol", ""))
         if not SYMBOL.match(symbol):
             raise BadRequestError(f"Código inválido: {symbol or '(vazio)'}.")
-        if symbol in symbols:
+        if symbol.upper() in (s.upper() for s in symbols):
             raise BadRequestError(f"{symbol} aparece duas vezes.")
         quantity: Any = item.get("quantity")
-        if isinstance(quantity, bool) or not isinstance(quantity, int | float) or not quantity > 0:
+        if isinstance(quantity, bool) or not isinstance(quantity, int | float):
+            raise BadRequestError(f"Quantidade de {symbol} precisa ser um número maior que zero.")
+        try:
+            quantity = float(quantity)
+        except OverflowError:
+            quantity = math.inf
+        if not math.isfinite(quantity) or not 0 < quantity <= MAX_QUANTITY:
             raise BadRequestError(f"Quantidade de {symbol} precisa ser um número maior que zero.")
         currency = str(item.get("currency", ""))
         if not CURRENCY.match(currency):
@@ -205,10 +217,31 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
 
         # ---------------------------------------------------------- routes
         def do_GET(self) -> None:
+            self._guarded(self._get)
+
+        def do_POST(self) -> None:
+            self._guarded(self._post)
+
+        def _guarded(self, route: Callable[[], None]) -> None:
+            # Any unexpected failure still answers the page instead of dropping the
+            # connection; the details go to the terminal.
+            try:
+                route()
+            except Exception as error:
+                print(f"unexpected error on {self.path}: {error!r}", file=sys.stderr)
+                with contextlib.suppress(OSError):
+                    self._error(
+                        HTTPStatus.INTERNAL_SERVER_ERROR, "Erro inesperado; veja o terminal."
+                    )
+
+        def _get(self) -> None:
             if not self._allowed_host():
                 self._error(HTTPStatus.FORBIDDEN, "Host não permitido.")
                 return
             url = urlparse(self.path)
+            if url.path.startswith("/api/") and self.headers.get(API_HEADER) != "1":
+                self._error(HTTPStatus.FORBIDDEN, "Pedido fora do aplicativo.")
+                return
             query = parse_qs(url.query)
             if url.path in STATIC:
                 package, name, kind = STATIC[url.path]
@@ -237,7 +270,11 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
                     self._json(HTTPStatus.OK, {"results": []})
                     return
                 try:
-                    hits = parse_yahoo_search(config.fetch(yahoo_search_url(text)))
+                    hits = [
+                        h
+                        for h in parse_yahoo_search(config.fetch(yahoo_search_url(text)))
+                        if SYMBOL.match(h.symbol)
+                    ]
                 except (ConnectionError, ValueError) as error:
                     self._error(HTTPStatus.BAD_GATEWAY, f"Busca indisponível agora ({error}).")
                     return
@@ -258,7 +295,7 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
             else:
                 self._error(HTTPStatus.NOT_FOUND, "Página não encontrada.")
 
-        def do_POST(self) -> None:
+        def _post(self) -> None:
             # Read the body before any answer: replying while the client is still sending
             # makes Windows reset the connection and the page sees a network error.
             try:
@@ -275,6 +312,9 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
                 return
             if urlparse(self.path).path != "/api/report":
                 self._error(HTTPStatus.NOT_FOUND, "Página não encontrada.")
+                return
+            if self.headers.get(API_HEADER) != "1":
+                self._error(HTTPStatus.FORBIDDEN, "Pedido fora do aplicativo.")
                 return
             # Requiring JSON forces a CORS preflight for cross-site requests, which this
             # server never approves, so other websites cannot trigger an analysis.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import time
 from collections.abc import Callable
@@ -63,7 +64,27 @@ def _cache_file(cache_dir: Path, source: str, symbol: str) -> Path:
 
 def _save(path: Path, table: pd.DataFrame | pd.Series) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    table.to_csv(path, index_label="date")
+    table.to_csv(path, index_label="date", lineterminator="\n")
+
+
+def _save_series(path: Path, series: pd.Series, currency: str, start: pd.Timestamp) -> None:
+    """Cache a price series with what it is: its currency and the start that was requested."""
+    _save(path, series.rename("price"))
+    meta = {"currency": currency, "start": f"{start:%Y-%m-%d}"}
+    path.with_suffix(".json").write_text(json.dumps(meta), encoding="utf-8")
+
+
+def _load_series(path: Path, currency: str) -> pd.Series | None:
+    """Return cached prices, or None when absent or quoted in another currency."""
+    table = _load(path)
+    if table is None or table.empty:
+        return None
+    meta_path = path.with_suffix(".json")
+    if meta_path.exists():
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        if meta.get("currency") != currency:
+            return None
+    return table["price"]
 
 
 def _load(path: Path) -> pd.DataFrame | None:
@@ -145,7 +166,9 @@ def update_market_data(
                     f"but the holdings file says {currency}"
                 )
             series = quote.prices[quote.prices.index >= start.normalize()]
-            _save(path, series.rename("price"))
+            if series.empty:
+                raise ValueError(f"no prices since {start:%Y-%m-%d}")
+            _save_series(path, series, currency, start)
             columns[name] = series
             statuses.append(
                 SeriesStatus(
@@ -156,10 +179,16 @@ def update_market_data(
         except DataConfigError:
             raise
         except (ConnectionError, ValueError) as error:
-            cached = _load(path)
-            if cached is None or cached.empty:
-                raise ConnectionError(f"{name}: no data ({error}) and no cached copy") from error
-            series = cached["price"]
+            cached = _load_series(path, currency)
+            if cached is None:
+                raise ConnectionError(
+                    f"{name}: no data ({error}) and no cached copy in {currency}"
+                ) from error
+            series = cached[cached.index >= start.normalize()]
+            if series.empty:
+                raise ConnectionError(
+                    f"{name}: no data ({error}) and the cached copy is too old"
+                ) from error
             columns[name] = series
             statuses.append(
                 SeriesStatus(
@@ -182,13 +211,16 @@ def update_market_data(
             fx = parse_frankfurter(
                 fetch(frankfurter_url(start, now.tz_convert(None), needed, base))
             )
-            _save(path, fx)
+            # Keep currencies cached by earlier runs, so a later fallback with another
+            # currency mix still finds them.
+            previous = _load(path)
+            _save(path, fx if previous is None else fx.combine_first(previous))
             statuses.append(SeriesStatus("FX", "ecb", ",".join(needed), f"{fx.index[-1]:%Y-%m-%d}"))
         except (ConnectionError, ValueError) as error:
             cached = _load(path)
             if cached is None or not set(needed) <= set(cached.columns):
                 raise ConnectionError(f"FX: no data ({error}) and no cached copy") from error
-            fx = cached[needed]
+            fx = cached.loc[cached.index >= start.normalize(), needed]
             statuses.append(
                 SeriesStatus(
                     "FX",

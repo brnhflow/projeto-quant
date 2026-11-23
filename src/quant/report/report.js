@@ -232,6 +232,7 @@
     $("title").textContent = D.title;
     $("meta").innerHTML = `Valores em ${CURRENCY[D.base] || D.base} · dados até ${dateLong(D.asOf)}` +
       (D.synthetic ? `<span class="flag">Dados simulados</span>` : "");
+    renderHistoryLimit();
     renderSources();
     $("min-var").textContent = D.minDaysVar;
     $("min-cov").textContent = D.minDaysCovariance;
@@ -257,6 +258,20 @@
 
   const SOURCE_NAME = { yahoo: "Yahoo Finance", kraken: "Kraken", ecb: "BCE (via Frankfurter)" };
 
+  function addNotice(html) {
+    const box = $("notice");
+    box.innerHTML += (box.innerHTML ? "<br>" : "") + html;
+    box.hidden = false;
+  }
+
+  function renderHistoryLimit() {
+    const h = D.historyLimit;
+    if (!h) return;
+    addNotice(`<strong>Histórico mais curto que o pedido.</strong> A análise começa em ${dateLong(h.actual)}, ` +
+      `e não em ${dateLong(h.requested)}` + (h.asset ? `, porque ${esc(h.asset)} só tem preços a partir daí` : "") +
+      `. Todos os números usam esse período; para ver mais história, remova esse ativo.`);
+  }
+
   function renderSources() {
     const list = (D.sources || []).map((s) => (s.name === "FX" ? Object.assign({}, s, { name: "Câmbio" }) : s));
     if (!list.length) return;
@@ -266,11 +281,9 @@
     }
     const failed = list.filter((s) => s.error);
     if (failed.length) {
-      const box = $("notice");
-      box.innerHTML = `<strong>Nem tudo foi atualizado.</strong> ` + failed.map((s) =>
+      addNotice(`<strong>Nem tudo foi atualizado.</strong> ` + failed.map((s) =>
         `${esc(s.name)}: usando dados salvos até ${dateLong(s.lastDate)}`).join("; ") +
-        ". Veja os detalhes em Fonte e atualização dos dados, no fim da página.";
-      box.hidden = false;
+        ". Veja os detalhes em Fonte e atualização dos dados, no fim da página.");
     }
     const state = (s) => s.error
       ? { color: "var(--s2)", text: `Falhou, usando cópia salva (${s.error})` }

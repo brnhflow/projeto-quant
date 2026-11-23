@@ -173,6 +173,20 @@ def _period_data(
     }
 
 
+def _history_limit(
+    calendar: pd.DatetimeIndex,
+    used: pd.DatetimeIndex,
+    first_seen: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Explain a history shorter than requested by naming the series that starts last."""
+    requested, actual = calendar[0], used[0]
+    if actual - requested <= pd.Timedelta(days=7):
+        return None
+    known = {k: pd.Timestamp(v) for k, v in first_seen.items() if v is not None}
+    limiting = max(known, key=lambda k: known[k]) if known else None
+    return {"requested": _iso(requested), "actual": _iso(actual), "asset": limiting}
+
+
 def build_report_data(
     holdings: pd.DataFrame,
     local_prices: pd.DataFrame,
@@ -237,6 +251,8 @@ def build_report_data(
     rates = align_to_dates(fx_rates, calendar)
     base_prices = to_base_currency(local, currencies, rates, base=base)
     complete = local.notna().all(axis="columns") & base_prices.notna().all(axis="columns")
+    # Which series starts last: it decides where the common history begins.
+    first_seen = {str(c): base_prices[c].first_valid_index() for c in base_prices.columns}
     local, base_prices = local[complete], base_prices[complete]
     if len(local) < 2:
         raise ValueError("need at least two dates with a price for every held asset")
@@ -267,6 +283,7 @@ def build_report_data(
         "generated": (generated or date.today()).isoformat(),
         "asOf": _iso(value.index[-1]),
         "droppedDates": int((~complete).sum()),
+        "historyLimit": _history_limit(calendar, pd.DatetimeIndex(local.index), first_seen),
         "dates": [_iso(d) for d in value.index],
         "value": [_num(float(x), 2) for x in value],
         "positions": [

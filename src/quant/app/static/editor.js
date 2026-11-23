@@ -10,17 +10,8 @@
   let years = 2;
 
   // ---------------------------------------------------------------- numbers
-  // Accepts "1.234,56" (Brazilian), "0,05" and "0.05": a comma is always the decimal mark;
-  // without a comma, a single dot is decimal, several dots are thousands.
-  function parseQuantity(text) {
-    let t = String(text).trim().replace(/\s/g, "");
-    if (!t) return null;
-    if (t.includes(",")) t = t.replace(/\./g, "").replace(",", ".");
-    else if ((t.match(/\./g) || []).length > 1) t = t.replace(/\./g, "");
-    if (!/^\d*\.?\d+$/.test(t)) return NaN;
-    return Number(t);
-  }
-  const fmtQty = (v) => v.toLocaleString("pt-BR", { maximumFractionDigits: 8 });
+  // parseQuantity and formatQuantityInput come from quantity.js (tested with Node).
+  const fmtQty = formatQuantityInput;
   function fmtMoney(v, currency) {
     try {
       return v.toLocaleString("pt-BR", { style: "currency", currency, maximumFractionDigits: v >= 1000 ? 0 : 2 });
@@ -30,8 +21,11 @@
   }
 
   // ---------------------------------------------------------------- api
-  async function api(path, options) {
-    const response = await fetch(path, options);
+  async function api(path, options = {}) {
+    // The custom header cannot be sent by another website without a CORS preflight,
+    // which the server never approves.
+    const headers = Object.assign({ "X-Quant-App": "1" }, options.headers || {});
+    const response = await fetch(path, Object.assign({}, options, { headers }));
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(body.error || `Erro ${response.status}`);
     return body;
@@ -174,11 +168,13 @@
   }
   input.addEventListener("input", () => {
     clearTimeout(timer);
+    // Results on screen belong to the previous text: forget them so Enter cannot add one.
+    hits = []; active = -1; seq++;
     const text = input.value.trim();
     if (!text) { closeResults(); return; }
+    showState("Buscando…");
     timer = setTimeout(async () => {
       const mine = ++seq;
-      showState("Buscando…");
       try {
         const data = await api(`/api/search?q=${encodeURIComponent(text)}`);
         if (mine !== seq) return;

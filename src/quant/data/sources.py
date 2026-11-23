@@ -13,8 +13,10 @@ Parsing is separated from downloading so it can be tested on saved responses.
 
 from __future__ import annotations
 
+import functools
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ParamSpec, TypeVar
 from urllib.parse import quote, urlencode
 
 import pandas as pd
@@ -55,6 +57,29 @@ class Quote:
     last_update: pd.Timestamp
 
 
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def _tolerant(parse: Callable[P, R]) -> Callable[P, R]:
+    """Turn a malformed response (missing key, wrong type) into ValueError.
+
+    Callers treat ValueError as "this source failed" and fall back to the cache; a raw
+    KeyError would instead abort the whole analysis.
+    """
+
+    @functools.wraps(parse)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        try:
+            return parse(*args, **kwargs)
+        except (KeyError, TypeError, AttributeError, IndexError) as error:
+            raise ValueError(
+                f"unexpected response format ({type(error).__name__}: {error})"
+            ) from error
+
+    return wrapper
+
+
 def _field(node: Any, *path: str | int) -> Any:
     """Walk nested JSON; None as soon as a key or index is missing."""
     for step in path:
@@ -81,6 +106,7 @@ def yahoo_url(symbol: str, start: pd.Timestamp) -> str:
     return f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol)}?{query}"
 
 
+@_tolerant
 def parse_yahoo_chart(payload: dict[str, Any], now: pd.Timestamp) -> Quote:
     """Read adjusted daily closes from a Yahoo chart response.
 
@@ -177,6 +203,7 @@ def yahoo_search_url(text: str, count: int = 10) -> str:
     return f"https://query1.finance.yahoo.com/v1/finance/search?{query}"
 
 
+@_tolerant
 def parse_yahoo_search(payload: dict[str, Any]) -> list[SearchHit]:
     """Instruments from a search response, keeping only holdable types.
 
@@ -225,6 +252,7 @@ def yahoo_snapshot_url(symbol: str) -> str:
     return f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol)}?range=5d&interval=1d"
 
 
+@_tolerant
 def parse_yahoo_snapshot(payload: dict[str, Any], now: pd.Timestamp) -> Snapshot:
     """Name, exchange, currency and latest price from a short chart response.
 
@@ -261,6 +289,7 @@ def kraken_url(pair: str) -> str:
     return f"https://api.kraken.com/0/public/OHLC?{urlencode({'pair': pair, 'interval': 1440})}"
 
 
+@_tolerant
 def parse_kraken_ohlc(payload: dict[str, Any], currency: str, now: pd.Timestamp) -> Quote:
     """Read daily closes from a Kraken OHLC response.
 
@@ -320,6 +349,7 @@ def frankfurter_url(
     )
 
 
+@_tolerant
 def parse_frankfurter(payload: dict[str, Any]) -> pd.DataFrame:
     """Read ECB reference rates and express them as base units per one foreign unit.
 

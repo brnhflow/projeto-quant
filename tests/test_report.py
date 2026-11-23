@@ -175,3 +175,22 @@ def test_build_report_returns_a_full_page() -> None:
     assert page.startswith("<!DOCTYPE html>")
     assert '"synthetic": true' in page
     assert page.count("<section") == 7
+
+
+def test_late_starting_asset_is_named_as_the_history_limit() -> None:
+    holdings, prices, fx, calendar = _market(120)
+    prices.loc[prices.index[:60], "B"] = float("nan")  # B listed 60 days later
+
+    data = build_report_data(holdings, prices, fx, calendar, title="T")
+
+    limit = data["historyLimit"]
+    assert limit["asset"] == "B"
+    assert limit["requested"] == calendar[0].strftime("%Y-%m-%d")
+    assert limit["actual"] == calendar[60].strftime("%Y-%m-%d")
+    assert data["dates"][0] == limit["actual"]
+
+
+def test_full_history_has_no_limit_notice() -> None:
+    holdings, prices, fx, calendar = _market(60)
+
+    assert build_report_data(holdings, prices, fx, calendar, title="T")["historyLimit"] is None

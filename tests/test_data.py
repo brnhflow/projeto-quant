@@ -304,3 +304,89 @@ def test_snapshot_has_name_exchange_currency_and_price() -> None:
         payload["chart"]["result"][0]["indicators"]["adjclose"][0]["adjclose"][-1]
     )
     assert not snap.in_progress
+
+
+# ---------------------------------------------------------------- robustness of the review fixes
+
+
+EMPTY_META: dict[str, Any] = {}
+MISSING_META: dict[str, Any] = {"chart": {"result": [{"timestamp": [1], "meta": EMPTY_META}]}}
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        MISSING_META,  # meta keys missing
+        {
+            "chart": {
+                "result": [
+                    {
+                        "timestamp": [1],
+                        "meta": {"exchangeTimezoneName": "UTC", "currency": "EUR"},
+                        "indicators": {},
+                    }
+                ]
+            }
+        },
+        {"chart": "nonsense"},
+    ],
+)
+def test_malformed_yahoo_responses_become_value_errors(payload: dict[str, Any]) -> None:
+    with pytest.raises(ValueError):
+        parse_yahoo_chart(payload, now=NOW)
+
+
+def test_malformed_response_falls_back_to_cache(tmp_path: Path) -> None:
+    holdings = _holdings([("PETR4", "BRL", "yahoo", "PETR4.SA")])
+    update_market_data(holdings, START, tmp_path, fetch=_fake_fetch(set()), now=NOW, pause=0)
+
+    def malformed(url: str) -> Any:
+        return MISSING_META if "yahoo" in url else _fixture("frankfurter")
+
+    data = update_market_data(holdings, START, tmp_path, fetch=malformed, now=NOW, pause=0)
+
+    (problem,) = data.problems
+    assert problem.from_cache
+    assert "unexpected response format" in str(problem.error)
+
+
+def test_cache_in_another_currency_is_not_used(tmp_path: Path) -> None:
+    update_market_data(
+        _holdings([("PETR4", "BRL", "yahoo", "PETR4.SA")]),
+        START,
+        tmp_path,
+        fetch=_fake_fetch(set()),
+        now=NOW,
+        pause=0,
+    )
+    # Same ticker, but now the holdings say USD: the BRL cache must not be reused as USD.
+    holdings_usd = _holdings([("PETR4", "USD", "yahoo", "PETR4.SA")])
+
+    with pytest.raises(ConnectionError, match="no cached copy in USD"):
+        update_market_data(
+            holdings_usd, START, tmp_path, fetch=_fake_fetch({"yahoo"}), now=NOW, pause=0
+        )
+
+
+def test_fx_cache_keeps_currencies_from_earlier_runs(tmp_path: Path) -> None:
+    both = _holdings([("PETR4", "BRL", "yahoo", "PETR4.SA"), ("BTC", "USD", "kraken", "XBTUSD")])
+    update_market_data(both, START, tmp_path, fetch=_fake_fetch(set()), now=NOW, pause=0)
+
+    def only_brl(url: str) -> Any:
+        payload = _fixture("frankfurter")
+        payload["rates"] = {d: {"BRL": r["BRL"]} for d, r in payload["rates"].items()}
+        return payload if "frankfurter" in url else _fake_fetch(set())(url)
+
+    update_market_data(
+        _holdings([("PETR4", "BRL", "yahoo", "PETR4.SA")]),
+        START,
+        tmp_path,
+        fetch=only_brl,
+        now=NOW,
+        pause=0,
+    )
+    offline = update_market_data(
+        both, START, tmp_path, fetch=_fake_fetch(set()), now=NOW, offline=True
+    )
+
+    assert set(offline.fx.columns) == {"BRL", "USD"}

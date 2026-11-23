@@ -58,7 +58,9 @@ def _request(
 ) -> tuple[int, dict[str, str], bytes]:
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
     data = json.dumps(body).encode() if body is not None else None
-    all_headers = {"Content-Type": "application/json"} if data else {}
+    all_headers = {"X-Quant-App": "1"}
+    if data:
+        all_headers["Content-Type"] = "application/json"
     all_headers.update(headers or {})
     conn.request(method, path, body=data, headers=all_headers)
     response = conn.getresponse()
@@ -219,6 +221,24 @@ def test_invalid_positions_return_a_message(app: tuple[AppConfig, int]) -> None:
         ({"positions": [{"symbol": "A b", "quantity": 1, "currency": "EUR"}]}, "Código"),
         ({"positions": [{"symbol": "A", "quantity": 1, "currency": "euro"}]}, "Moeda"),
         (
+            {"positions": [{"symbol": "A", "quantity": float("inf"), "currency": "EUR"}]},
+            "maior que zero",
+        ),
+        (
+            {"positions": [{"symbol": "A", "quantity": 10**400, "currency": "EUR"}]},
+            "maior que zero",
+        ),
+        ({"positions": [{"symbol": "A", "quantity": 1e13, "currency": "EUR"}]}, "maior que zero"),
+        (
+            {
+                "positions": [
+                    {"symbol": "abc", "quantity": 1, "currency": "EUR"},
+                    {"symbol": "ABC", "quantity": 1, "currency": "EUR"},
+                ]
+            },
+            "duas vezes",
+        ),
+        (
             {
                 "positions": [
                     {"symbol": f"A{i}", "quantity": 1, "currency": "EUR"} for i in range(101)
@@ -239,3 +259,43 @@ def test_parse_positions_builds_holdings() -> None:
     assert years == 3
     assert holdings.loc["ASML", "quantity"] == 2.5
     assert holdings["source"].tolist() == ["yahoo", "yahoo"]
+
+
+@pytest.mark.parametrize(
+    "path", ["/api/search?q=petr", "/api/quote?symbol=ASML.AS", "/api/holdings"]
+)
+def test_api_requires_the_app_header(app: tuple[AppConfig, int], path: str) -> None:
+    # A cross-site <img src=...> or link cannot add custom headers.
+    status, _, _ = _request(app[1], "GET", path, headers={"X-Quant-App": ""})
+
+    assert status == 403
+
+
+def test_post_without_app_header_is_refused(app: tuple[AppConfig, int]) -> None:
+    status, _, _ = _request(
+        app[1], "POST", "/api/report", {"positions": POSITIONS}, {"X-Quant-App": ""}
+    )
+
+    assert status == 403
+
+
+def test_symbols_with_ampersand_are_accepted() -> None:
+    holdings, _ = parse_positions(
+        {"positions": [{"symbol": "M&M.NS", "quantity": 3, "currency": "INR"}], "years": 1}
+    )
+
+    assert holdings["symbol"].tolist() == ["M&M.NS"]
+
+
+def test_unexpected_error_still_answers(app: tuple[AppConfig, int]) -> None:
+    config, port = app
+
+    def broken(url: str) -> object:
+        raise RuntimeError("boom")
+
+    config.fetch = broken
+
+    status, _, body = _request(port, "GET", "/api/search?q=petr")
+
+    assert status == 500
+    assert "inesperado" in json.loads(body)["error"]
