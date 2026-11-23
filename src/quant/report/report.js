@@ -252,6 +252,7 @@
       box.appendChild(b);
     });
     $("print").addEventListener("click", () => window.print());
+    if (D.editUrl) { $("edit").href = D.editUrl; $("edit").hidden = false; }
   }
 
   const SOURCE_NAME = { yahoo: "Yahoo Finance", kraken: "Kraken", ecb: "BCE (via Frankfurter)" };

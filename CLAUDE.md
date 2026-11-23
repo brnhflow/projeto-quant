@@ -4,7 +4,7 @@ Personal portfolio analysis: risk, scenarios, decision support. Never order exec
 Plan of work: docs/ROADMAP.md. Tool choices and why: SETUP_LOG.md.
 
 ## Commands (Windows: always `python -m`, Smart App Control blocks tool .exe launchers)
-- Install / update env: `uv sync`
+- Install / update env: `uv sync` · app: `uv run python -m quant app`
 - All tests: `uv run python -m pytest` · one file: `uv run python -m pytest tests/test_x.py -q`
 - Lint + format: `uv run ruff check --fix . && uv run ruff format .`
 - Types (strict): `uv run python -m pyright`

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minha carteira</title>
+<link rel="stylesheet" href="/base.css">
+<link rel="stylesheet" href="/editor.css">
+</head>
+<body>
+<div class="page editor">
+
+<header class="masthead">
+  <div class="masthead-text">
+    <p class="overline">Montar carteira</p>
+    <h1>Minha carteira</h1>
+    <p class="meta">Busque cada ativo, informe a quantidade e analise. Os preços são baixados na hora.</p>
+  </div>
+  <div class="controls" id="report-link-box" hidden>
+    <a class="ghost link-button" href="/report">Ver último relatório</a>
+  </div>
+</header>
+
+<section class="block search-block">
+  <label class="field-label" for="search">Adicionar ativo</label>
+  <div class="search" role="combobox" aria-haspopup="listbox" aria-owns="results" aria-expanded="false" id="combo">
+    <svg class="search-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <input id="search" type="text" autocomplete="off" spellcheck="false"
+      placeholder="Nome ou código: Petrobras, ASML, IWDA, bitcoin" aria-autocomplete="list" aria-controls="results">
+    <ul class="results" id="results" role="listbox" hidden></ul>
+  </div>
+  <p class="hint" id="search-hint">Ações da B3 terminam em .SA, de Amsterdã em .AS, de Londres em .L. Criptomoedas aparecem como BTC-USD.</p>
+</section>
+
+<section class="block">
+  <h2><span class="num">1</span>Posições</h2>
+  <p class="lede" id="positions-lede">Nenhum ativo ainda.</p>
+  <div class="table-wrap">
+    <table class="positions holdings" id="holdings" hidden>
+      <thead><tr>
+        <th>Ativo</th><th>Bolsa</th><th>Moeda</th><th class="r">Último preço</th>
+        <th class="r">Quantidade</th><th class="r">Valor</th><th><span class="sr">Remover</span></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="empty" id="empty">Busque um ativo acima para começar.</div>
+</section>
+
+<section class="block analyse">
+  <h2><span class="num">2</span>Analisar</h2>
+  <div class="analyse-row">
+    <div>
+      <p class="field-label" id="years-label">Histórico usado na análise</p>
+      <div class="segmented" id="years" role="group" aria-labelledby="years-label">
+        <button type="button" data-years="1">1 ano</button>
+        <button type="button" data-years="2" aria-pressed="true">2 anos</button>
+        <button type="button" data-years="3">3 anos</button>
+        <button type="button" data-years="5">5 anos</button>
+      </div>
+    </div>
+    <button type="button" class="primary" id="analyse" disabled>Analisar carteira</button>
+  </div>
+  <div class="progress" id="progress" hidden>
+    <div class="progress-track"><div class="progress-fill"></div></div>
+    <p class="progress-text" id="progress-text"></p>
+  </div>
+  <p class="message" id="message" role="alert" hidden></p>
+  <p class="hint">A carteira fica salva só neste computador, em data/private/holdings.csv, e volta preenchida da próxima vez.</p>
+</section>
+
+</div>
+<div class="tip" id="tip" hidden></div>
+<script src="/editor.js"></script>
+</body>
+</html>

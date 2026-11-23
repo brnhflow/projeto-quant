@@ -28,6 +28,10 @@ rate of the same day).
   Stooq (now behind a browser check) and brapi (free tier limited to test tickers) were
   tested and rejected. The direct ECB API was down during testing.
 
+- *Portfolio entry (2026-11-23):* `python -m quant app`, a local page to search assets
+  (Yahoo search), type quantities and run the analysis with fresh data; the portfolio is
+  saved locally. Chosen over scheduled updates: data is fetched when the tool is used.
+
 Steps 2 and 3 below were built early (2026-11-23) because the report needed them:
 `annualized_volatility`, `drawdown`/`max_drawdown`, `historical_var_es`,
 `risk_contributions`, `effective_number_of_positions`, `return_attribution`, and the

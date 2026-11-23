@@ -42,9 +42,21 @@ uv run ruff check .                      # lint
 uv run ruff format .                     # format
 uv run python -m pyright                 # type check (strict)
 uv run python -m pre_commit install      # run all checks before each commit
-uv run python -m quant report            # download prices, write reports/carteira.html
-uv run python scripts/demo_report.py     # same report on synthetic data, no network
+uv run python -m quant app               # open the portfolio editor in the browser
+uv run python -m quant report            # same analysis from the command line
+uv run python scripts/demo_report.py     # the report on synthetic data, no network
 ```
+
+## Using it
+
+`python -m quant app` opens a page on this computer (http://127.0.0.1:8750). Search each
+asset by name or ticker ("petrobras", "ASML", "bitcoin"), type the quantity, and press
+**Analisar carteira**: prices and exchange rates are downloaded at that moment and the
+report opens. The portfolio is saved to `data/private/holdings.csv` and comes back filled in
+next time; **Editar carteira** on the report goes back to it.
+
+The server listens only on 127.0.0.1, rejects requests whose `Host` is not its own (DNS
+rebinding) and accepts only JSON posts (other websites cannot trigger it).
 
 Tools are called as `python -m <tool>` because Windows Smart App Control blocks the
 unsigned `.exe` launchers that pip/uv generate. On Linux or macOS, `uv run pytest` works too.
@@ -79,26 +91,6 @@ session still trading, and whether it is a stale cached copy.
 Each holding names its source and ticker in the holdings CSV (see
 `data/holdings.example.csv`). The currency in the file must match what the source reports,
 or the update stops with an error instead of mixing currencies.
-
-### Keeping it up to date on Windows
-
-The data is only as fresh as the last run. To run it every weekday evening (after B3 closes)
-and at every log-on, register a scheduled task once, from the project folder in PowerShell:
-
-```powershell
-$uv = (Get-Command uv).Source
-$action = New-ScheduledTaskAction -Execute "cmd.exe" -WorkingDirectory $PWD `
-  -Argument "/c `"`"$uv`" run python -m quant report >> reports\update.log 2>&1`""
-$triggers = @(
-  New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At 22:45
-  New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
-)
-$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-Register-ScheduledTask -TaskName "Relatorio de carteira" -Action $action -Trigger $triggers -Settings $settings
-```
-
-Remove it with `Unregister-ScheduledTask -TaskName "Relatorio de carteira"`. A missed run
-(computer off) happens at the next start-up.
 
 ## Data and privacy
 

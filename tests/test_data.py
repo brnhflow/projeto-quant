@@ -10,7 +10,13 @@ import pytest
 
 from quant.data import DataConfigError, update_market_data
 from quant.data.http import fetch_json
-from quant.data.sources import parse_frankfurter, parse_kraken_ohlc, parse_yahoo_chart
+from quant.data.sources import (
+    parse_frankfurter,
+    parse_kraken_ohlc,
+    parse_yahoo_chart,
+    parse_yahoo_search,
+    parse_yahoo_snapshot,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -251,3 +257,50 @@ def test_offline_uses_cache_without_network(tmp_path: Path) -> None:
 
     assert data.problems == []
     assert all(s.from_cache for s in data.status)
+
+
+# ---------------------------------------------------------------- search and snapshot
+
+
+def test_search_keeps_holdable_instruments_in_rank_order() -> None:
+    hits = parse_yahoo_search(_fixture("yahoo_search_petrobras"))
+
+    symbols = [h.symbol for h in hits]
+    assert "PETR4.SA" in symbols
+    assert symbols.index("PBR") < symbols.index("PETR4.SA")  # source ranking preserved
+    petr4 = next(h for h in hits if h.symbol == "PETR4.SA")
+    assert petr4.exchange == "São Paulo"
+    assert petr4.kind == "EQUITY"
+    assert "  " not in petr4.name  # padded names are cleaned
+    assert petr4.detail == "PETROBRAS PN N2"  # tells PN (PETR4) from ON (PETR3)
+    petr3 = next(h for h in hits if h.symbol == "PETR3.SA")
+    assert petr3.detail == "PETROBRAS ON N2"
+
+
+def test_search_drops_futures() -> None:
+    hits = parse_yahoo_search(_fixture("yahoo_search_bitcoin"))
+
+    assert "BTC-USD" in [h.symbol for h in hits]
+    assert next(h for h in hits if h.symbol == "BTC-USD").exchange == "Cripto"
+    assert all(h.kind != "FUTURE" for h in hits)
+    assert all(not h.symbol.endswith("=F") for h in hits)
+
+
+def test_search_without_results() -> None:
+    assert parse_yahoo_search({"quotes": []}) == []
+    assert parse_yahoo_search({}) == []
+
+
+def test_snapshot_has_name_exchange_currency_and_price() -> None:
+    payload = _fixture("yahoo_asml_quote")
+
+    snap = parse_yahoo_snapshot(payload, now=pd.Timestamp("2026-12-01", tz="UTC"))
+
+    assert snap.symbol == "ASML.AS"
+    assert snap.name == "ASML Holding N.V."
+    assert snap.exchange == "Amsterdam"
+    assert snap.currency == "EUR"
+    assert snap.price == pytest.approx(
+        payload["chart"]["result"][0]["indicators"]["adjclose"][0]["adjclose"][-1]
+    )
+    assert not snap.in_progress

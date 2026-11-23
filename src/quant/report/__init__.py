@@ -53,6 +53,7 @@ def build_report(
     base: str = "EUR",
     synthetic: bool = False,
     status: list[SeriesStatus] | None = None,
+    edit_url: str | None = None,
 ) -> str:
     """Compute the report data and render it; see :func:`build_report_data` for arguments."""
     data = build_report_data(
@@ -64,5 +65,6 @@ def build_report(
         base=base,
         synthetic=synthetic,
         status=status,
+        edit_url=edit_url,
     )
     return render_html(data)

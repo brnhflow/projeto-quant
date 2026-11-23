@@ -82,3 +82,38 @@ def load_holdings(path: str | Path) -> pd.DataFrame:
         },
         index=pd.Index(asset.to_numpy(), name="asset"),
     )
+
+
+def save_holdings(holdings: pd.DataFrame, path: str | Path) -> None:
+    """Write holdings in the format :func:`load_holdings` reads, creating the folder.
+
+    Parameters
+    ----------
+    holdings : pd.DataFrame
+        Indexed by asset, with ``quantity``, ``currency``, ``source`` and ``symbol``.
+    path : str or Path
+        Destination CSV; replaced if it exists.
+
+    """
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    columns = ["quantity", "currency", "source", "symbol"]
+    holdings[columns].to_csv(target, index_label="asset", lineterminator="\n")
+
+
+def asset_labels(symbols: list[str]) -> list[str]:
+    """Short display names for tickers: ``PETR4.SA`` becomes ``PETR4`` unless that clashes.
+
+    Parameters
+    ----------
+    symbols : list of str
+        Tickers at the data source, unique.
+
+    Returns
+    -------
+    list of str
+        One label per symbol, unique; the full symbol is kept where the short one repeats.
+
+    """
+    short = [s.split(".")[0] if "." in s else s for s in symbols]
+    return [s if short.count(c) > 1 else c for s, c in zip(symbols, short, strict=True)]

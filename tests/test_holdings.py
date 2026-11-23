@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from quant.holdings import load_holdings
+from quant.holdings import asset_labels, load_holdings, save_holdings
 
 EXAMPLE = Path(__file__).parents[1] / "data" / "holdings.example.csv"
 
@@ -74,3 +74,18 @@ def test_source_and_symbol_columns(tmp_path: Path) -> None:
 
     assert holdings["source"].tolist() == ["yahoo", "kraken", "yahoo"]
     assert holdings["symbol"].tolist() == ["PETR4.SA", "XBTUSD", "X"]
+
+
+def test_save_then_load_round_trip(tmp_path: Path) -> None:
+    original = load_holdings(EXAMPLE)
+    path = tmp_path / "private" / "holdings.csv"
+
+    save_holdings(original, path)
+
+    pd.testing.assert_frame_equal(load_holdings(path), original)
+
+
+def test_asset_labels_shorten_unless_ambiguous() -> None:
+    labels = asset_labels(["PETR4.SA", "ASML.AS", "ASML", "BTC-USD", "IWDA.AS"])
+
+    assert labels == ["PETR4", "ASML.AS", "ASML", "BTC-USD", "IWDA"]

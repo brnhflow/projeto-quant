@@ -149,6 +149,110 @@ def parse_yahoo_chart(payload: dict[str, Any], now: pd.Timestamp) -> Quote:
     return Quote(prices.rename(str(meta.get("symbol", ""))), currency, in_progress, last_update)
 
 
+# Instrument types that make sense to hold; futures and options expire, indices are not
+# investable directly.
+HOLDABLE_TYPES = {"EQUITY", "ETF", "MUTUALFUND", "CRYPTOCURRENCY"}
+# Yahoo's internal codes for venues that are not exchanges.
+EXCHANGE_NAMES = {"CCC": "Cripto", "CCY": "Câmbio"}
+
+
+def _clean(text: Any) -> str:
+    return " ".join(str(text or "").split())
+
+
+@dataclass(frozen=True)
+class SearchHit:
+    """One instrument found by name or ticker."""
+
+    symbol: str
+    name: str
+    exchange: str
+    kind: str
+    detail: str = ""  # the exchange's short name, e.g. "PETROBRAS PN N2" (share class)
+
+
+def yahoo_search_url(text: str, count: int = 10) -> str:
+    """Search API URL for instruments matching ``text`` (name or ticker)."""
+    query = urlencode({"q": text, "quotesCount": count, "newsCount": 0, "listsCount": 0})
+    return f"https://query1.finance.yahoo.com/v1/finance/search?{query}"
+
+
+def parse_yahoo_search(payload: dict[str, Any]) -> list[SearchHit]:
+    """Instruments from a search response, keeping only holdable types.
+
+    Parameters
+    ----------
+    payload : dict
+        Decoded JSON of the search API.
+
+    Returns
+    -------
+    list of SearchHit
+        In the order the source ranks them.
+
+    """
+    hits: list[SearchHit] = []
+    quotes: list[Any] = _field(payload, "quotes") or []
+    for item in quotes:
+        kind = str(_field(item, "quoteType") or "")
+        symbol = _field(item, "symbol")
+        if kind not in HOLDABLE_TYPES or not symbol:
+            continue
+        long_name, short_name = _clean(_field(item, "longname")), _clean(_field(item, "shortname"))
+        name = long_name or short_name or str(symbol)
+        detail = short_name if long_name and short_name and short_name != long_name else ""
+        exchange = _clean(_field(item, "exchDisp") or _field(item, "exchange"))
+        hits.append(
+            SearchHit(str(symbol), name, EXCHANGE_NAMES.get(exchange, exchange), kind, detail)
+        )
+    return hits
+
+
+@dataclass(frozen=True)
+class Snapshot:
+    """Current facts about one instrument, to show while the user builds a portfolio."""
+
+    symbol: str
+    name: str
+    exchange: str
+    currency: str
+    price: float
+    in_progress: bool
+
+
+def yahoo_snapshot_url(symbol: str) -> str:
+    """Chart API URL for the last few days only (fast, used to validate a ticker)."""
+    return f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol)}?range=5d&interval=1d"
+
+
+def parse_yahoo_snapshot(payload: dict[str, Any], now: pd.Timestamp) -> Snapshot:
+    """Name, exchange, currency and latest price from a short chart response.
+
+    The price is the last adjusted close (or the live price during a session), in the
+    major currency unit, the same series the report uses.
+
+    Raises
+    ------
+    ValueError
+        If the response reports an error or contains no prices.
+
+    """
+    series = parse_yahoo_chart(payload, now)
+    meta: Any = _field(payload, "chart", "result", 0, "meta") or {}
+    name = meta.get("longName") or meta.get("shortName") or meta.get("symbol") or ""
+    return Snapshot(
+        symbol=str(meta.get("symbol") or series.prices.name or ""),
+        name=" ".join(str(name).split()),
+        exchange=EXCHANGE_NAMES.get(
+            _clean(meta.get("fullExchangeName") or meta.get("exchangeName")),
+            _clean(meta.get("fullExchangeName") or meta.get("exchangeName")),
+        ),
+        currency=series.currency,
+        price=float(series.prices.iloc[-1]),
+        in_progress=series.in_progress,
+    )
+
+
 # ---------------------------------------------------------------- Kraken
 
 

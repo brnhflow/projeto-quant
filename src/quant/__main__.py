@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import argparse
 import sys
+import webbrowser
 from collections.abc import Sequence
 from pathlib import Path
 
 import pandas as pd
 
+from quant.app import AppConfig, make_server
 from quant.data import DataConfigError, update_market_data
 from quant.holdings import load_holdings
 from quant.report import build_report
@@ -38,7 +40,43 @@ def _parser() -> argparse.ArgumentParser:
     )
     report.add_argument("--title", default="Minha carteira", help="report title")
     report.add_argument("--offline", action="store_true", help="use only cached data, no network")
+
+    app = commands.add_parser("app", help="open the portfolio editor in the browser")
+    app.add_argument("--port", type=int, default=8750, help="local port (default: 8750)")
+    app.add_argument(
+        "--holdings",
+        type=Path,
+        default=Path("data/private/holdings.csv"),
+        help="where the portfolio is saved (default: data/private/holdings.csv)",
+    )
+    app.add_argument(
+        "--cache", type=Path, default=Path("data/cache"), help="folder for downloaded data"
+    )
+    app.add_argument("--no-browser", action="store_true", help="do not open the browser")
     return parser
+
+
+def run_app(port: int, holdings: Path, cache: Path, open_browser: bool) -> int:
+    """Serve the editor on 127.0.0.1 until Ctrl+C."""
+    config = AppConfig(
+        holdings_path=holdings, cache_dir=cache, report_path=Path("reports/carteira.html")
+    )
+    try:
+        server = make_server(config, port)
+    except OSError as error:
+        print(f"error: port {port} unavailable ({error}); try --port 8751", file=sys.stderr)
+        return 2
+    url = f"http://127.0.0.1:{server.server_address[1]}/"
+    print(f"Portfolio editor at {url}  (Ctrl+C to stop)")
+    if open_browser:
+        webbrowser.open(url)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+    return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -48,6 +86,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     from the cache after a failed download. 2: no report (bad input or no data at all).
     """
     args = _parser().parse_args(argv)
+    if args.command == "app":
+        return run_app(args.port, args.holdings, args.cache, not args.no_browser)
     try:
         holdings = load_holdings(args.holdings)
         now = pd.Timestamp.now(tz="UTC")

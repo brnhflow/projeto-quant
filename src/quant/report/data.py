@@ -184,6 +184,7 @@ def build_report_data(
     synthetic: bool = False,
     generated: date | None = None,
     status: list[SeriesStatus] | None = None,
+    edit_url: str | None = None,
 ) -> dict[str, Any]:
     """Assemble the report content as plain JSON-ready data.
 
@@ -208,6 +209,8 @@ def build_report_data(
         Generation date shown in the report; today if omitted.
     status : list of SeriesStatus, optional
         Where each series came from and whether its update failed, shown in the report.
+    edit_url : str, optional
+        Link back to the page where the portfolio is edited (set by the local app).
 
     Returns
     -------
@@ -291,6 +294,7 @@ def build_report_data(
         "minDaysCovariance": MIN_DAYS_COVARIANCE,
         "defaultPeriod": default,
         "periods": periods,
+        "editUrl": edit_url,
         "sources": [
             {
                 "name": s.name,

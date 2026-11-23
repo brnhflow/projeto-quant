@@ -80,6 +80,8 @@ h1 { font: 600 38px/1.1 var(--serif); margin: 0; letter-spacing: -0.01em; }
 .segmented button:disabled { color: var(--ink-3); cursor: not-allowed; }
 .segmented button:not(:disabled):not([aria-pressed="true"]):hover { background: var(--field); }
 .ghost { border: 1px solid var(--rule); border-radius: 6px; }
+a.ghost { display: inline-flex; align-items: center; text-decoration: none; }
+.ghost[hidden] { display: none; }
 .ghost:hover { background: var(--field); }
 button:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
 
