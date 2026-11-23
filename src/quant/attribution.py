@@ -1,5 +1,6 @@
 """Where a portfolio's return came from: each asset, split into price and currency."""
 
+import numpy as np
 import pandas as pd
 
 
@@ -52,7 +53,15 @@ def return_attribution(
     """
     if not local_prices.index.equals(base_prices.index):
         raise ValueError("local and base prices must have the same dates")
+    if len(local_prices) < 2:
+        raise ValueError("need at least two dates")
+    if not np.isfinite(quantities).all() or (quantities < 0).any() or not (quantities > 0).any():
+        raise ValueError("quantities must be finite, non-negative, with at least one position")
     assets = quantities.index
+    for table in (local_prices, base_prices):
+        absent = assets.difference(table.columns)
+        if len(absent) > 0:
+            raise ValueError(f"no prices for held assets: {list(absent)}")
     for table in (local_prices, base_prices):
         if table[assets].iloc[[0, -1]].isna().to_numpy().any():
             raise ValueError("every held asset needs a price on the first and last dates")

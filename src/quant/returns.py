@@ -83,10 +83,12 @@ def portfolio_value(prices: pd.DataFrame, quantities: pd.Series) -> pd.Series:
         raise ValueError(f"no prices for held assets: {list(missing)}")
     if quantities.isna().any() or (quantities < 0).any() or not (quantities > 0).any():
         raise ValueError("quantities must be non-negative with at least one position")
-    held = prices[quantities.index]
+    # Assets held at quantity 0 do not affect the value, so their gaps must not either.
+    held_quantities = quantities[quantities > 0]
+    held = prices[held_quantities.index]
     _check_prices(held)
     # skipna=False: a missing price makes the total unknown instead of silently smaller.
-    value = held.mul(quantities, axis="columns").sum(axis="columns", skipna=False)
+    value = held.mul(held_quantities, axis="columns").sum(axis="columns", skipna=False)
     return value.rename("value")
 
 

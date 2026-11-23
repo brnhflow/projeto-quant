@@ -186,3 +186,18 @@ def test_risk_contributions_rejects_missing_or_mismatched() -> None:
 )
 def test_effective_number_of_positions(weights: list[float], expected: float) -> None:
     assert effective_number_of_positions(pd.Series(weights)) == pytest.approx(expected)
+
+
+def test_var_exact_quantile_position_is_not_rounded_down() -> None:
+    # 11 returns -0.50, -0.49, ..., -0.40 at 90%: position (11 - 1) * 0.1 = 1 exactly,
+    # so VaR is the second worst day (0.49), not the worst (0.50).
+    returns = pd.Series(np.arange(11) / 100 - 0.5)
+
+    var, _ = historical_var_es(returns, level=0.9)
+
+    assert var == pytest.approx(0.49)
+
+
+def test_max_drawdown_rejects_empty() -> None:
+    with pytest.raises(ValueError):
+        max_drawdown(pd.Series([], dtype=float))

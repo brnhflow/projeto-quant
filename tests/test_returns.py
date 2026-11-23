@@ -155,3 +155,11 @@ def test_portfolio_value_known_answer() -> None:
     pd.testing.assert_series_equal(
         value, pd.Series([200.0, 210.0], index=prices.index, name="value")
     )
+
+
+def test_portfolio_value_ignores_gaps_in_assets_not_held() -> None:
+    prices = _prices({"A": [100.0, 110.0], "B": [50.0, np.nan]})
+
+    value = portfolio_value(prices, pd.Series({"A": 1.0, "B": 0.0}))
+
+    assert value.tolist() == [100.0, 110.0]

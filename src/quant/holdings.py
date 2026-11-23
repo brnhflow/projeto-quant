@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 REQUIRED_COLUMNS = ("asset", "quantity", "currency")
@@ -44,12 +45,14 @@ def load_holdings(path: str | Path) -> pd.DataFrame:
         raise ValueError("no positions in file")
 
     asset = raw["asset"].str.strip()
+    if asset.isna().any() or (asset == "").any():
+        raise ValueError("every row needs an asset name")
     duplicated = sorted(set(asset[asset.duplicated()]))
     if duplicated:
         raise ValueError(f"duplicate assets: {duplicated}")
 
     quantity = pd.to_numeric(raw["quantity"].str.strip(), errors="coerce")
-    if quantity.isna().any() or (quantity <= 0).any():
+    if quantity.isna().any() or not np.isfinite(quantity).all() or (quantity <= 0).any():
         raise ValueError("every quantity must be a positive number")
 
     currency = raw["currency"].str.strip().str.upper()

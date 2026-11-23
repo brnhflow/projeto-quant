@@ -71,3 +71,26 @@ def test_rejects_tables_that_do_not_match() -> None:
 
     with pytest.raises(ValueError, match="same dates"):
         return_attribution(local, eur, pd.Series({"A": 1.0}))
+
+
+@pytest.mark.parametrize("quantities", [{"A": float("nan")}, {"A": 0.0}, {"A": -1.0}])
+def test_rejects_bad_quantities(quantities: dict[str, float]) -> None:
+    prices = _frame({"A": [10.0, 11.0, 12.0]})
+
+    with pytest.raises(ValueError, match="quantities"):
+        return_attribution(prices, prices, pd.Series(quantities))
+
+
+def test_rejects_asset_missing_from_a_table() -> None:
+    local = _frame({"A": [10.0, 11.0, 12.0], "B": [1.0, 1.0, 1.0]})
+    base = _frame({"A": [10.0, 11.0, 12.0]})
+
+    with pytest.raises(ValueError, match="no prices"):
+        return_attribution(local, base, pd.Series({"A": 1.0, "B": 1.0}))
+
+
+def test_rejects_single_date() -> None:
+    prices = _frame({"A": [10.0, 11.0, 12.0]}).iloc[:1]
+
+    with pytest.raises(ValueError, match="two dates"):
+        return_attribution(prices, prices, pd.Series({"A": 1.0}))

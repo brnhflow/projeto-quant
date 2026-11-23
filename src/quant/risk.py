@@ -65,8 +65,8 @@ def drawdown(value: pd.Series) -> pd.Series:
     - The peak is the running maximum up to each date, so only past values are used.
 
     """
-    if value.isna().any() or (value <= 0).any():
-        raise ValueError("values must be positive and not missing")
+    if value.empty or value.isna().any() or (value <= 0).any():
+        raise ValueError("values must be non-empty, positive and not missing")
     return value / value.cummax() - 1
 
 
@@ -117,7 +117,10 @@ def historical_var_es(returns: pd.Series, level: float = 0.95) -> tuple[float, f
         raise ValueError(f"need at least {minimum} returns for level {level}")
     if returns.isna().any():
         raise ValueError("returns must not contain missing values")
-    cutoff = float(returns.quantile(1 - level, interpolation="lower"))
+    # Position of the "lower" empirical quantile, rounded so that 1 - level = 0.0999999...
+    # does not push an exact integer position one observation down.
+    ordered = returns.sort_values().to_numpy(dtype=float)
+    cutoff = float(ordered[math.floor(round((len(ordered) - 1) * (1 - level), 9))])
     tail = returns[returns <= cutoff]
     return -cutoff, -float(tail.mean())
 
