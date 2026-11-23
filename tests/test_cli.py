@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -83,3 +84,35 @@ def test_offline_without_cache_is_a_clean_error(
 
     assert code == 2
     assert "no cached copy" in capsys.readouterr().err
+
+
+def test_cash_does_not_push_the_report_past_the_last_trading_day(tmp_path: Path) -> None:
+    from quant.pipeline import analyse_portfolio
+
+    holdings = pd.DataFrame(
+        {
+            "quantity": [10.0, 100.0],
+            "currency": ["BRL", "EUR"],
+            "source": ["yahoo", "cash"],
+            "symbol": ["PETR4.SA", "EUR"],
+        },
+        index=pd.Index(["PETR4", "Caixa EUR"], name="asset"),
+    )
+    fixture = json.loads((FIXTURES / "yahoo_petr4.json").read_text(encoding="utf-8"))
+    last_trade = pd.Timestamp(fixture["chart"]["result"][0]["timestamp"][-1], unit="s").normalize()
+    later = (last_trade + pd.Timedelta(days=4)).tz_localize("UTC") + pd.Timedelta(hours=12)
+
+    def fetch(url: str) -> object:
+        if "PETR4" in url:
+            return fixture
+        if "frankfurter" in url:
+            return json.loads((FIXTURES / "frankfurter.json").read_text(encoding="utf-8"))
+        raise ConnectionError("no index data in this test")
+
+    analysis = analyse_portfolio(
+        holdings, 1, tmp_path, title="T", fetch=fetch, now=later, pause=0, fetch_text=lambda u: b""
+    )
+
+    as_of = re.search(r'"asOf": "([0-9-]+)"', analysis.page)
+    assert as_of is not None
+    assert pd.Timestamp(as_of.group(1)) <= last_trade

@@ -330,7 +330,7 @@ def sharpe_ratio(values: FloatArray) -> FloatArray:
     """Annualized mean over annualized volatility, with no risk-free rate subtracted."""
     sd = np.std(values, ddof=1, axis=-1)
     mean = np.mean(values, axis=-1)
-    moving = sd > 0
+    moving = sd > 1e-12  # rounding noise of constant returns
     return moving * mean / (sd + ~moving) * math.sqrt(TRADING_DAYS)
 
 

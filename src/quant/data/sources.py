@@ -179,16 +179,23 @@ def parse_yahoo_chart(payload: dict[str, Any], now: pd.Timestamp) -> Quote:
     last_update = pd.Timestamp(int(meta.get("regularMarketTime", stamps[-1])), unit="s", tz="UTC")
     divisor = MINOR_UNITS[str(meta["currency"])][1] if str(meta["currency"]) in MINOR_UNITS else 1.0
     events: Any = _field(result, "events", "dividends") or {}
-    paid = {
-        pd.Timestamp(int(e["date"]), unit="s", tz="UTC")
-        .tz_convert(zone)
-        .normalize()
-        .tz_localize(None): float(e["amount"]) / divisor
+    paid = [
+        (
+            pd.Timestamp(int(e["date"]), unit="s", tz="UTC")
+            .tz_convert(zone)
+            .normalize()
+            .tz_localize(None),
+            float(e["amount"]) / divisor,
+        )
         for e in events.values()
         if e.get("amount") is not None and e.get("date") is not None
-    }
+    ]
+    # Two payments on one date (regular and special) both count.
     dividends = (
-        pd.Series(paid, dtype=float).sort_index()
+        pd.Series([a for _, a in paid], index=pd.DatetimeIndex([d for d, _ in paid]), dtype=float)
+        .groupby(level=0)
+        .sum()
+        .sort_index()
         if paid
         else pd.Series(dtype=float, index=pd.DatetimeIndex([]))
     )

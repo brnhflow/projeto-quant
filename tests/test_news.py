@@ -194,3 +194,15 @@ def test_news_is_fetched_for_stocks_only_and_failures_stay_local() -> None:
     assert news["ASML"] is None
     assert len(news["PETR4"]) == 5
     assert len(asked) == 2
+
+
+def test_two_dividends_on_the_same_date_both_count() -> None:
+    payload = json.loads((FIXTURES / "yahoo_vod_dividends.json").read_text(encoding="utf-8"))
+    events = payload["chart"]["result"][0]["events"]["dividends"]
+    first = next(iter(events.values()))
+    events["extra"] = {"amount": 1.0, "date": first["date"]}  # special dividend, same day
+
+    quote = parse_yahoo_chart(payload, NOW)
+
+    assert quote.dividends is not None
+    assert quote.dividends.loc["2025-06-05"] == pytest.approx(0.029542)

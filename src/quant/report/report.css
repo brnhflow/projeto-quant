@@ -168,7 +168,8 @@ h2 .num {
 .w-card { padding: 16px 0 18px; border-bottom: 1px solid var(--rule); min-width: 0; }
 .w-card header { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
 .w-card header strong { font-size: 15px; }
-.w-card header span { display: block; font-size: 12px; color: var(--ink-2); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.w-card header > div:first-child { min-width: 0; flex: 1; }
+.w-card header span { display: block; font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .w-figs { display: flex; gap: 14px; flex: none; }
 .w-fig { text-align: right; font-weight: 600; font-size: 15px; }
 .w-fig small { display: block; font-weight: 400; font-size: 11px; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.06em; }

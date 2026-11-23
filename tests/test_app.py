@@ -393,3 +393,10 @@ def test_unexpected_error_still_answers(app: tuple[AppConfig, int]) -> None:
 
     assert status == 500
     assert "inesperado" in json.loads(body)["error"]
+
+
+def test_cash_only_portfolio_is_refused_with_a_clear_message() -> None:
+    with pytest.raises(BadRequestError, match="além do caixa"):
+        parse_positions(
+            {"positions": [{"symbol": "EUR", "quantity": 1, "currency": "EUR", "kind": "cash"}]}
+        )

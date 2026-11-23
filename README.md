@@ -63,20 +63,26 @@ unsigned `.exe` launchers that pip/uv generate. On Linux or macOS, `uv run pytes
 
 ## The report
 
-`quant.report.build_report(holdings, prices, fx, calendar, title=...)` writes one self-contained
-HTML file (no server, no network). Every number in it comes from the tested functions; the
-page only draws them. It has:
+One self-contained HTML file (no server, no network once written). Every number comes from
+tested Python functions; the page only draws them. Sections:
 
-- a period selector (1, 3, 6 months, year to date, 12 months, all) that recomputes everything;
-- value and drawdown charts with a shared crosshair;
-- allocation by asset and by currency, with the effective number of positions;
-- return attribution per asset, split into price and exchange-rate effects;
-- weight versus share of risk, and the correlation matrix;
-- a sortable positions table, plain-language definitions, light/dark mode, and print to PDF.
+| Section | What it answers | How it is checked |
+|---|---|---|
+| Performance | Value and drawdown over 1M, 3M, 6M, YTD, 12M or all | Matches an independent pandas recomputation |
+| This week | Which assets moved beyond 2.5x their usual daily or weekly size, with the latest headlines (Google News) and dividends received in 12 months | z-score against the year before the move; feed parsing tested on saved responses |
+| Composition, attribution, risk | Weights by asset and currency, return split into price and FX, share of risk, correlations | Attribution sums exactly to the total; risk shares sum to 1 |
+| Factors | How much the portfolio moves with each market and currency (betas with error bands), and how its variance splits | Walk-forward out-of-sample R² next to the in-sample R²; alpha t-stat |
+| Crises | Eight real crises (2008, euro debt, Brazil 2015, Brexit, Joesley Day, Covid, 2022 rates, FTX) replayed on today's positions, plus sliders to build a scenario | Assets that did not exist yet use their best index proxy and a Vasicek-shrunk beta; coverage is shown per crisis |
+| The future | A fan of 2000 block-bootstrapped paths for 1, 3 or 5 years, with and without the past trend, and the chance of a 10/20/30% fall | Month-by-month calibration: how often reality landed inside the 90% range, with a binomial test |
+| How far to trust the numbers | Day-by-day VaR backtest; 90% bootstrap ranges for return, volatility, Sharpe and VaR | Kupiec, Christoffersen and the Basel traffic light, with textbook answers in the tests |
+| Rebalance | What to buy and sell to reach target weights (or only with new money), costs, cash left, risk before and after; current, equal or risk-parity targets | Plans always pay for themselves; risk parity equals inverse volatility for independent assets |
+
+Plus a sortable positions table, plain-language definitions of every method, light and dark
+mode, and print to PDF.
 
 ## Market data
 
-`python -m quant report` re-downloads the full history of every holding on each run
+Every analysis re-downloads the full history of every holding since 2007, four series at a time
 (adjusted prices change after dividends, so appending would mix adjustments), keeps a copy
 in `data/cache/`, and falls back to that copy if a source is down. The report says, per
 series, where it came from, the date of the last price, whether that price is from a
@@ -87,6 +93,10 @@ session still trading, and whether it is a stale cached copy.
 | Stocks, ETFs (B3 `PETR4.SA`, Euronext `ASML.AS`, London `VOD.L`...) | Yahoo Finance chart API | Unofficial and undocumented: can rate-limit or change. Prices adjusted for splits and dividends. Pence converted to pounds. |
 | Crypto | Kraken public API (or Yahoo, e.g. `BTC-USD`) | Official, no key. Kraken returns at most 720 days. |
 | Exchange rates | ECB euro reference rates, via [Frankfurter](https://frankfurter.dev) | One rate per TARGET business day, set around 16:00 CET. |
+| Search | Yahoo search and lookup APIs | Search ranks well but returns 7 results; lookup lists every match, paged. |
+| Market indices for crises and factors | Yahoo chart API (`^BVSP`, `^GSPC`, `^STOXX50E`, `^FTSE`, `^SSMI`, `BTC-USD`) | Price indices, no dividends. From 2007. |
+| Dividends | Yahoo chart API events | Gross amounts per share; Brazilian JCP included as reported. |
+| Headlines | Google News RSS | No key. B3 stocks by ticker in Portuguese, others by company name in English. |
 
 Each holding names its source and ticker in the holdings CSV (see
 `data/holdings.example.csv`). The currency in the file must match what the source reports,

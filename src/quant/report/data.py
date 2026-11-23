@@ -142,8 +142,13 @@ def _period_data(
     first_base, last_base = base_prices.iloc[start], base_prices.iloc[-1]
 
     risk_block: dict[str, Any] | None = None
+    contributions: pd.Series | None = None
     if len(asset_returns) >= MIN_DAYS_COVARIANCE:
-        contributions = risk_contributions(asset_returns, weights_now)
+        try:
+            contributions = risk_contributions(asset_returns, weights_now)
+        except ValueError:  # no variance at all, e.g. only euro cash
+            contributions = None
+    if contributions is not None:
         corr = asset_returns.corr()
         matrix = corr.to_numpy(dtype=float)
         names = [str(c) for c in corr.columns]

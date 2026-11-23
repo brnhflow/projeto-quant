@@ -41,7 +41,9 @@ def render_html(data: dict[str, Any]) -> str:
         for f in (quantity, assets / "rebalance.js", assets / "report.js")
     )
     # "</" inside the JSON would close the <script> tag early.
-    payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+    payload = (
+        json.dumps(data, ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\u0021--")
+    )
     return (
         template.replace("{{TITLE}}", html.escape(str(data["title"])))
         .replace("{{CSS}}", css)

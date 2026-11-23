@@ -158,6 +158,8 @@ def parse_positions(body: Any) -> tuple[pd.DataFrame, int]:
         currencies.append(currency)
         sources.append(CASH if cash else YAHOO)
 
+    if all(src == CASH for src in sources):
+        raise BadRequestError("Adicione pelo menos um ativo além do caixa.")
     holdings = pd.DataFrame(
         {
             "quantity": quantities,

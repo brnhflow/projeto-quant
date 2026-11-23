@@ -38,7 +38,7 @@ Steps 2 and 3 below were built early (2026-11-23) because the report needed them
 `quant.report` package (period selector, attribution, risk and correlation views). Candidate for FX: ECB
   euro reference rates (official, free; quoted as foreign units per 1 EUR, so invert).
 
-## 2. Descriptive risk
+## 2. Descriptive risk (done)
 
 Annualised volatility, maximum drawdown, correlation matrix, concentration (largest weights,
 Herfindahl index).
@@ -47,7 +47,7 @@ Herfindahl index).
 - *Done when:* each metric matches a closed-form or textbook example (e.g. volatility of a
   constant-return series is 0; drawdown of a known path equals the value worked out by hand).
 
-## 3. Loss estimates and who causes them
+## 3. Loss estimates and who causes them (done)
 
 Historical Value at Risk and Expected Shortfall; each position's contribution to total risk.
 
@@ -55,7 +55,7 @@ Historical Value at Risk and Expected Shortfall; each position's contribution to
 - *Done when:* parametric VaR matches the normal-distribution formula; contributions sum to
   the total; rolling estimates use only past data (look-ahead test).
 
-## 4. Scenarios and stress tests
+## 4. Scenarios and stress tests (done)
 
 Replay historical crises (2008, March 2020, 2022) on today's weights; apply hand-made shocks
 ("equities -30%, rates +2pp, EUR -10%").
@@ -63,7 +63,7 @@ Replay historical crises (2008, March 2020, 2022) on today's weights; apply hand
 - *Useful because:* concrete stories are easier to act on than a single number.
 - *Done when:* a one-asset portfolio reproduces that asset's actual crisis drawdown.
 
-## 5. What-if trades and rebalancing
+## 5. What-if trades and rebalancing (done)
 
 Current vs. target weights, drift, and the effect of a proposed trade on every metric above,
 including transaction costs.
@@ -72,13 +72,17 @@ including transaction costs.
 - *Done when:* a report shows before/after for a proposed trade; costs reduce the result by
   exactly the stated amount.
 
-## 6. Monte Carlo for goals
+## 6. Monte Carlo (done; goals with contributions still open)
 
 Simulate future portfolio paths to answer "what is the chance of reaching X by year Y?",
 with the return model and its assumptions stated next to the result.
 
 - *Done when:* with zero volatility the simulation equals compound growth; with normal returns
   the simulated mean and variance converge to the analytical values.
+
+Also done beyond the plan: VaR backtesting (Kupiec, Christoffersen, Basel), bootstrap
+intervals, factor exposures with a walk-forward test, unusual-move alerts with headlines,
+dividend income, and risk-parity targets in the rebalancer.
 
 ## 7. Backtesting rules (later on purpose)
 

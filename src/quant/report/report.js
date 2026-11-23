@@ -571,9 +571,11 @@
       const ok = kState === "pass" && iState === "pass";
       $("backtest-caption").innerHTML = ok
         ? `Conclusão: a <strong>perda de dia ruim</strong> do quadro de números é confiável para esta carteira. Ela foi estimada com uma janela de ${bt.window} dias e testada em ${bt.days} dias seguintes.`
-        : many
+        : kState === "fail" && many
           ? `Conclusão: a <strong>perda de dia ruim</strong> foi otimista nesta carteira (${abs(ratio, 1)} vezes mais erros que o esperado). Trate o número do quadro como piso, não como teto. Janela de ${bt.window} dias, testada em ${bt.days} dias.`
-          : `Conclusão: a perda de dia ruim acertou na quantidade, mas os erros se concentram em períodos de crise. Nesses períodos, espere perdas maiores que a prevista.`;
+          : kState === "fail"
+            ? `Conclusão: a perda de dia ruim foi pessimista nesta carteira (menos erros que o esperado): o risco real foi menor que o número do quadro.`
+            : `Conclusão: a perda de dia ruim acertou na quantidade, mas os erros se concentram em períodos de crise. Nesses períodos, espere perdas maiores que a prevista.`;
       $("backtest-legend").innerHTML =
         `<span class="key"><span class="swatch" style="background:${cssVar("--ink-3")}"></span>Retorno do dia</span>` +
         `<span class="key"><span class="tick-key" style="background:${cssVar("--s1")}"></span>Perda prevista naquela manhã</span>` +
@@ -739,8 +741,16 @@
   function factorList() {
     const used = [...new Set(S.positions.filter((p) => !p.cash).map((p) => p.proxy))];
     const cash = [...new Set(S.positions.filter((p) => p.cash && p.currency !== D.base).map((p) => p.currency))];
-    return used.map((sym) => ({ key: sym, label: `${proxyName(sym)}, em euro`, min: sym === "BTC-USD" ? -90 : -60, max: sym === "BTC-USD" ? 100 : 40 }))
-      .concat(cash.map((c) => ({ key: "fx:" + c, label: `${c} contra o euro (caixa)`, min: -50, max: 30 })));
+    // Wide enough for every crisis preset, so a preset is never silently clipped.
+    const reach = (vals, lo, hi) => [Math.min(lo, Math.floor(Math.min(...vals) * 100) - 5), Math.max(hi, Math.ceil(Math.max(...vals) * 100) + 5)];
+    const moves = (get) => S.scenarios.map(get).filter((v) => typeof v === "number");
+    return used.map((sym) => {
+      const [min, max] = reach(moves((s) => s.indices[sym]).concat([0]), sym === "BTC-USD" ? -90 : -60, sym === "BTC-USD" ? 100 : 40);
+      return { key: sym, label: `${proxyName(sym)}, em euro`, min: Math.max(-100, min), max };
+    }).concat(cash.map((c) => {
+      const [min, max] = reach(moves((s) => (s.currencies || {})[c]).concat([0]), -50, 30);
+      return { key: "fx:" + c, label: `${c} contra o euro (caixa)`, min: Math.max(-100, min), max };
+    }));
   }
   function builderImpact() {
     return S.positions.map((p) => {
@@ -819,7 +829,8 @@
 
   // ---------------------------------------------------------------- rebalance
   // Maths in rebalance.js (planTrades, riskParity, portfolioVol, riskShares).
-  const REB_KEY = "quant.rebalance.targets";
+  // One key per set of assets: targets of another portfolio never leak in.
+  const REB_KEY = "quant.rebalance.targets:" + positions.map((p) => p.asset).sort().join("|");
   const C = D.covariance;
   const rebState = { mode: "full", targets: {} };
   const num = (text) => { const v = parseQuantity(String(text).replace("%", "")); return v === null || Number.isNaN(v) ? NaN : v; };
@@ -829,8 +840,13 @@
     try {
       const saved = JSON.parse(localStorage.getItem(REB_KEY) || "null");
       if (!saved) return null;
-      const assets = positions.map((p) => p.asset);
-      return assets.every((a) => typeof saved[a] === "number") ? saved : null;
+      const out = {};
+      for (const p of positions) {
+        if (typeof saved[p.asset] !== "number") return null;
+        out[p.asset] = saved[p.asset];
+      }
+      const sum = Object.values(out).reduce((a, w) => a + w, 0);
+      return Math.abs(sum - 1) < 0.0005 ? out : null;
     } catch { return null; }
   }
   function covFor(assets) {
@@ -874,7 +890,7 @@
   }
 
   function updateRebalance() {
-    const sum = Object.values(rebState.targets).reduce((a, w) => a + w, 0);
+    const sum = positions.reduce((a, p) => a + (rebState.targets[p.asset] || 0), 0);
     const okSum = Math.abs(sum - 1) < 0.0005;
     $("reb-sum").textContent = fmt.share(sum);
     $("reb-sum").classList.toggle("bad", !okSum);

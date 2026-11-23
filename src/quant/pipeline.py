@@ -125,7 +125,11 @@ def analyse_portfolio(
 
     news = {} if offline else fetch_news(holdings, market, fetch_text)
 
-    calendar = pd.bdate_range(start, pd.Timestamp(market.prices.index.max()))
+    # Cash is worth 1 every business day up to today; the report must end on the last day
+    # a real asset has a price, or the latest move would show as a 0% "phantom" day.
+    traded = [str(a) for a, src in holdings["source"].items() if src != "cash"]
+    priced = market.prices[traded].dropna(how="all") if traded else market.prices
+    calendar = pd.bdate_range(start, pd.Timestamp(priced.index.max()))
     page = build_report(
         holdings,
         market.prices,
