@@ -7,10 +7,13 @@ description = "Personal research toolkit for analysing my own portfolio: risk, s
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Bernardo" }]
-dependencies = []
+dependencies = [
+    "pandas>=3.0",
+]
 
 [dependency-groups]
 dev = [
+    "pandas-stubs>=3.1.0.261029",
     "pre-commit>=4.7",
     "pyright>=1.1",
     "pytest>=9.2",
