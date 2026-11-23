@@ -67,8 +67,25 @@
   </div>
 </section>
 
+<section class="block" id="factors">
+  <h2><span class="num">5</span>Do que a carteira depende de verdade</h2>
+  <p class="lede" id="factors-lede"></p>
+  <div class="two-col factors-cols">
+    <div>
+      <h3 class="chart-title">Sensibilidade a cada fator</h3>
+      <div class="legend" id="factors-legend"></div>
+      <div class="chart" id="chart-factors"></div>
+    </div>
+    <div>
+      <h3 class="chart-title">De onde vêm as oscilações</h3>
+      <div id="factor-shares"></div>
+      <div class="verdict-inline" id="factors-check"></div>
+    </div>
+  </div>
+</section>
+
 <section class="block" id="stress">
-  <h2><span class="num">5</span>E se uma crise acontecesse hoje</h2>
+  <h2><span class="num">6</span>E se uma crise acontecesse hoje</h2>
   <p class="lede" id="stress-lede"></p>
   <h3 class="chart-title">Crises reais, aplicadas à carteira de hoje</h3>
   <div class="scenarios" id="scenarios"></div>
@@ -83,7 +100,7 @@
 </section>
 
 <section class="block" id="trust">
-  <h2><span class="num">6</span>Quanto confiar nestes números</h2>
+  <h2><span class="num">7</span>Quanto confiar nestes números</h2>
   <p class="lede" id="trust-lede"></p>
   <div id="backtest-block">
     <h3 class="chart-title">A perda de dia ruim prevista contra o que aconteceu</h3>
@@ -100,13 +117,13 @@
 </section>
 
 <section class="block">
-  <h2><span class="num">7</span>Posições</h2>
+  <h2><span class="num">8</span>Posições</h2>
   <p class="lede">Clique no nome de uma coluna para ordenar.</p>
   <div class="table-wrap"><table class="positions" id="positions"></table></div>
 </section>
 
 <section class="block" id="rebalance">
-  <h2><span class="num">8</span>Rebalancear</h2>
+  <h2><span class="num">9</span>Rebalancear</h2>
   <p class="lede" id="reb-lede">Defina a meta de cada ativo e veja o que comprar e vender, quanto custa e como o risco muda. As metas ficam salvas neste navegador.</p>
   <div class="reb-controls">
     <div>
@@ -133,7 +150,7 @@
 </section>
 
 <section class="block method">
-  <h2><span class="num">9</span>Como ler e premissas</h2>
+  <h2><span class="num">10</span>Como ler e premissas</h2>
   <dl class="defs">
     <dt>Retorno no período</dt>
     <dd>Variação do valor da carteira em euros entre o fechamento do primeiro e do último dia,
@@ -201,6 +218,15 @@
     <dd>Pesos em que cada ativo responde pela mesma parcela das oscilações: ativos calmos
     ganham mais peso, voláteis menos. Usa as covariâncias dos últimos 12 meses; caixa fica
     fora da conta. É a ideia por trás de fundos como o All Weather, da Bridgewater.</dd>
+    <dt>Fatores</dt>
+    <dd>Regressão dos retornos semanais da carteira em euro contra os índices que os seus
+    ativos acompanham (na moeda local) e o câmbio das moedas que você tem. O beta diz quanto
+    a carteira tende a se mover quando o fator se move 1%; a linha fina em volta é a margem
+    de erro (dois erros-padrão). Semanal porque as bolsas fecham em horários diferentes.</dd>
+    <dt>Teste fora da amostra</dt>
+    <dd>Toda semana o modelo é ajustado só com as semanas anteriores e tenta explicar a
+    seguinte. Se explica bem dentro da amostra mas mal fora dela, as exposições mudaram com
+    o tempo e não devem ser usadas para decidir.</dd>
     <dt>Calendário e câmbio</dt>
     <dd>Dias úteis europeus. Num feriado de outra bolsa, o ativo vale o último fechamento (até
     5 dias); o fim de semana das criptomoedas entra na segunda-feira. Cada preço é convertido

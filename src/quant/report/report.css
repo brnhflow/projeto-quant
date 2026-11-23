@@ -163,6 +163,22 @@ h2 .num {
 .note-line { margin: 14px 4px 0; font-size: 13px; color: var(--ink-2); }
 
 /* ---------------------------------------------------------------- legend */
+/* ---------------------------------------------------------------- factors */
+.share-bar { display: flex; gap: 2px; height: 18px; border-radius: 4px; overflow: hidden; margin: 4px 0 14px; }
+.share-bar span { display: block; min-width: 2px; }
+.share-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.share-list li { display: grid; grid-template-columns: 14px 1fr auto; gap: 10px; align-items: center; font-size: 14px; }
+.share-list .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.verdict-inline { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--rule); }
+.verdict-inline .v-title { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; font-size: 15px; }
+.verdict-inline .v-icon { width: 20px; height: 20px; display: inline-flex; flex: none; }
+.verdict-inline .v-icon svg { width: 20px; height: 20px; }
+.verdict-inline.pass .v-icon { color: var(--pos); }
+.verdict-inline.warn .v-icon { color: var(--warn); }
+.verdict-inline.fail .v-icon { color: var(--neg); }
+.verdict-inline .v-body { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.verdict-inline .v-body strong { color: var(--ink); }
+
 /* ---------------------------------------------------------------- stress */
 .scenarios { border-top: 1px solid var(--rule); }
 .scenario { border-bottom: 1px solid var(--rule); }

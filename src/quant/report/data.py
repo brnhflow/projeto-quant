@@ -15,6 +15,7 @@ import pandas as pd
 from quant.align import align_to_dates
 from quant.attribution import return_attribution
 from quant.data.market import SeriesStatus
+from quant.factors import factor_exposure
 from quant.fx import to_base_currency
 from quant.returns import portfolio_value, simple_returns
 from quant.risk import (
@@ -394,6 +395,80 @@ def _stress(
     }
 
 
+CURRENCY_NAMES = {
+    "USD": "Dólar",
+    "BRL": "Real",
+    "GBP": "Libra",
+    "CHF": "Franco suíço",
+    "JPY": "Iene",
+    "CAD": "Dólar canadense",
+    "AUD": "Dólar australiano",
+    "SEK": "Coroa sueca",
+    "NOK": "Coroa norueguesa",
+    "DKK": "Coroa dinamarquesa",
+    "HKD": "Dólar de Hong Kong",
+    "CNY": "Yuan",
+    "PLN": "Zloty",
+    "MXN": "Peso mexicano",
+}
+
+
+def _factors(
+    value: pd.Series,
+    proxy_prices: pd.DataFrame,
+    fx_rates: pd.DataFrame,
+    stress: dict[str, Any] | None,
+    currencies: list[str],
+    base: str,
+) -> dict[str, Any] | None:
+    """Exposure of the portfolio to the markets its assets follow and to its currencies."""
+    if stress is None:
+        return None
+    markets = sorted({str(p["proxy"]) for p in stress["positions"] if p["proxy"]})
+    markets = [m for m in markets if m in proxy_prices.columns]
+    foreign = sorted({c for c in currencies if c != base and c in fx_rates.columns})
+    start, end = pd.Timestamp(value.index[0]), pd.Timestamp(value.index[-1])
+    window = slice(start - pd.Timedelta(days=10), end)
+    prices = pd.concat(
+        [proxy_prices.loc[window, markets], fx_rates.loc[window, foreign]],
+        axis="columns",
+        sort=True,
+    )
+    if prices.empty or prices.shape[1] == 0:
+        return None
+    try:
+        exposure = factor_exposure(value, prices)
+    except ValueError:
+        return None
+    fit = exposure.fit
+    t_stats = fit.t_stats
+    items: list[dict[str, Any]] = []
+    for key in fit.betas.index:
+        k = str(key)
+        is_currency = k in foreign
+        items.append(
+            {
+                "key": k,
+                "name": f"{CURRENCY_NAMES.get(k, k)} ({k})" if is_currency else PROXIES[k][0],
+                "kind": "currency" if is_currency else "market",
+                "beta": _num(float(fit.betas[key]), 4),
+                "se": _num(float(fit.standard_errors[key]), 4),
+                "t": _num(float(t_stats[key]), 2),
+                "share": _num(float(exposure.shares[key]), 4),
+            }
+        )
+    return {
+        "weeks": exposure.weeks,
+        "start": _iso(start),
+        "r2": _num(fit.r2, 4),
+        "oosR2": None if exposure.oos_r2 is None else _num(exposure.oos_r2, 4),
+        "alphaAnnual": _num(exposure.alpha_annual, 4),
+        "alphaT": _num(fit.alpha / fit.alpha_se, 2) if fit.alpha_se > 0 else None,
+        "residualShare": _num(float(exposure.shares["residual"]), 4),
+        "items": items,
+    }
+
+
 def _history_limit(
     calendar: pd.DatetimeIndex,
     used: pd.DatetimeIndex,
@@ -499,6 +574,20 @@ def build_report_data(
             _period_data(period, start, local, base_prices, value, quantities, weights_now)
         )
 
+    stress = (
+        None
+        if proxy_prices is None
+        else _stress(
+            holdings,
+            local_prices,
+            fx_rates,
+            proxy_prices,
+            position_value,
+            pd.Timestamp(value.index[-1]),
+            base,
+        )
+    )
+
     preferred = ("12M", "ALL")
     default = next(p["key"] for k in preferred for p in periods if p["key"] == k and p["available"])
 
@@ -535,15 +624,15 @@ def build_report_data(
             for c, v in by_currency.items()
         ],
         "validation": _validation(value),
-        "stress": None
+        "stress": stress,
+        "factors": None
         if proxy_prices is None
-        else _stress(
-            holdings,
-            local_prices,
-            fx_rates,
+        else _factors(
+            value,
             proxy_prices,
-            position_value,
-            pd.Timestamp(value.index[-1]),
+            fx_rates,
+            stress,
+            [str(c) for c in currencies],
             base,
         ),
         "effectivePositions": _num(effective_number_of_positions(position_value), 3),
