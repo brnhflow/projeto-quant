@@ -67,8 +67,23 @@
   </div>
 </section>
 
+<section class="block" id="stress">
+  <h2><span class="num">5</span>E se uma crise acontecesse hoje</h2>
+  <p class="lede" id="stress-lede"></p>
+  <h3 class="chart-title">Crises reais, aplicadas à carteira de hoje</h3>
+  <div class="scenarios" id="scenarios"></div>
+  <p class="caption" id="stress-caption"></p>
+  <h3 class="chart-title builder-title">Monte o seu cenário</h3>
+  <p class="caption" id="builder-lede"></p>
+  <div class="presets" id="presets" role="group" aria-label="Partir de uma crise"></div>
+  <div class="builder">
+    <div class="sliders" id="sliders"></div>
+    <div class="builder-result" id="builder-result" aria-live="polite"></div>
+  </div>
+</section>
+
 <section class="block" id="trust">
-  <h2><span class="num">5</span>Quanto confiar nestes números</h2>
+  <h2><span class="num">6</span>Quanto confiar nestes números</h2>
   <p class="lede" id="trust-lede"></p>
   <div id="backtest-block">
     <h3 class="chart-title">A perda de dia ruim prevista contra o que aconteceu</h3>
@@ -85,13 +100,13 @@
 </section>
 
 <section class="block">
-  <h2><span class="num">6</span>Posições</h2>
+  <h2><span class="num">7</span>Posições</h2>
   <p class="lede">Clique no nome de uma coluna para ordenar.</p>
   <div class="table-wrap"><table class="positions" id="positions"></table></div>
 </section>
 
 <section class="block method">
-  <h2><span class="num">7</span>Como ler e premissas</h2>
+  <h2><span class="num">8</span>Como ler e premissas</h2>
   <dl class="defs">
     <dt>Retorno no período</dt>
     <dd>Variação do valor da carteira em euros entre o fechamento do primeiro e do último dia,
@@ -140,6 +155,15 @@
     <dt>Índice de Sharpe</dt>
     <dd>Retorno médio anual dividido pela volatilidade anual: quanto a carteira rendeu por
     unidade de oscilação. Aqui sem descontar a taxa livre de risco.</dd>
+    <dt>Testes de crise</dt>
+    <dd>Cada crise é o intervalo entre o fechamento antes do choque e o fundo, aplicado às
+    quantidades de hoje, em euro (o câmbio da época entra). Ativo que ainda não existia
+    usa o índice com que mais se parece (maior R², retornos semanais desde 2007) vezes o seu
+    beta, como fazem os sistemas de risco profissionais. Uma crise futura será diferente:
+    use como ordem de grandeza, não como previsão.</dd>
+    <dt>Beta</dt>
+    <dd>Quanto o ativo costuma se mover quando o índice se move 1%: beta 1,4 significa
+    1,4% em média. R² diz quanto do movimento o índice explica (de 0 a 100%).</dd>
     <dt>Calendário e câmbio</dt>
     <dd>Dias úteis europeus. Num feriado de outra bolsa, o ativo vale o último fechamento (até
     5 dias); o fim de semana das criptomoedas entra na segunda-feira. Cada preço é convertido

@@ -24,6 +24,14 @@ from quant.risk import (
     historical_var_es,
     risk_contributions,
 )
+from quant.stress import (
+    PROXIES,
+    SCENARIOS,
+    ProxyFit,
+    fit_proxy,
+    run_scenario,
+    window_return,
+)
 from quant.validation import (
     annualized_return,
     annualized_vol,
@@ -246,6 +254,117 @@ def _validation(value: pd.Series) -> dict[str, Any]:
     return out
 
 
+def _stress(
+    holdings: pd.DataFrame,
+    local_prices: pd.DataFrame,
+    fx_rates: pd.DataFrame,
+    proxy_prices: pd.DataFrame,
+    position_value: pd.Series,
+    last: pd.Timestamp,
+    base: str,
+) -> dict[str, Any] | None:
+    """Historical crises replayed on today's positions, and the betas for custom shocks."""
+    first = min(pd.Timestamp(local_prices.index.min()), pd.Timestamp(proxy_prices.index.min()))
+    calendar = pd.bdate_range(first, last)
+    currencies = holdings["currency"]
+    assets_eur = to_base_currency(
+        align_to_dates(local_prices[holdings.index], calendar),
+        currencies,
+        align_to_dates(fx_rates, calendar),
+        base=base,
+    )
+    available = [p for p in PROXIES if p in proxy_prices.columns]
+    if not available:
+        return None
+    proxy_currencies = pd.Series({p: PROXIES[p][1] for p in available})
+    needed = set(proxy_currencies) - {base}
+    if not needed <= set(fx_rates.columns):
+        return None
+    proxies_eur = to_base_currency(
+        align_to_dates(proxy_prices[available], calendar),
+        proxy_currencies,
+        align_to_dates(fx_rates, calendar),
+        base=base,
+    )
+
+    names = [str(a) for a in holdings.index]
+    column = {
+        c: [str(v) for v in holdings[c].tolist()] for c in ("source", "symbol") if c in holdings
+    }
+    source_of = dict(zip(names, column.get("source", [""] * len(names)), strict=True))
+    symbol_of = dict(zip(names, column.get("symbol", names), strict=True))
+    fits: dict[str, ProxyFit] = {}
+    positions: list[dict[str, Any]] = []
+    for asset in holdings.index:
+        name = str(asset)
+        is_cash = source_of[name] == "cash"
+        symbol = symbol_of[name]
+        fit = fit_proxy(assets_eur[name], proxies_eur, symbol, str(currencies[asset]))
+        fits[name] = fit
+        positions.append(
+            {
+                "asset": name,
+                "value": _num(float(position_value[asset]), 2),
+                "cash": is_cash,
+                "currency": str(currencies[asset]),
+                "proxy": None if is_cash else fit.proxy,
+                "beta": None if is_cash else _num(fit.beta, 4),
+                "r2": None if is_cash else _num(fit.r2, 4),
+                "fitted": fit.fitted,
+            }
+        )
+
+    total = float(position_value.sum())
+    scenarios: list[dict[str, Any]] = []
+    for scenario in SCENARIOS:
+        shocks = run_scenario(scenario, assets_eur, proxies_eur, position_value, fits)
+        known = [s for s in shocks if s.change is not None]
+        pnl = sum(s.value * float(s.change or 0) for s in known)
+        scenarios.append(
+            {
+                "key": scenario.key,
+                "name": scenario.name,
+                "description": scenario.description,
+                "start": _iso(scenario.start),
+                "end": _iso(scenario.end),
+                "pnl": _num(pnl, 2),
+                "change": _num(pnl / total),
+                "coverage": {
+                    method: _num(sum(s.value for s in shocks if s.method == method) / total)
+                    for method in ("history", "proxy", "missing")
+                },
+                "positions": [
+                    {
+                        "asset": s.asset,
+                        "change": None if s.change is None else _num(s.change),
+                        "pnl": None if s.change is None else _num(s.value * s.change, 2),
+                        "method": s.method,
+                    }
+                    for s in shocks
+                ],
+                "currencies": {
+                    c: _num(r)
+                    for c in sorted(set(currencies.astype(str)) - {base})
+                    if c in fx_rates.columns
+                    and (r := window_return(fx_rates[c], scenario.start, scenario.end)) is not None
+                },
+                "indices": {
+                    p: _num(r)
+                    for p in available
+                    if (r := window_return(proxies_eur[p], scenario.start, scenario.end))
+                    is not None
+                },
+            }
+        )
+    return {
+        "total": _num(total, 2),
+        "scenarios": scenarios,
+        "positions": positions,
+        "proxies": [{"symbol": p, "name": PROXIES[p][0]} for p in available],
+        "indicesUntil": _iso(pd.Timestamp(proxy_prices.dropna(how="all").index.max())),
+    }
+
+
 def _history_limit(
     calendar: pd.DatetimeIndex,
     used: pd.DatetimeIndex,
@@ -272,6 +391,7 @@ def build_report_data(
     generated: date | None = None,
     status: list[SeriesStatus] | None = None,
     edit_url: str | None = None,
+    proxy_prices: pd.DataFrame | None = None,
 ) -> dict[str, Any]:
     """Assemble the report content as plain JSON-ready data.
 
@@ -298,6 +418,10 @@ def build_report_data(
         Where each series came from and whether its update failed, shown in the report.
     edit_url : str, optional
         Link back to the page where the portfolio is edited (set by the local app).
+    proxy_prices : pd.DataFrame, optional
+        Market indices of :data:`quant.stress.PROXIES` in their own currencies, for the
+        stress tests; ``local_prices`` and ``fx_rates`` should then reach back to 2007.
+        Without it the report has no stress section.
 
     Returns
     -------
@@ -380,6 +504,17 @@ def build_report_data(
             for c, v in by_currency.items()
         ],
         "validation": _validation(value),
+        "stress": None
+        if proxy_prices is None
+        else _stress(
+            holdings,
+            local_prices,
+            fx_rates,
+            proxy_prices,
+            position_value,
+            pd.Timestamp(value.index[-1]),
+            base,
+        ),
         "effectivePositions": _num(effective_number_of_positions(position_value), 3),
         "minDaysVar": MIN_DAYS_VAR,
         "minDaysCovariance": MIN_DAYS_COVARIANCE,

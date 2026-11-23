@@ -21,11 +21,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from quant.risk import historical_var_es
 
 TRADING_DAYS = 252
+FloatArray = npt.NDArray[np.float64]
+IndexArray = npt.NDArray[np.int64]
 
 
 def chi2_sf(x: float, dof: int) -> float:
@@ -109,7 +112,7 @@ def kupiec_pof(n: int, breaches: int, p: float) -> TestResult:
     return TestResult(statistic, chi2_sf(statistic, 1))
 
 
-def christoffersen_independence(breaches: pd.Series | np.ndarray) -> TestResult:
+def christoffersen_independence(breaches: pd.Series | npt.NDArray[np.bool_]) -> TestResult:
     """Christoffersen test that a breach today does not make one tomorrow more likely.
 
     Counts transitions between consecutive days (no breach to breach, breach to breach)
@@ -255,9 +258,12 @@ class Interval:
     level: float
 
 
+Statistic = Callable[[FloatArray], FloatArray]
+
+
 def bootstrap_interval(
     returns: pd.Series,
-    statistic: Callable[[np.ndarray], float],
+    statistic: Statistic,
     *,
     level: float = 0.90,
     resamples: int = 2000,
@@ -271,7 +277,8 @@ def bootstrap_interval(
     returns : pd.Series
         Daily returns in date order, no missing values.
     statistic : callable
-        Takes an array of daily returns, returns a number.
+        Takes a 2-D array (one resample per row) and returns one number per row; the
+        statistics below all work that way, so every resample is computed at once.
     level : float, default 0.90
         Coverage: 0.90 means 5% of resamples fall below ``low`` and 5% above ``high``.
     resamples : int, default 2000
@@ -288,39 +295,48 @@ def bootstrap_interval(
 
     """
     values = returns.to_numpy(dtype=float)
-    if len(values) < 20 or np.isnan(values).any():
+    n = len(values)
+    if n < 20 or np.isnan(values).any():
         raise ValueError("need at least 20 returns without missing values")
-    block = mean_block if mean_block is not None else max(5.0, len(values) ** (1 / 3))
+    block = mean_block if mean_block is not None else max(5.0, n ** (1 / 3))
     rng = np.random.default_rng(seed)
-    stats = np.array(
-        [
-            statistic(values[stationary_bootstrap_indices(len(values), block, rng)])
-            for _ in range(resamples)
-        ]
-    )
+    rows: IndexArray = np.empty((resamples, n), dtype=np.int64)
+    for r in range(resamples):
+        rows[r] = stationary_bootstrap_indices(n, block, rng)
+    stats = pd.Series(statistic(values[rows]))
     tail = (1 - level) / 2
-    low = float(pd.Series(stats).quantile(tail))
-    high = float(pd.Series(stats).quantile(1 - tail))
-    return Interval(float(statistic(values)), low, high, level)
+    estimate = float(statistic(values[np.newaxis, :])[0])
+    return Interval(estimate, float(stats.quantile(tail)), float(stats.quantile(1 - tail)), level)
 
 
-def annualized_vol(values: np.ndarray) -> float:
+# Statistics of daily returns, computed along the last axis: a 1-D array gives one number,
+# a 2-D array one number per row.
+
+
+def annualized_vol(values: FloatArray) -> FloatArray:
     """Sample standard deviation times sqrt(252), as :func:`quant.risk.annualized_volatility`."""
-    return float(np.std(values, ddof=1) * math.sqrt(TRADING_DAYS))
+    return np.std(values, ddof=1, axis=-1) * math.sqrt(TRADING_DAYS)
 
 
-def annualized_return(values: np.ndarray) -> float:
-    """Compound growth per year: ``prod(1 + r) ** (252 / n) - 1``."""
-    growth = float(np.prod(1 + values))
-    return growth ** (TRADING_DAYS / len(values)) - 1 if growth > 0 else -1.0
+def annualized_return(values: FloatArray) -> FloatArray:
+    """Compound growth per year: ``prod(1 + r) ** (252 / n) - 1`` (-100% if wiped out)."""
+    growth = np.prod(1 + values, axis=-1)
+    alive = growth > 0
+    compounded = np.maximum(growth, 1e-300) ** (TRADING_DAYS / values.shape[-1]) - 1
+    return alive * compounded - (~alive) * 1.0
 
 
-def sharpe_ratio(values: np.ndarray) -> float:
+def sharpe_ratio(values: FloatArray) -> FloatArray:
     """Annualized mean over annualized volatility, with no risk-free rate subtracted."""
-    sd = float(np.std(values, ddof=1))
-    return float(np.mean(values)) / sd * math.sqrt(TRADING_DAYS) if sd > 0 else 0.0
+    sd = np.std(values, ddof=1, axis=-1)
+    mean = np.mean(values, axis=-1)
+    moving = sd > 0
+    return moving * mean / (sd + ~moving) * math.sqrt(TRADING_DAYS)
 
 
-def var_95(values: np.ndarray) -> float:
-    """Historical 95% one-day VaR of an array, as :func:`quant.risk.historical_var_es`."""
-    return historical_var_es(pd.Series(values), level=0.95)[0]
+def var_95(values: FloatArray) -> FloatArray:
+    """Historical 95% one-day VaR, the "lower" quantile of :func:`quant.risk.historical_var_es`."""
+    k = math.floor(round((values.shape[-1] - 1) * 0.05, 9))
+    ordered = values.copy()
+    ordered.sort(axis=-1)
+    return -ordered[..., k]

@@ -6,6 +6,7 @@ import json
 import re
 import time
 from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ from quant.data.sources import (
     CASH,
     KRAKEN,
     YAHOO,
+    Quote,
     frankfurter_url,
     kraken_url,
     parse_frankfurter,
@@ -94,6 +96,16 @@ def _load(path: Path) -> pd.DataFrame | None:
     return pd.read_csv(path, index_col="date", parse_dates=["date"])
 
 
+def _download(
+    source: str, symbol: str, currency: str, start: pd.Timestamp, fetch: Fetch, now: pd.Timestamp
+) -> Quote:
+    if source == YAHOO:
+        return parse_yahoo_chart(fetch(yahoo_url(symbol, start)), now)
+    if source == KRAKEN:
+        return parse_kraken_ohlc(fetch(kraken_url(symbol)), currency, now)
+    raise DataConfigError(f"unknown source {source!r}")
+
+
 def update_market_data(
     holdings: pd.DataFrame,
     start: pd.Timestamp,
@@ -103,7 +115,8 @@ def update_market_data(
     fetch: Fetch = fetch_json,
     now: pd.Timestamp | None = None,
     offline: bool = False,
-    pause: float = 0.5,
+    pause: float = 0.2,
+    workers: int = 4,
 ) -> MarketData:
     """Refresh every held asset and the FX rates it needs.
 
@@ -128,8 +141,11 @@ def update_market_data(
         Current UTC time; defaults to the clock.
     offline : bool, default False
         Use only the cache, without network access.
-    pause : float, default 0.5
-        Seconds between requests, to stay polite with free APIs.
+    pause : float, default 0.2
+        Seconds between starting two requests, to stay polite with free APIs.
+    workers : int, default 4
+        Downloads running at the same time; a long history for 15 series takes a few
+        seconds instead of half a minute.
 
     Returns
     -------
@@ -148,6 +164,23 @@ def update_market_data(
     statuses: list[SeriesStatus] = []
     columns: dict[str, pd.Series] = {}
 
+    downloads: dict[str, Future[Quote]] = {}
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+        if not offline:
+            for asset, row in holdings.iterrows():
+                if str(row["source"]) == CASH:
+                    continue
+                downloads[str(asset)] = pool.submit(
+                    _download,
+                    str(row["source"]),
+                    str(row["symbol"]),
+                    str(row["currency"]),
+                    start,
+                    fetch,
+                    now,
+                )
+                time.sleep(pause)
+
     for asset, row in holdings.iterrows():
         name, source, symbol = str(asset), str(row["source"]), str(row["symbol"])
         currency = str(row["currency"])
@@ -164,12 +197,10 @@ def update_market_data(
         try:
             if offline:
                 raise ConnectionError("offline mode")
-            if source == YAHOO:
-                quote = parse_yahoo_chart(fetch(yahoo_url(symbol, start)), now)
-            elif source == KRAKEN:
-                quote = parse_kraken_ohlc(fetch(kraken_url(symbol)), currency, now)
-            else:
-                raise DataConfigError(f"unknown source {source!r} for {name}")
+            try:
+                quote = downloads[name].result()
+            except DataConfigError as error:
+                raise DataConfigError(f"{name}: {error}") from error
             if quote.currency != currency:
                 raise DataConfigError(
                     f"{name}: {source} quotes {symbol} in {quote.currency}, "
@@ -185,7 +216,6 @@ def update_market_data(
                     name, source, symbol, f"{series.index[-1]:%Y-%m-%d}", quote.in_progress
                 )
             )
-            time.sleep(0 if offline else pause)
         except DataConfigError:
             raise
         except (ConnectionError, ValueError) as error:

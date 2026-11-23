@@ -23,7 +23,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pandas as pd
 
-from quant.data import DataConfigError, update_market_data
+from quant.data import DataConfigError
 from quant.data.http import fetch_json
 from quant.data.market import Fetch
 from quant.data.sources import (
@@ -39,7 +39,7 @@ from quant.data.sources import (
     yahoo_snapshot_url,
 )
 from quant.holdings import asset_labels, load_holdings, save_holdings
-from quant.report import build_report
+from quant.pipeline import analyse_portfolio
 
 SYMBOL = re.compile(r"^[A-Za-z0-9.\-=^&]{1,24}$")  # & appears in real tickers (M&M.NS)
 CURRENCY = re.compile(r"^[A-Z]{3}$")
@@ -68,7 +68,7 @@ class AppConfig:
     title: str = "Minha carteira"
     fetch: Fetch = fetch_json
     now: Callable[[], pd.Timestamp] = lambda: pd.Timestamp.now(tz="UTC")
-    pause: float = 0.5
+    pause: float = 0.2
     report_html: str | None = None
     lock: threading.Lock = field(default_factory=threading.Lock)
 
@@ -173,25 +173,21 @@ def parse_positions(body: Any) -> tuple[pd.DataFrame, int]:
 def analyse(config: AppConfig, holdings: pd.DataFrame, years: int) -> dict[str, Any]:
     """Save the portfolio, fetch fresh data, build the report; returns the API response."""
     save_holdings(holdings, config.holdings_path)
-    now = config.now()
-    start = (now - pd.Timedelta(days=round(years * 365.25))).tz_convert(None).normalize()
-    market = update_market_data(
-        holdings, start, config.cache_dir, fetch=config.fetch, now=now, pause=config.pause
-    )
-    calendar = pd.bdate_range(start, pd.Timestamp(market.prices.index.max()))
-    page = build_report(
+    result = analyse_portfolio(
         holdings,
-        market.prices,
-        market.fx,
-        calendar,
+        years,
+        config.cache_dir,
         title=config.title,
-        status=market.status,
+        fetch=config.fetch,
+        now=config.now(),
+        pause=config.pause,
         edit_url="/",
     )
+    page = result.page
     config.report_html = page
     config.report_path.parent.mkdir(parents=True, exist_ok=True)
     config.report_path.write_text(page, encoding="utf-8")
-    return {"url": "/report", "status": [asdict(s) for s in market.status]}
+    return {"url": "/report", "status": [asdict(s) for s in result.status]}
 
 
 def search(config: AppConfig, text: str, start: int = 0) -> dict[str, Any]:

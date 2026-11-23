@@ -8,12 +8,10 @@ import webbrowser
 from collections.abc import Sequence
 from pathlib import Path
 
-import pandas as pd
-
 from quant.app import AppConfig, make_server
-from quant.data import DataConfigError, update_market_data
+from quant.data import DataConfigError
 from quant.holdings import load_holdings
-from quant.report import build_report
+from quant.pipeline import analyse_portfolio
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -90,14 +88,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_app(args.port, args.holdings, args.cache, not args.no_browser)
     try:
         holdings = load_holdings(args.holdings)
-        now = pd.Timestamp.now(tz="UTC")
-        start = (now - pd.Timedelta(days=round(args.years * 365.25))).tz_convert(None).normalize()
-        market = update_market_data(holdings, start, args.cache, now=now, offline=args.offline)
-        last = pd.Timestamp(market.prices.index.max())
-        calendar = pd.bdate_range(start, last)
-        page = build_report(
-            holdings, market.prices, market.fx, calendar, title=args.title, status=market.status
+        market = analyse_portfolio(
+            holdings, args.years, args.cache, title=args.title, offline=args.offline
         )
+        page = market.page
     except (FileNotFoundError, ValueError, ConnectionError, DataConfigError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
