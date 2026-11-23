@@ -23,7 +23,12 @@ rate of the same day).
   quantities, weights drift), `to_base_currency` (same-date rate, gaps stay NaN),
   `align_to_dates` (last value at or before each date, max 5 days old), `load_holdings`,
   and `scripts/demo_report.py` (HTML report on synthetic data).
-- *Still to do:* real data sources for prices and FX. Candidate for FX: ECB
+- *Still to do:* real data sources for prices and FX.
+
+Steps 2 and 3 below were built early (2026-11-23) because the report needed them:
+`annualized_volatility`, `drawdown`/`max_drawdown`, `historical_var_es`,
+`risk_contributions`, `effective_number_of_positions`, `return_attribution`, and the
+`quant.report` package (period selector, attribution, risk and correlation views). Candidate for FX: ECB
   euro reference rates (official, free; quoted as foreign units per 1 EUR, so invert).
 
 ## 2. Descriptive risk

@@ -1,7 +1,8 @@
 # projeto-quant
 
-> Working title. Early stage: returns, currency conversion and calendar alignment work;
-> risk measures are next. `scripts/demo_report.py` runs everything on synthetic data.
+> Working title. Working today: returns, currency conversion, calendar alignment, risk
+> measures, return attribution and an HTML report. Real market data is next;
+> `scripts/demo_report.py` runs everything on synthetic data meanwhile.
 
 ## The problem
 
@@ -41,11 +42,24 @@ uv run ruff check .                      # lint
 uv run ruff format .                     # format
 uv run python -m pyright                 # type check (strict)
 uv run python -m pre_commit install      # run all checks before each commit
-uv run python scripts/demo_report.py     # HTML report of the example portfolio
+uv run python scripts/demo_report.py     # HTML report of the example portfolio (synthetic data)
 ```
 
 Tools are called as `python -m <tool>` because Windows Smart App Control blocks the
 unsigned `.exe` launchers that pip/uv generate. On Linux or macOS, `uv run pytest` works too.
+
+## The report
+
+`quant.report.build_report(holdings, prices, fx, calendar, title=...)` writes one self-contained
+HTML file (no server, no network). Every number in it comes from the tested functions; the
+page only draws them. It has:
+
+- a period selector (1, 3, 6 months, year to date, 12 months, all) that recomputes everything;
+- value and drawdown charts with a shared crosshair;
+- allocation by asset and by currency, with the effective number of positions;
+- return attribution per asset, split into price and exchange-rate effects;
+- weight versus share of risk, and the correlation matrix;
+- a sortable positions table, plain-language definitions, light/dark mode, and print to PDF.
 
 ## Data and privacy
 

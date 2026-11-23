@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<style>{{CSS}}</style>
+</head>
+<body>
+<div class="page">
+
+<header class="masthead">
+  <div class="masthead-text">
+    <p class="overline">Relatório de carteira</p>
+    <h1 id="title"></h1>
+    <p class="meta" id="meta"></p>
+  </div>
+  <div class="controls">
+    <div class="segmented" id="periods" role="group" aria-label="Período"></div>
+    <button type="button" class="ghost" id="print">Salvar PDF</button>
+  </div>
+</header>
+
+<section class="figures" id="figures" aria-label="Números principais"></section>
+
+<section class="block">
+  <h2><span class="num">1</span>Desempenho</h2>
+  <p class="lede" id="perf-lede"></p>
+  <div class="chart" id="chart-value" data-height="300"></div>
+  <h3 class="chart-title">Queda desde o pico anterior</h3>
+  <div class="chart" id="chart-drawdown" data-height="130"></div>
+</section>
+
+<section class="block">
+  <h2><span class="num">2</span>Composição hoje</h2>
+  <p class="lede" id="mix-lede"></p>
+  <div class="two-col">
+    <div><h3 class="chart-title">Por ativo</h3><div class="barlist" id="mix-assets"></div></div>
+    <div><h3 class="chart-title">Por moeda</h3><div class="barlist" id="mix-currencies"></div></div>
+  </div>
+</section>
+
+<section class="block">
+  <h2><span class="num">3</span>De onde veio o resultado</h2>
+  <p class="lede" id="attr-lede"></p>
+  <div class="legend" id="attr-legend"></div>
+  <div class="chart" id="chart-attribution"></div>
+</section>
+
+<section class="block">
+  <h2><span class="num">4</span>Risco</h2>
+  <p class="lede" id="risk-lede"></p>
+  <div class="two-col">
+    <div>
+      <h3 class="chart-title">Peso na carteira e parcela do risco</h3>
+      <div class="legend" id="risk-legend"></div>
+      <div class="chart" id="chart-risk"></div>
+    </div>
+    <div>
+      <h3 class="chart-title">Correlação dos retornos diários</h3>
+      <div id="corr"></div>
+      <div class="scale" id="corr-scale"></div>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <h2><span class="num">5</span>Posições</h2>
+  <p class="lede">Clique no nome de uma coluna para ordenar.</p>
+  <div class="table-wrap"><table class="positions" id="positions"></table></div>
+</section>
+
+<section class="block method">
+  <h2><span class="num">6</span>Como ler e premissas</h2>
+  <dl class="defs">
+    <dt>Retorno no período</dt>
+    <dd>Variação do valor da carteira em euros entre o fechamento do primeiro e do último dia,
+    mantendo as quantidades de hoje durante todo o período, sem compras, vendas ou aportes.</dd>
+    <dt>Volatilidade anualizada</dt>
+    <dd>Desvio-padrão dos retornos diários multiplicado por √252 (dias úteis num ano). Mede o
+    tamanho típico das oscilações, não a direção. Supõe que um dia não depende do anterior.</dd>
+    <dt>Pior queda</dt>
+    <dd>A maior perda entre um pico e o ponto mais baixo seguinte dentro do período. É o que
+    alguém que comprou no pior momento teria visto no extrato.</dd>
+    <dt>Perda em um dia ruim (VaR 95%)</dt>
+    <dd>A perda que não foi ultrapassada em 95% dos dias do período: o pior dia de cada 20.
+    A média das perdas nesses dias é o ES (perda esperada além do VaR). Usa só o que
+    aconteceu no período, então um período calmo subestima o risco. Exige pelo menos
+    <span id="min-var"></span> dias.</dd>
+    <dt>Preço e câmbio</dt>
+    <dd>A contribuição de cada ativo para o retorno, separada em movimento do preço (no câmbio
+    do início) e efeito do câmbio sobre a posição final. As partes somam exatamente o total.</dd>
+    <dt>Parcela do risco</dt>
+    <dd>Quanto da variância da carteira vem de cada ativo, com os pesos de hoje e as
+    covariâncias do período. Um ativo pode ter parcela maior que o peso se oscila muito ou
+    se move junto com os outros. Exige pelo menos <span id="min-cov"></span> dias.</dd>
+    <dt>Correlação</dt>
+    <dd>De −1 a 1: quanto os retornos diários de dois ativos andam juntos. Perto de 1, um
+    não protege o outro.</dd>
+    <dt>Calendário e câmbio</dt>
+    <dd>Dias úteis europeus. Num feriado de outra bolsa, o ativo vale o último fechamento (até
+    5 dias); o fim de semana das criptomoedas entra na segunda-feira. Cada preço é convertido
+    pelo câmbio do mesmo dia. <span id="dropped"></span></dd>
+  </dl>
+</section>
+
+<footer class="foot" id="foot"></footer>
+</div>
+<div class="tip" id="tip" role="tooltip" hidden></div>
+<script type="application/json" id="report-data">{{DATA}}</script>
+<script>{{JS}}</script>
+</body>
+</html>
