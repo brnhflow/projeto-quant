@@ -110,8 +110,28 @@
   </div>
 </section>
 
+<section class="block" id="future">
+  <h2><span class="num">8</span>E daqui para frente</h2>
+  <p class="lede" id="future-lede"></p>
+  <div class="future-controls">
+    <div class="segmented" id="future-horizon" role="group" aria-label="Horizonte">
+      <button type="button" data-years="1" aria-pressed="true">1 ano</button>
+      <button type="button" data-years="3">3 anos</button>
+      <button type="button" data-years="5">5 anos</button>
+    </div>
+    <div class="segmented" id="future-mode" role="group" aria-label="Tendência">
+      <button type="button" data-mode="neutral" aria-pressed="true">Sem tendência</button>
+      <button type="button" data-mode="trend">Repetindo o passado</button>
+    </div>
+  </div>
+  <div class="legend" id="future-legend"></div>
+  <div class="chart" id="chart-future" data-height="280"></div>
+  <div class="reb-summary" id="future-figures"></div>
+  <div class="verdict-inline" id="future-check"></div>
+</section>
+
 <section class="block" id="trust">
-  <h2><span class="num">8</span>Quanto confiar nestes números</h2>
+  <h2><span class="num">9</span>Quanto confiar nestes números</h2>
   <p class="lede" id="trust-lede"></p>
   <div id="backtest-block">
     <h3 class="chart-title">A perda de dia ruim prevista contra o que aconteceu</h3>
@@ -128,13 +148,13 @@
 </section>
 
 <section class="block">
-  <h2><span class="num">9</span>Posições</h2>
+  <h2><span class="num">10</span>Posições</h2>
   <p class="lede">Clique no nome de uma coluna para ordenar.</p>
   <div class="table-wrap"><table class="positions" id="positions"></table></div>
 </section>
 
 <section class="block" id="rebalance">
-  <h2><span class="num">10</span>Rebalancear</h2>
+  <h2><span class="num">11</span>Rebalancear</h2>
   <p class="lede" id="reb-lede">Defina a meta de cada ativo e veja o que comprar e vender, quanto custa e como o risco muda. As metas ficam salvas neste navegador.</p>
   <div class="reb-controls">
     <div>
@@ -161,7 +181,7 @@
 </section>
 
 <section class="block method">
-  <h2><span class="num">11</span>Como ler e premissas</h2>
+  <h2><span class="num">12</span>Como ler e premissas</h2>
   <dl class="defs">
     <dt>Retorno no período</dt>
     <dd>Variação do valor da carteira em euros entre o fechamento do primeiro e do último dia,
@@ -249,6 +269,16 @@
     <dd>Dividendos e juros sobre capital pagos nos últimos 12 meses, informados pela Yahoo,
     multiplicados pelas quantidades de hoje e convertidos pelo câmbio de hoje. Valores
     brutos, antes de impostos. Já estão incluídos no retorno do relatório.</dd>
+    <dt>Simulação do futuro</dt>
+    <dd>2.000 caminhos de 5 anos montados sorteando blocos de dias seguidos da história da
+    carteira (mesmo método das faixas prováveis). "Sem tendência" tira o retorno médio do
+    passado e mantém só o tamanho das oscilações; "Repetindo o passado" mantém o retorno
+    médio. As faixas mostram onde ficaram 50% e 90% dos caminhos. Não inclui aportes,
+    resgates nem crises maiores que as do histórico.</dd>
+    <dt>Teste da simulação</dt>
+    <dd>Mês a mês, só com os dados de antes daquele mês, a simulação diz onde o mês deve
+    terminar com 90% de chance. Se o resultado real cai dentro da faixa em cerca de 90% dos
+    meses, as faixas são honestas; bem menos que isso significa risco subestimado.</dd>
     <dt>Calendário e câmbio</dt>
     <dd>Dias úteis europeus. Num feriado de outra bolsa, o ativo vale o último fechamento (até
     5 dias); o fim de semana das criptomoedas entra na segunda-feira. Cada preço é convertido

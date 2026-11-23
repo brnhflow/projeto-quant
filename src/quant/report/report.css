@@ -187,6 +187,9 @@ h2 .num {
 .w-empty { margin: 10px 0 0; font-size: 13px; color: var(--ink-2); }
 #income-block { margin-top: 32px; }
 
+/* ---------------------------------------------------------------- future */
+.future-controls { display: flex; flex-wrap: wrap; gap: 12px; margin: 4px 0 14px; }
+
 /* ---------------------------------------------------------------- factors */
 .share-bar { display: flex; gap: 2px; height: 18px; border-radius: 4px; overflow: hidden; margin: 4px 0 14px; }
 .share-bar span { display: block; min-width: 2px; }

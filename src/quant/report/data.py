@@ -27,6 +27,7 @@ from quant.risk import (
     historical_var_es,
     risk_contributions,
 )
+from quant.simulation import calibrate, drawdown_probability, quantile_table, simulate_growth
 from quant.stress import (
     PROXIES,
     SCENARIOS,
@@ -569,6 +570,54 @@ def _news(news: dict[str, list[Headline] | None]) -> dict[str, Any]:
     }
 
 
+SIM_PATHS = 2000
+SIM_YEARS = 5
+SIM_MIN_DAYS = 120
+FAN = (0.05, 0.25, 0.5, 0.75, 0.95)
+
+
+def _simulation(value: pd.Series) -> dict[str, Any] | None:
+    """Fan of possible values for the next 5 years, with and without the past trend."""
+    returns = simple_returns(value.to_frame())["value"]
+    if len(returns) < SIM_MIN_DAYS:
+        return None
+    days = SIM_YEARS * 252
+    now = float(value.iloc[-1])
+    months = list(range(21, days + 1, 21))
+    out: dict[str, Any] = {
+        "days": len(returns),
+        "start": _iso(pd.Timestamp(value.index[0])),
+        "value": _num(now, 2),
+        "paths": SIM_PATHS,
+        "months": len(months),
+        "quantiles": list(FAN),
+    }
+    for key, demean in (("neutral", True), ("trend", False)):
+        growth = simulate_growth(returns.to_numpy(dtype=float), days, SIM_PATHS, demean=demean)
+        table = quantile_table(growth, FAN)
+        out[key] = {
+            "fan": [
+                [_num(now * float(table[q, m - 1]), 2) for m in months] for q in range(len(FAN))
+            ],
+            "drawdown": {
+                str(int(x * 100)): _num(drawdown_probability(growth[:, :252], x), 4)
+                for x in (0.1, 0.2, 0.3)
+            },
+            "loss": _num(float((growth[:, 251] < 1).mean()), 4),
+        }
+    try:
+        cal = calibrate(returns)
+        out["calibration"] = {
+            "checks": cal.checks,
+            "inside": cal.inside,
+            "level": cal.level,
+            "pValue": _num(cal.p_value, 4),
+        }
+    except ValueError:
+        out["calibration"] = None
+    return out
+
+
 def _history_limit(
     calendar: pd.DatetimeIndex,
     used: pd.DatetimeIndex,
@@ -732,6 +781,7 @@ def build_report_data(
         "validation": _validation(value),
         "stress": stress,
         "moves": unusual_moves(local),
+        "simulation": _simulation(value),
         "income": None
         if not details
         else dividend_income(
