@@ -16,14 +16,17 @@
   // ---------------------------------------------------------------- formatting
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const abs = (v, d) => Math.abs(v).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
+  // Round first, then pick the sign: -0.0004 shown with 1 decimal is "0%", not "−0%".
+  const rnd = (v, d) => Number(v.toFixed(d)) || 0;
   const sign = (v) => (v > 0 ? "+" : v < 0 ? MINUS : "");
+  const neg = (v) => (v < 0 ? MINUS : "");
   const fmt = {
-    eur: (v, d = 0) => (v < 0 ? MINUS : "") + abs(v, d) + " €",
-    eurSigned: (v, d = 0) => sign(v) + abs(v, d) + " €",
-    pct: (v, d = 1) => sign(v) + abs(v * 100, d) + "%",
-    share: (v, d = 1) => (v < 0 ? MINUS : "") + abs(v * 100, d) + "%",
-    pp: (v) => sign(v) + abs(v * 100, 1) + " p.p.",
-    num: (v, d) => (v < 0 ? MINUS : "") + abs(v, d),
+    eur: (v, d = 0) => { const r = rnd(v, d); return neg(r) + abs(r, d) + " €"; },
+    eurSigned: (v, d = 0) => { const r = rnd(v, d); return sign(r) + abs(r, d) + " €"; },
+    pct: (v, d = 1) => { const r = rnd(v * 100, d); return sign(r) + abs(r, d) + "%"; },
+    share: (v, d = 1) => { const r = rnd(v * 100, d); return neg(r) + abs(r, d) + "%"; },
+    pp: (v) => { const r = rnd(v * 100, 1); return sign(r) + abs(r, 1) + " p.p."; },
+    num: (v, d) => { const r = rnd(v, d); return neg(r) + abs(r, d); },
     qty: (v) => v.toLocaleString("pt-BR", { maximumFractionDigits: 8 }),
   };
   const parseDate = (iso) => { const [y, m, d] = iso.split("-").map(Number); return { y, m, d, t: Date.UTC(y, m - 1, d) }; };
@@ -156,7 +159,9 @@
       const a = cfg.annotate;
       el("circle", { class: "dot", cx: x(a.i), cy: y(a.v), r: 4, fill: cfg.series[0].color }, svg);
       const right = x(a.i) > width - 140;
-      text(svg, x(a.i) + (right ? -8 : 8), y(a.v) + 16, a.label, { class: "row-value", "text-anchor": right ? "end" : "start" });
+      // Below the dot, unless that would collide with the date labels: then above it.
+      const below = y(a.v) + 16 < height - m.bottom - 4;
+      text(svg, x(a.i) + (right ? -8 : 8), below ? y(a.v) + 16 : y(a.v) - 8, a.label, { class: "row-value", "text-anchor": right ? "end" : "start" });
     }
 
     const cross = el("line", { class: "crosshair", y1: m.top, y2: height - m.bottom, visibility: "hidden" }, svg);

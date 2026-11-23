@@ -122,6 +122,7 @@ h2 .num {
   font-weight: 600; margin: 22px 0 8px;
 }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+.two-col > div { min-width: 0; } /* let wide tables scroll inside their column */
 .two-col .chart-title:first-child { margin-top: 0; }
 .chart { position: relative; width: 100%; margin-bottom: 18px; }
 .chart svg { display: block; width: 100%; overflow: visible; }
@@ -166,6 +167,7 @@ h2 .num {
 .legend .tick-key { width: 2px; height: 14px; background: var(--ink); display: inline-block; }
 
 /* ---------------------------------------------------------------- correlation */
+#corr { overflow-x: auto; }
 .corr { border-collapse: separate; border-spacing: 2px; font-size: 12px; }
 .corr th { font-weight: 600; color: var(--ink-2); padding: 4px 6px; text-align: center; }
 .corr th.rowh { text-align: right; }
