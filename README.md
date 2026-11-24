@@ -123,12 +123,13 @@ The rolling risk models and the bootstrap run in a header-only C++20 library
 CI builds it on every push, runs the C++ unit tests (CTest), checks every kernel against NumPy
 (the historical VaR bit for bit, the EWMA-based ones to 1e-12) and times both:
 
-| Kernel (20,000 daily returns) | NumPy | C++ | Speed-up |
+| Kernel | NumPy | C++ | Speed-up |
 |---|---|---|---|
-| Rolling historical VaR, 250-day window | 16.7 ms | 2.9 ms | 5.7× |
-| Filtered historical simulation VaR | 40.9 ms | 2.9 ms | 14× |
-| Stationary bootstrap, 2,000 resamples of 2,500 days | 184 ms | 26 ms | 7.1× |
-| Walk-forward rule backtest | runs in C++ when built | — | checked to 1e-12 |
+| Rolling historical VaR, 20,000 days, 250-day window | 18.4 ms | 2.6 ms | 7.1× |
+| Filtered historical simulation VaR, 20,000 days | 53.2 ms | 2.7 ms | 19.5× |
+| Stationary bootstrap, 2,000 resamples of 2,500 days | 144 ms | 24 ms | 5.9× |
+| Monte Carlo, 2,000 paths of 5 years | 131 ms | 9.1 ms | 14.3× |
+| Walk-forward rule backtest | reference in Python | C++ engine | checked to 1e-12 |
 
 *Measured on a GitHub Actions runner (4 vCPU); see the "Benchmark" step of any CI run.*
 
