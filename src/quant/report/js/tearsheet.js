@@ -207,7 +207,7 @@ function renderYears() {
 }
 
 function renderTearsheetCharts() {
-  if (!TS || $("page-tearsheet").hidden) return;
+  if (!TS || $("page-desempenho").hidden) return;
   renderYears();
   renderRolling($("chart-rolling-sharpe"), "sharpe", (v) => fmt.num(v, 1));
   renderRolling($("chart-rolling-vol"), "volatility", (v) => fmt.share(v, 0));

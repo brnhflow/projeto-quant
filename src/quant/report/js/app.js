@@ -6,7 +6,7 @@
 // One page at a time; the address keeps the open tab (#renda), so back and forward work.
 const TAB_ICONS = {
   resumo: '<rect x="3" y="3" width="6" height="6" rx="1.3"/><rect x="11" y="3" width="6" height="6" rx="1.3"/><rect x="3" y="11" width="6" height="6" rx="1.3"/><rect x="11" y="11" width="6" height="6" rx="1.3"/>',
-  tearsheet: '<rect x="3.5" y="2.5" width="13" height="15" rx="1.6"/><path d="M6.5 6.5h7M6.5 9.5h7"/><path d="M6.5 14.5l2-2 1.6 1.2 3.4-3"/>',
+  desempenho: '<rect x="3.5" y="2.5" width="13" height="15" rx="1.6"/><path d="M6.5 6.5h7M6.5 9.5h7"/><path d="M6.5 14.5l2-2 1.6 1.2 3.4-3"/>',
   semana: '<rect x="3" y="4.5" width="14" height="12.5" rx="1.8"/><path d="M3 8.5h14M7 3v3M13 3v3"/><path d="M6 13l2-2 2 1.5 3.5-3"/>',
   risco: '<path d="M10 2.8 4 5.2v4.6c0 3.6 2.5 6.3 6 7.4 3.5-1.1 6-3.8 6-7.4V5.2z"/><path d="M10 7v3.6M10 13.2v.1"/>',
   cenarios: '<path d="M3 15.5l4-5 3 2.5 6.5-8"/><path d="M12.5 5h4v4"/><path d="M3 17.5h14"/>',
@@ -30,7 +30,7 @@ function showTab(name, push) {
     if (on) { const bar = $("tabs"); bar.scrollLeft = b.offsetLeft - (bar.clientWidth - b.offsetWidth) / 2; }
   });
   // The period selector only changes the summary and risk pages.
-  $("periods").classList.toggle("muted-control", !["resumo", "risco"].includes(tab));
+  $("periods").classList.toggle("muted-control", !["resumo", "desempenho", "risco"].includes(tab));
   if (push && location.hash !== "#" + tab) history.pushState(null, "", "#" + tab);
   hideTip();
   renderCharts();

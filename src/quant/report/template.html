@@ -26,8 +26,8 @@
 <div class="notice" id="notice" role="status" hidden></div>
 
 <nav class="tabs" id="tabs" role="tablist" aria-label="Report sections" data-pt-aria-label="Seções do relatório">
-  <button type="button" role="tab" id="tab-resumo" data-tab="resumo" aria-controls="page-resumo" aria-selected="false"><span class="tab-icon" data-icon="resumo"></span><span data-l="en">Summary</span><span data-l="pt">Resumo</span><span class="tab-badge" id="badge-resumo" hidden></span></button>
-  <button type="button" role="tab" id="tab-tearsheet" data-tab="tearsheet" aria-controls="page-tearsheet" aria-selected="false"><span class="tab-icon" data-icon="tearsheet"></span><span data-l="en">Tearsheet</span><span data-l="pt">Tearsheet</span><span class="tab-badge" id="badge-tearsheet" hidden></span></button>
+  <button type="button" role="tab" id="tab-resumo" data-tab="resumo" aria-controls="page-resumo" aria-selected="false"><span class="tab-icon" data-icon="resumo"></span><span data-l="en">Overview</span><span data-l="pt">Visão geral</span><span class="tab-badge" id="badge-resumo" hidden></span></button>
+  <button type="button" role="tab" id="tab-desempenho" data-tab="desempenho" aria-controls="page-desempenho" aria-selected="false"><span class="tab-icon" data-icon="desempenho"></span><span data-l="en">Performance</span><span data-l="pt">Desempenho</span><span class="tab-badge" id="badge-desempenho" hidden></span></button>
   <button type="button" role="tab" id="tab-semana" data-tab="semana" aria-controls="page-semana" aria-selected="false"><span class="tab-icon" data-icon="semana"></span><span data-l="en">This week</span><span data-l="pt">Esta semana</span><span class="tab-badge" id="badge-semana" hidden></span></button>
   <button type="button" role="tab" id="tab-risco" data-tab="risco" aria-controls="page-risco" aria-selected="false"><span class="tab-icon" data-icon="risco"></span><span data-l="en">Risk</span><span data-l="pt">Risco</span><span class="tab-badge" id="badge-risco" hidden></span></button>
   <button type="button" role="tab" id="tab-cenarios" data-tab="cenarios" aria-controls="page-cenarios" aria-selected="false"><span class="tab-icon" data-icon="cenarios"></span><span data-l="en">Scenarios</span><span data-l="pt">Cenários</span><span class="tab-badge" id="badge-cenarios" hidden></span></button>
@@ -39,19 +39,6 @@
 
 <div class="tab-page" id="page-resumo" data-page="resumo" role="tabpanel" aria-labelledby="tab-resumo">
 <section class="figures" id="figures" aria-label="Key figures" data-pt-aria-label="Números principais"></section>
-
-<section class="block result" id="result-section" hidden>
-  <h2><span data-l="en">Your result</span><span data-l="pt">Seu resultado</span></h2>
-  <p class="lede" id="result-lede"></p>
-  <div class="reb-summary" id="result-figures"></div>
-  <div id="ledger-block" hidden>
-    <h3 class="chart-title"><span data-l="en">Return on your money, from the transaction log</span><span data-l="pt">Retorno do seu dinheiro, pelo registro de operações</span></h3>
-    <p class="caption" id="ledger-lede"></p>
-    <div class="legend" id="ledger-legend"></div>
-    <div class="chart" id="chart-ledger" data-height="240"></div>
-    <div class="table-wrap"><table class="positions compact" id="ledger-table"></table></div>
-  </div>
-</section>
 
 <section class="block">
   <h2><span data-l="en">Performance</span><span data-l="pt">Desempenho</span></h2>
@@ -80,6 +67,27 @@
 </section>
 
 <section class="block">
+  <h2><span data-l="en">Positions</span><span data-l="pt">Posições</span></h2>
+  <p class="lede"><span data-l="en">Click a column name to sort.</span><span data-l="pt">Clique no nome de uma coluna para ordenar.</span></p>
+  <div class="table-wrap"><table class="positions" id="positions"></table></div>
+</section>
+</div>
+
+<div class="tab-page" id="page-desempenho" data-page="desempenho" role="tabpanel" aria-labelledby="tab-desempenho">
+<section class="block result" id="result-section" hidden>
+  <h2><span data-l="en">Your result</span><span data-l="pt">Seu resultado</span></h2>
+  <p class="lede" id="result-lede"></p>
+  <div class="reb-summary" id="result-figures"></div>
+  <div id="ledger-block" hidden>
+    <h3 class="chart-title"><span data-l="en">Return on your money, from the transaction log</span><span data-l="pt">Retorno do seu dinheiro, pelo registro de operações</span></h3>
+    <p class="caption" id="ledger-lede"></p>
+    <div class="legend" id="ledger-legend"></div>
+    <div class="chart" id="chart-ledger" data-height="240"></div>
+    <div class="table-wrap"><table class="positions compact" id="ledger-table"></table></div>
+  </div>
+</section>
+
+<section class="block">
   <h2><span data-l="en">Return attribution</span><span data-l="pt">De onde veio o resultado</span></h2>
   <p class="lede" id="attr-lede"></p>
   <div class="legend" id="attr-legend"></div>
@@ -93,14 +101,6 @@
   <div class="table-wrap"><table class="positions compact" id="brinson-table"></table></div>
 </section>
 
-<section class="block">
-  <h2><span data-l="en">Positions</span><span data-l="pt">Posições</span></h2>
-  <p class="lede"><span data-l="en">Click a column name to sort.</span><span data-l="pt">Clique no nome de uma coluna para ordenar.</span></p>
-  <div class="table-wrap"><table class="positions" id="positions"></table></div>
-</section>
-</div>
-
-<div class="tab-page" id="page-tearsheet" data-page="tearsheet" role="tabpanel" aria-labelledby="tab-tearsheet">
 <section class="block" id="tearsheet-section">
   <h2><span data-l="en">Tearsheet</span><span data-l="pt">Tearsheet</span></h2>
   <p class="lede" id="ts-lede"></p>

@@ -52,7 +52,7 @@ function renderLedger() {
 }
 
 function renderLedgerChart() {
-  if (!LEDGER || $("page-resumo").hidden) return;
+  if (!LEDGER || $("page-desempenho").hidden) return;
   // From the first day something is held: before it the value is zero and says nothing.
   const from = Math.max(0, LEDGER.value.findIndex((v) => v > 0));
   const cut = (xs) => xs.slice(from);
@@ -83,12 +83,10 @@ function renderBrinson(p) {
   const gap = data.portfolio - data.benchmark;
   const name = (s) => (s.key === "cash" ? L("Caixa", "Cash") : T(s.name));
   $("brinson-lede").innerHTML = L(
-    `Contra o MSCI ACWI, representado pela sua divisão entre mercados (análise de estilo, R² ${fmt.share(BR.r2, 0)} em ${BR.weeks} semanas), a carteira rendeu ${fmt.pct(data.portfolio)} contra ${fmt.pct(data.benchmark)} ${PHRASE[p.key]}` +
-      (data.global !== null ? ` (o próprio ACWI: ${fmt.pct(data.global)})` : "") + `. A diferença de <strong>${fmt.pp(gap)}</strong> vem de ` +
-      `<strong>${fmt.pp(alloc)}</strong> de alocação (quanto peso em cada mercado), <strong>${fmt.pp(sel)}</strong> de seleção (os seus ativos contra o índice do mercado) e ${fmt.pp(inter)} de interação.`,
-    `Against MSCI ACWI, represented by its regional mix (returns-based style analysis, R² ${fmt.share(BR.r2, 0)} over ${BR.weeks} weeks), the portfolio returned ${fmt.pct(data.portfolio)} against ${fmt.pct(data.benchmark)} ${PHRASE[p.key]}` +
-      (data.global !== null ? ` (ACWI itself: ${fmt.pct(data.global)})` : "") + `. The <strong>${fmt.pp(gap)}</strong> gap splits into ` +
-      `<strong>${fmt.pp(alloc)}</strong> allocation (how much weight in each market), <strong>${fmt.pp(sel)}</strong> selection (your assets against their market's index) and ${fmt.pp(inter)} interaction.`);
+    `A carteira rendeu <strong>${fmt.pct(data.portfolio)}</strong> contra <strong>${fmt.pct(data.benchmark)}</strong> do MSCI ACWI ${PHRASE[p.key]}` +
+      (data.global !== null ? ` (o ETF do ACWI: ${fmt.pct(data.global)})` : "") + `. Os pesos de cada mercado no índice vêm de uma análise de estilo (R² ${fmt.share(BR.r2, 0)}).`,
+    `The portfolio returned <strong>${fmt.pct(data.portfolio)}</strong> against <strong>${fmt.pct(data.benchmark)}</strong> for MSCI ACWI ${PHRASE[p.key]}` +
+      (data.global !== null ? ` (the ACWI ETF itself: ${fmt.pct(data.global)})` : "") + `. The index's market weights come from returns-based style analysis (R² ${fmt.share(BR.r2, 0)}).`);
   const tone = (v) => (v >= 0 ? "up" : "down");
   $("brinson-figures").innerHTML =
     fig4(L("Diferença para o índice", "Active return"), fmt.pp(gap), L("Carteira menos a mistura de mercados do índice.", "Portfolio minus the index's market mix."), tone(gap)) +

@@ -551,3 +551,38 @@ html[data-lang="pt"] [data-l="en"], html:not([data-lang="pt"]) [data-l="pt"] { d
 .heat td.year { font-weight: 600; padding-left: 10px; }
 .heat td.r, .heat th.r { text-align: right; }
 .ts-roll-legend { margin-top: 22px; }
+
+/* ---------------------------------------------------------------- cards */
+/* Each section sits on its own surface, so the page reads as separate panels. */
+:root { --card: #ffffff; --card-rule: #e3e1d8; }
+@media (prefers-color-scheme: dark) { :root { --card: #1a1a18; --card-rule: #2c2b28; } }
+.block {
+  background: var(--card); border: 1px solid var(--card-rule); border-radius: 14px;
+  padding: 26px 30px 18px; margin-top: 18px;
+}
+.block + .block { margin-top: 18px; }
+.figures {
+  background: var(--card); border: 1px solid var(--card-rule); border-radius: 14px;
+  padding: 4px 24px; margin: 18px 0 0;
+}
+.figure { padding: 18px 18px 20px 0; }
+.figure + .figure { padding-left: 18px; }
+.tab-page > .block:first-child, .tab-page > .figures:first-child { margin-top: 18px; }
+h2 { font-size: 22px; margin-bottom: 4px; }
+.lede { font-size: 14.5px; margin-bottom: 18px; }
+.block .chart-title { margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--card-rule); }
+.block .two-col .chart-title:first-child, .block > .chart-title:first-of-type { border-top: 0; padding-top: 0; }
+.tabs { margin-top: 22px; border-bottom: 0; background: var(--paper); }
+.notice { border-radius: 10px; margin-top: 18px; }
+
+/* Header on one row on wide screens: title on the left, controls on the right. */
+.masthead-text { flex: 1 1 auto; min-width: 0; }
+.controls { flex: 0 0 auto; flex-wrap: nowrap; }
+.lang-switch button { min-width: 36px; padding: 0 10px; }
+@media (max-width: 960px) { .controls { flex-wrap: wrap; } }
+@media (max-width: 640px) {
+  .block, .figures { border-radius: 10px; padding-left: 16px; padding-right: 16px; }
+}
+@media print { .block, .figures { border: 0; padding-left: 0; padding-right: 0; } }
+/* A figure row already ends with a rule: no second one on the title that follows. */
+.reb-summary + div > .chart-title:first-child, .reb-summary + .chart-title, .reb-summary + .two-col .chart-title { border-top: 0; padding-top: 0; }

@@ -303,7 +303,10 @@ function renderRisk(p) {
   const lWeight = L("Peso", "Weight"), lRisk = L("Parcela do risco", "Risk contribution");
   const rows = positions.map((a) => ({ label: a.label, weight: a.weight, risk: p.risk.contributions[a.asset] }));
   const gap = rows.reduce((best, r) => (r.risk - r.weight > best.risk - best.weight ? r : best), rows[0]);
-  const names = p.risk.corr.assets, M = p.risk.corr.matrix;
+  // Assets with no correlation at all (cash) only add an empty row and column.
+  const keep = p.risk.corr.assets.map((_, i) => p.risk.corr.matrix[i].some((v, j) => j !== i && v !== null));
+  const names = p.risk.corr.assets.filter((_, i) => keep[i]);
+  const M = p.risk.corr.matrix.filter((_, i) => keep[i]).map((row) => row.filter((_, j) => keep[j]));
   let pair = null;
   for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
     if (M[i][j] !== null && (!pair || M[i][j] > pair.v)) pair = { a: nameOf(names[i]), b: nameOf(names[j]), v: M[i][j] };
