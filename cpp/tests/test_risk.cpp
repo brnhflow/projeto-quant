@@ -84,8 +84,10 @@ void bootstrap_is_reproducible_from_its_seed() {
     std::normal_distribution<double> n(0.0, 0.01);
     std::vector<double> r(500);
     for (double& x : r) x = n(rng);
-    check(quant::stationary_bootstrap(r, 20, 20.0, 42) == quant::stationary_bootstrap(r, 20, 20.0, 42),
+    check(quant::stationary_bootstrap(r, 300, 20.0, 42) == quant::stationary_bootstrap(r, 300, 20.0, 42),
           "same seed, same resamples");
+    check(quant::stationary_bootstrap(r, 300, 20.0, 42, 1) == quant::stationary_bootstrap(r, 300, 20.0, 42, 8),
+          "the result does not depend on the number of threads");
 }
 
 }  // namespace

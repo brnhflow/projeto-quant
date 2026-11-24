@@ -19,6 +19,7 @@
 #include <random>
 #include <span>
 #include <stdexcept>
+#include <thread>
 #include <vector>
 
 namespace quant {
@@ -153,29 +154,72 @@ inline ResampleStats resample_stats(std::span<const double> r, std::vector<doubl
     };
 }
 
+// SplitMix64: a well-mixed 64-bit seed for each resample from (seed, sample index), so every
+// resample has its own generator and the output does not depend on how many threads ran.
+inline std::uint64_t splitmix64(std::uint64_t x) {
+    x += 0x9E3779B97F4A7C15ULL;
+    x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ULL;
+    x = (x ^ (x >> 27)) * 0x94D049BB133111EBULL;
+    return x ^ (x >> 31);
+}
+
+// One stationary-bootstrap path: blocks start at uniform positions and have geometric lengths
+// with mean `mean_block` (equivalent to restarting with probability 1 / mean_block each day),
+// wrapping around the end. Whole blocks are copied at once.
+inline void bootstrap_path(std::span<const double> r, double mean_block, std::mt19937_64& rng,
+                           std::vector<double>& path) {
+    const std::size_t n = r.size();
+    std::uniform_int_distribution<std::size_t> start(0, n - 1);
+    std::geometric_distribution<std::size_t> extra(1.0 / mean_block);  // length - 1
+    std::size_t filled = 0;
+    while (filled < n) {
+        std::size_t pos = start(rng);
+        std::size_t len = std::min(extra(rng) + 1, n - filled);
+        while (len > 0) {
+            const std::size_t run = std::min(len, n - pos);  // up to the end, then wrap
+            std::copy_n(r.begin() + static_cast<std::ptrdiff_t>(pos), run,
+                        path.begin() + static_cast<std::ptrdiff_t>(filled));
+            filled += run;
+            len -= run;
+            pos = 0;
+        }
+    }
+}
+
 // Stationary bootstrap (Politis and Romano, 1994): `samples` resampled histories of the same
-// length, built from blocks of consecutive days with geometric lengths of mean `mean_block`,
-// wrapping around the end. Returns samples x 4 statistics, row-major.
+// length. Returns samples x 4 statistics, row-major. Resamples run on `threads` threads
+// (0: all hardware threads); the result is the same for any thread count.
 inline std::vector<double> stationary_bootstrap(std::span<const double> r, std::size_t samples, double mean_block,
-                                                std::uint64_t seed) {
+                                                std::uint64_t seed, unsigned threads = 0) {
     if (r.size() < 20) throw std::invalid_argument("need at least 20 returns");
     if (!(mean_block >= 1.0)) throw std::invalid_argument("mean_block must be at least 1");
-    const std::size_t n = r.size();
-    std::mt19937_64 rng(seed);
-    std::uniform_int_distribution<std::size_t> start(0, n - 1);
-    std::bernoulli_distribution restart(1.0 / mean_block);
-    std::vector<double> path(n), scratch, out;
-    out.reserve(samples * 4);
-    for (std::size_t s = 0; s < samples; ++s) {
-        std::size_t pos = start(rng);
-        for (std::size_t i = 0; i < n; ++i) {
-            if (i > 0) pos = restart(rng) ? start(rng) : (pos + 1) % n;
-            path[i] = r[pos];
+    std::vector<double> out(samples * 4);
+    auto work = [&](std::size_t first, std::size_t last) {
+        std::vector<double> path(r.size()), scratch;
+        for (std::size_t s = first; s < last; ++s) {
+            std::mt19937_64 rng(splitmix64(seed ^ splitmix64(s)));
+            bootstrap_path(r, mean_block, rng, path);
+            const ResampleStats st = resample_stats(path, scratch);
+            double* row = out.data() + s * 4;
+            row[0] = st.annual_return;
+            row[1] = st.volatility;
+            row[2] = st.sharpe;
+            row[3] = st.var95;
         }
-        const ResampleStats st = resample_stats(path, scratch);
-        out.insert(out.end(), {st.annual_return, st.volatility, st.sharpe, st.var95});
+    };
+    unsigned count = threads != 0 ? threads : std::max(1u, std::thread::hardware_concurrency());
+    count = static_cast<unsigned>(std::min<std::size_t>(count, std::max<std::size_t>(1, samples / 64)));
+    if (count <= 1) {
+        work(0, samples);
+        return out;
     }
-    return out;
+    std::vector<std::jthread> pool;
+    const std::size_t chunk = (samples + count - 1) / count;
+    for (unsigned i = 0; i < count; ++i) {
+        const std::size_t first = i * chunk, last = std::min(samples, first + chunk);
+        if (first < last) pool.emplace_back(work, first, last);
+    }
+    return out;  // jthreads join here, before `out` is returned
 }
 
 }  // namespace quant
