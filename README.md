@@ -1,5 +1,7 @@
 # projeto-quant
 
+[![CI](https://github.com/brnhflow/projeto-quant/actions/workflows/ci.yml/badge.svg)](https://github.com/brnhflow/projeto-quant/actions/workflows/ci.yml)
+
 > Working title. Working today: live market data (B3, European exchanges, crypto, ECB
 > exchange rates), returns, currency conversion, calendar alignment, risk measures, return
 > attribution and an HTML report.
