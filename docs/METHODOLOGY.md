@@ -496,6 +496,8 @@ within 2% of the exact value for 20 normals (1.90 against 1.8675); more trials l
 
 ## References
 
+- Bailey, D., López de Prado, M. (2012). The Sharpe ratio efficient frontier. *Journal of Risk*, 15(2), 3–44.
+- Bailey, D., López de Prado, M. (2014). The deflated Sharpe ratio. *Journal of Portfolio Management*, 40(5), 94–107.
 - Bacon, C. (2008). *Practical Portfolio Performance Measurement and Attribution*, 2nd ed. Wiley.
 - Basel Committee on Banking Supervision (1996). *Supervisory framework for the use of "backtesting" in conjunction with the internal models approach to market risk capital requirements.*
 - Brinson, G., Hood, L. R., Beebower, G. (1986). Determinants of portfolio performance. *Financial Analysts Journal*, 42(4), 39–44.
