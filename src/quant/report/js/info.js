@@ -97,3 +97,40 @@ function renderCredit() {
     `<a class="credit-link" href="${AUTHOR.linkedin}" target="_blank" rel="noopener">LinkedIn</a>` +
     `<a class="credit-link" href="${AUTHOR.github}" target="_blank" rel="noopener">GitHub</a>`;
 }
+
+// ---------------------------------------------------------------- methodology
+// The definitions list becomes one collapsible entry per term, with a filter box on top.
+function buildGlossary() {
+  const lists = document.querySelectorAll("dl.defs");
+  lists.forEach((dl) => {
+    const items = [];
+    dl.querySelectorAll("dt").forEach((dt) => {
+      const dd = dt.nextElementSibling;
+      const d = document.createElement("details");
+      d.className = "term";
+      d.innerHTML = `<summary>${dt.innerHTML}</summary><div class="term-body">${dd ? dd.innerHTML : ""}</div>`;
+      items.push(d);
+    });
+    const box = document.createElement("div");
+    box.className = "glossary";
+    box.dataset.l = dl.dataset.l;
+    items.forEach((d) => box.appendChild(d));
+    dl.replaceWith(box);
+  });
+  const search = document.createElement("input");
+  search.type = "search";
+  search.className = "glossary-search";
+  search.placeholder = L("Filtrar termos: VaR, Sharpe, Brinson...", "Filter terms: VaR, Sharpe, Brinson...");
+  search.setAttribute("aria-label", search.placeholder);
+  const first = document.querySelector(".glossary");
+  if (!first) return;
+  first.parentNode.insertBefore(search, first);
+  search.addEventListener("input", () => {
+    const q = search.value.trim().toLowerCase();
+    document.querySelectorAll(".glossary .term").forEach((d) => {
+      const hit = !q || d.textContent.toLowerCase().includes(q);
+      d.hidden = !hit;
+      d.open = Boolean(q) && hit;
+    });
+  });
+}

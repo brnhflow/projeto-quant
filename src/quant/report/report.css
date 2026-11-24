@@ -649,3 +649,24 @@ h3.chart-title .info { width: 18px; height: 18px; margin-left: 6px; }
   .insights-grid { grid-template-columns: 1fr; }
   .figures { padding: 4px 14px; }
 }
+
+/* ---------------------------------------------------------------- glossary */
+.glossary-search {
+  width: 100%; max-width: 420px; height: 40px; padding: 0 14px; margin: 6px 0 14px; font: 14px var(--sans);
+  color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px;
+}
+.glossary-search:focus { outline: none; border-color: var(--s1); box-shadow: 0 0 0 3px var(--s1-soft); }
+.glossary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
+.term { border: 1px solid var(--card-rule); border-radius: 10px; background: var(--paper); }
+.term[hidden] { display: none; }
+.term summary {
+  list-style: none; cursor: pointer; padding: 12px 14px; font-weight: 600; font-size: 14px;
+  display: flex; justify-content: space-between; gap: 10px;
+}
+.term summary::-webkit-details-marker { display: none; }
+.term summary::after { content: "+"; color: var(--ink-3); font-weight: 400; }
+.term[open] summary::after { content: "2"; }
+.term[open] { border-color: var(--s1); }
+.term-body { padding: 0 14px 14px; font-size: 14px; line-height: 1.55; color: var(--ink-2); }
+@media (max-width: 760px) { .glossary { grid-template-columns: 1fr; } }
+@media print { .term { break-inside: avoid; } .term .term-body { display: block; } }

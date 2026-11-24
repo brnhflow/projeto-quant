@@ -86,6 +86,7 @@ function renderPeriod() {
 
 renderHeader();
 renderCredit();
+buildGlossary();
 addInfoIcons();
 renderMix();
 renderTrust();

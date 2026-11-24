@@ -489,6 +489,22 @@
     table, rolling Sharpe and volatility over 126 trading days, the five worst drawdowns with their
     recovery, and the distribution of daily returns against a normal with the same mean and
     volatility. Skew and excess kurtosis show how far the tails depart from that normal.</dd>
+    <dt>Three VaR models</dt>
+    <dd>Historical simulation, EWMA with normal tails (RiskMetrics) and filtered historical
+    simulation, tested on the same days with the same tests. Each forecasts the next day from past
+    returns only. The project's research note compares them on seven markets since 2008.</dd>
+    <dt>Volatility targeting</dt>
+    <dd>Share invested = target volatility / forecast volatility (EWMA), the rest in cash, no
+    leverage. Redone regularly, it keeps risk roughly constant and cuts exposure in turbulent
+    markets (Moreira and Muir, 2017).</dd>
+    <dt>Rule backtests</dt>
+    <dd>Buy and hold, monthly rebalancing, 5% bands and a 10% volatility target, run day by day on
+    past prices only, paying 0.1% on every trade. The engine is written in C++ and checked against
+    a Python reference.</dd>
+    <dt>Probabilistic and deflated Sharpe ratio</dt>
+    <dd>The probability that a Sharpe ratio is above zero given the sample size, skew and fat tails;
+    the deflated version also allows for the number of strategies tried, since the best of many
+    looks good by luck (Bailey and López de Prado, 2012, 2014).</dd>
     <dt>Calendar and exchange rates</dt>
     <dd>European business days. On another exchange's holiday the asset keeps its last close (up to
     5 days); crypto weekends roll into Monday. Each price is converted at the same day's rate.
@@ -644,6 +660,22 @@
     piores quedas com a recuperação, e a distribuição dos retornos diários contra uma normal com a
     mesma média e volatilidade. Assimetria e curtose em excesso mostram o quanto as caudas fogem
     dessa normal.</dd>
+    <dt>Três modelos de VaR</dt>
+    <dd>Simulação histórica, EWMA com caudas normais (RiskMetrics) e simulação histórica filtrada,
+    testados nos mesmos dias e com os mesmos testes. Cada um prevê o dia seguinte só com retornos
+    passados. A nota de pesquisa do projeto compara os três em sete mercados desde 2008.</dd>
+    <dt>Volatilidade-alvo</dt>
+    <dd>Parte investida = volatilidade desejada / volatilidade prevista (EWMA), o resto em caixa,
+    sem alavancagem. Refeita com frequência, mantém o risco quase constante e reduz a exposição em
+    mercados agitados (Moreira e Muir, 2017).</dd>
+    <dt>Backtest de regras</dt>
+    <dd>Comprar e segurar, rebalanceamento mensal, bandas de 5% e volatilidade-alvo de 10%,
+    simulados dia a dia só com preços passados, pagando 0,1% em cada operação. O motor é escrito em
+    C++ e conferido contra uma referência em Python.</dd>
+    <dt>Sharpe probabilístico e deflacionado</dt>
+    <dd>A probabilidade de um Sharpe estar acima de zero, considerando o tamanho da amostra, a
+    assimetria e as caudas; a versão deflacionada desconta também o número de estratégias
+    testadas, porque a melhor entre muitas parece boa por sorte (Bailey e López de Prado).</dd>
     <dt>Calendário e câmbio</dt>
     <dd>Dias úteis europeus. Num feriado de outra bolsa, o ativo vale o último fechamento (até
     5 dias); o fim de semana das criptomoedas entra na segunda-feira. Cada preço é convertido
