@@ -33,59 +33,59 @@ class Scenario:
 SCENARIOS = (
     Scenario(
         "gfc2008",
-        "Crise financeira de 2008",
+        "2008 financial crisis",
         pd.Timestamp("2008-09-12"),
         pd.Timestamp("2009-03-09"),
-        "Da véspera da quebra do Lehman Brothers ao fundo das bolsas.",
+        "From the eve of the Lehman Brothers collapse to the market bottom.",
     ),
     Scenario(
         "euro2011",
-        "Crise da dívida europeia",
+        "European debt crisis",
         pd.Timestamp("2011-07-01"),
         pd.Timestamp("2011-09-22"),
-        "Medo de calote da Grécia e da Itália; rebaixamento da nota dos EUA.",
+        "Fear of a Greek and Italian default; the US loses its AAA rating.",
     ),
     Scenario(
         "brasil2015",
-        "Recessão brasileira de 2015",
+        "Brazil's 2015 recession",
         pd.Timestamp("2015-05-05"),
         pd.Timestamp("2016-01-26"),
-        "Recessão, Lava Jato e perda do grau de investimento; o real desvaloriza.",
+        "Recession, the Car Wash probe and the loss of investment grade; the real falls.",
     ),
     Scenario(
         "brexit2016",
-        "Plebiscito do Brexit",
+        "Brexit referendum",
         pd.Timestamp("2016-06-23"),
         pd.Timestamp("2016-06-27"),
-        "O Reino Unido vota por sair da União Europeia; a libra despenca.",
+        "The UK votes to leave the European Union; the pound plunges.",
     ),
     Scenario(
         "joesley2017",
         "Joesley Day",
         pd.Timestamp("2017-05-17"),
         pd.Timestamp("2017-05-18"),
-        "Gravação envolvendo o presidente: um dia de pânico na B3.",
+        "A recording implicating the president: one day of panic on B3.",
     ),
     Scenario(
         "covid2020",
         "Covid-19",
         pd.Timestamp("2020-02-19"),
         pd.Timestamp("2020-03-23"),
-        "Do pico das bolsas ao fundo, em cinco semanas.",
+        "From the market peak to the bottom in five weeks.",
     ),
     Scenario(
         "juros2022",
-        "Alta de juros de 2022",
+        "2022 rate hikes",
         pd.Timestamp("2022-01-03"),
         pd.Timestamp("2022-10-12"),
-        "Inflação alta; bancos centrais sobem juros no ritmo mais rápido em décadas.",
+        "High inflation; central banks raise rates at the fastest pace in decades.",
     ),
     Scenario(
         "ftx2022",
-        "Quebra da FTX",
+        "FTX collapse",
         pd.Timestamp("2022-11-04"),
         pd.Timestamp("2022-11-21"),
-        "Uma das maiores corretoras de cripto quebra em dias.",
+        "One of the largest crypto exchanges fails within days.",
     ),
 )
 
@@ -95,11 +95,11 @@ PROXIES = {
     "^GSPC": ("S&P 500", "USD"),
     "^STOXX50E": ("Euro Stoxx 50", "EUR"),
     "^FTSE": ("FTSE 100", "GBP"),
-    "^SSMI": ("SMI (Suíça)", "CHF"),
+    "^SSMI": ("SMI (Switzerland)", "CHF"),
     "BTC-USD": ("Bitcoin", "USD"),
     # Global stocks through the iShares MSCI ACWI ETF (since March 2008): with dividends
     # reinvested, so it is also the fairest benchmark for a diversified portfolio.
-    "ACWI": ("Ações globais (MSCI ACWI)", "USD"),
+    "ACWI": ("Global stocks (MSCI ACWI)", "USD"),
 }
 HISTORY_START = pd.Timestamp("2007-06-01")
 MIN_WEEKS = 52

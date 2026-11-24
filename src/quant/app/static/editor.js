@@ -2,6 +2,7 @@
   "use strict";
 
   const $ = (id) => document.getElementById(id);
+  languageSwitch($("lang"));
   const DRAFT = "quant.portfolio.draft";
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
@@ -10,13 +11,13 @@
   let years = 2;
   let typeFilter = "";
   const TYPE_HINTS = {
-    "": "Ações, FIIs, ETFs, BDRs, fundos e criptomoedas de qualquer bolsa. Escolha um tipo acima para filtrar.",
-    acao: "Nome ou código da empresa: Petrobras, PETR4, ASML, Apple.",
-    fii: "Código do fundo imobiliário, como HGLG11, MXRF11 ou KNCR11.",
-    etf: "Nome ou código do ETF: BOVA11, IVVB11, IWDA, MSCI World.",
-    bdr: "Código do BDR na B3, como AAPL34 ou MSFT34.",
-    fundo: "Nome do fundo de investimento.",
-    cripto: "Nome da moeda: bitcoin, ethereum, solana.",
+    "": L("Ações, FIIs, ETFs, BDRs, fundos e criptomoedas de qualquer bolsa. Escolha um tipo acima para filtrar.", "Stocks, ETFs, funds, Brazilian REITs and BDRs, and crypto on any exchange. Pick a type above to filter."),
+    acao: L("Nome ou código da empresa: Petrobras, PETR4, ASML, Apple.", "Company name or ticker: ASML, Apple, Petrobras, PETR4."),
+    fii: L("Código do fundo imobiliário, como HGLG11, MXRF11 ou KNCR11.", "Ticker of the Brazilian REIT (FII), such as HGLG11, MXRF11 or KNCR11."),
+    etf: L("Nome ou código do ETF: BOVA11, IVVB11, IWDA, MSCI World.", "ETF name or ticker: IWDA, MSCI World, BOVA11."),
+    bdr: L("Código do BDR na B3, como AAPL34 ou MSFT34.", "Ticker of the BDR on B3, such as AAPL34 or MSFT34."),
+    fundo: L("Nome do fundo de investimento.", "Name of the mutual fund."),
+    cripto: L("Nome da moeda: bitcoin, ethereum, solana.", "Coin name: bitcoin, ethereum, solana."),
   };
   const typeOf = (x) => assetType({ symbol: x.symbol, kind: x.kind, detail: x.detail, name: x.name, cash: x.kind === "cash" });
 
@@ -25,9 +26,9 @@
   const fmtQty = formatQuantityInput;
   function fmtMoney(v, currency) {
     try {
-      return v.toLocaleString("pt-BR", { style: "currency", currency, maximumFractionDigits: v >= 1000 ? 0 : 2 });
+      return v.toLocaleString(LOCALE, { style: "currency", currency, maximumFractionDigits: v >= 1000 ? 0 : 2 });
     } catch {
-      return v.toLocaleString("pt-BR", { maximumFractionDigits: 2 }) + " " + currency;
+      return v.toLocaleString(LOCALE, { maximumFractionDigits: 2 }) + " " + currency;
     }
   }
 
@@ -38,7 +39,7 @@
     const headers = Object.assign({ "X-Quant-App": "1" }, options.headers || {});
     const response = await fetch(path, Object.assign({}, options, { headers }));
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body.error || `Erro ${response.status}`);
+    if (!response.ok) throw new Error(L(body.error_pt, body.error) || body.error || L(`Erro ${response.status}`, `Error ${response.status}`));
     return body;
   }
 
@@ -50,7 +51,10 @@
 
   // Cash and a ticker can share a code (the ETF "USD" and dollars), so rows have a key.
   const keyOf = (r) => (r.kind === "cash" ? `cash:${r.symbol}` : r.symbol);
-  const CURRENCY_NAMES = { EUR: "euro", BRL: "real", USD: "dólar americano", GBP: "libra", CHF: "franco suíço", JPY: "iene", CAD: "dólar canadense", AUD: "dólar australiano", SEK: "coroa sueca", NOK: "coroa norueguesa", DKK: "coroa dinamarquesa", PLN: "zloty", CNY: "yuan", HKD: "dólar de Hong Kong", MXN: "peso mexicano" };
+  const CURRENCY_NAMES = L(
+    { EUR: "euro", BRL: "real", USD: "dólar americano", GBP: "libra", CHF: "franco suíço", JPY: "iene", CAD: "dólar canadense", AUD: "dólar australiano", SEK: "coroa sueca", NOK: "coroa norueguesa", DKK: "coroa dinamarquesa", PLN: "zloty", CNY: "yuan", HKD: "dólar de Hong Kong", MXN: "peso mexicano" },
+    { EUR: "euro", BRL: "Brazilian real", USD: "US dollar", GBP: "British pound", CHF: "Swiss franc", JPY: "Japanese yen", CAD: "Canadian dollar", AUD: "Australian dollar", SEK: "Swedish krona", NOK: "Norwegian krone", DKK: "Danish krone", PLN: "Polish zloty", CNY: "Chinese yuan", HKD: "Hong Kong dollar", MXN: "Mexican peso" });
+  $("cash-currency").innerHTML = Object.entries(CURRENCY_NAMES).map(([code, name]) => `<option value="${code}">${code} · ${esc(name)}</option>`).join("");
   // What is sent and saved for a row; cost and purchase date are optional.
   function payload(r) {
     const out = { symbol: r.symbol, quantity: r.quantity, currency: r.currency, kind: r.kind };
@@ -60,7 +64,7 @@
   }
 
   function cashRow(currency, quantity) {
-    return { symbol: currency, kind: "cash", type: "caixa", name: `Dinheiro em ${CURRENCY_NAMES[currency] || currency}`, exchange: "Caixa", currency, price: 1, live: false, quantity, loading: false, error: null };
+    return { symbol: currency, kind: "cash", type: "caixa", name: L(`Dinheiro em ${CURRENCY_NAMES[currency] || currency}`, `Cash in ${CURRENCY_NAMES[currency] || currency}`), exchange: L("Caixa", "Cash"), currency, price: 1, live: false, quantity, loading: false, error: null };
   }
 
   async function loadQuote(row) {
@@ -103,11 +107,11 @@
 
   function cells(r) {
     return {
-      asset: `<span class="asset-cell"><span class="type-badge t-${esc(r.type || "acao")}" title="${esc((ASSET_TYPES.find((t) => t.key === r.type) || {}).one || "")}">${assetIcon(r.type || "acao", 16)}</span><span>${esc(r.kind === "cash" ? `Caixa ${r.symbol}` : r.symbol)}<span class="name">${esc(r.error || r.name || "")}</span></span></span>`,
+      asset: `<span class="asset-cell"><span class="type-badge t-${esc(r.type || "acao")}" title="${esc((ASSET_TYPES.find((t) => t.key === r.type) || {}).one || "")}">${assetIcon(r.type || "acao", 16)}</span><span>${esc(r.kind === "cash" ? L(`Caixa ${r.symbol}`, `Cash ${r.symbol}`) : r.symbol)}<span class="name">${esc(r.error || r.name || "")}</span></span></span>`,
       exchange: esc(r.exchange || ""),
       currency: esc(r.currency || ""),
-      price: r.kind === "cash" ? "—" : esc(r.loading ? "buscando…" : r.error ? "sem cotação" : fmtMoney(r.price, r.currency)) +
-        (r.live ? `<span class="live">negociando agora</span>` : ""),
+      price: r.kind === "cash" ? "—" : esc(r.loading ? L("buscando…", "loading…") : r.error ? L("sem cotação", "no quote") : fmtMoney(r.price, r.currency)) +
+        (r.live ? `<span class="live">${L("negociando agora", "trading now")}</span>` : ""),
       value: esc(r.price !== null && r.quantity > 0 ? fmtMoney(r.price * r.quantity, r.currency) : "—"),
     };
   }
@@ -125,17 +129,18 @@
         <td data-cell="currency">${c.currency}</td>
         <td class="r" data-cell="price">${c.price}</td>
         <td class="r"><input class="qty" data-key="${esc(keyOf(r))}" inputmode="decimal" value="${esc(qtyText)}"
-          aria-label="Quantidade de ${esc(r.symbol)}" placeholder="0"></td>
+          aria-label="${esc(L(`Quantidade de ${r.symbol}`, `Quantity of ${r.symbol}`))}" placeholder="0"></td>
         <td class="r" data-cell="cost">${r.kind === "cash" ? "" : `<input class="qty cost" data-key="${esc(keyOf(r))}" inputmode="decimal" value="${esc(r.cost > 0 ? fmtQty(r.cost) : "")}"
-          aria-label="Preço médio pago por ${esc(r.symbol)}" placeholder="${esc(r.currency || "")}">`}</td>
+          aria-label="${esc(L(`Preço médio pago por ${r.symbol}`, `Average price paid for ${r.symbol}`))}" placeholder="${esc(r.currency || "")}">`}</td>
         <td data-cell="since">${r.kind === "cash" ? "" : `<input class="since" type="date" data-key="${esc(keyOf(r))}" value="${esc(r.since || "")}" max="${new Date().toISOString().slice(0, 10)}" min="1990-01-01"
-          aria-label="Data da primeira compra de ${esc(r.symbol)}">`}</td>
+          aria-label="${esc(L(`Data da primeira compra de ${r.symbol}`, `First purchase date of ${r.symbol}`))}">`}</td>
         <td class="r" data-cell="value">${c.value}</td>
-        <td class="r"><button type="button" class="remove" data-remove="${esc(keyOf(r))}" aria-label="Remover ${esc(r.symbol)}" title="Remover">${X_ICON}</button></td>
+        <td class="r"><button type="button" class="remove" data-remove="${esc(keyOf(r))}" aria-label="${esc(L(`Remover ${r.symbol}`, `Remove ${r.symbol}`))}" title="${L("Remover", "Remove")}">${X_ICON}</button></td>
       </tr>`;
     }).join("");
-    $("positions-lede").textContent = rows.length === 0 ? "Nenhum ativo ainda."
-      : `${rows.length} ${rows.length === 1 ? "ativo" : "ativos"}. Valores em cada moeda original; o relatório converte tudo para euro.`;
+    $("positions-lede").textContent = rows.length === 0 ? L("Nenhum ativo ainda.", "No assets yet.")
+      : L(`${rows.length} ${rows.length === 1 ? "ativo" : "ativos"}. Valores em cada moeda original; o relatório converte tudo para euro.`,
+        `${rows.length} ${rows.length === 1 ? "asset" : "assets"}. Values in each original currency; the report converts everything to euro.`);
     refreshButton();
   }
 
@@ -198,8 +203,8 @@
   // Every match is listed: the best-ranked first, then the rest page by page. Filters
   // narrow the loaded results by market without a new request.
   const input = $("search"), list = $("results"), combo = $("combo");
-  const REGIONS = [["", "Todos"], ["BR", "Brasil"], ["US", "EUA"], ["EU", "Europa"], ["CRYPTO", "Cripto"], ["OTHER", "Outros"]];
-  const KINDS = { EQUITY: "Ação", ETF: "ETF", MUTUALFUND: "Fundo", CRYPTOCURRENCY: "Cripto" };
+  const REGIONS = [["", L("Todos", "All")], ["BR", L("Brasil", "Brazil")], ["US", L("EUA", "US")], ["EU", L("Europa", "Europe")], ["CRYPTO", L("Cripto", "Crypto")], ["OTHER", L("Outros", "Other")]];
+  const KINDS = { EQUITY: L("Ação", "Stock"), ETF: "ETF", MUTUALFUND: L("Fundo", "Fund"), CRYPTOCURRENCY: L("Cripto", "Crypto") };
   let hits = [], shown = [], active = -1, timer = 0, seq = 0, region = "", next = null, query = "", loadingMore = false;
 
   function closeResults() {
@@ -210,7 +215,7 @@
     list.hidden = false; combo.setAttribute("aria-expanded", "true");
   }
   function showHits() {
-    if (!hits.length) { showState("Nada encontrado. Tente o código, como PETR4 ou ASML."); return; }
+    if (!hits.length) { showState(L("Nada encontrado. Tente o código, como PETR4 ou ASML.", "Nothing found. Try the ticker, such as ASML or PETR4.")); return; }
     const ofType = typeFilter ? hits.filter((h) => h.type === typeFilter) : hits;
     shown = region ? ofType.filter((h) => h.region === region) : ofType;
     if (active >= shown.length) active = shown.length - 1;
@@ -222,12 +227,16 @@
     const rowsHtml = shown.map((h, i) =>
       `<li role="option" id="hit-${i}" data-i="${i}" aria-selected="${i === active}">` +
       `<span class="sym"><span class="type-badge t-${h.type}" title="${esc((ASSET_TYPES.find((t) => t.key === h.type) || {}).one || "")}">${assetIcon(h.type, 16)}</span>${esc(h.symbol)}</span><span class="nm">${esc(h.name)}${h.detail ? `<small>${esc(h.detail)}</small>` : ""}</span>` +
-      `<span class="ex">${esc(h.exchange)}<small>${esc((ASSET_TYPES.find((t) => t.key === h.type) || {}).one || KINDS[h.kind] || h.kind)}</small></span></li>`
+      `<span class="ex">${esc(T(h.exchange))}<small>${esc((ASSET_TYPES.find((t) => t.key === h.type) || {}).one || KINDS[h.kind] || h.kind)}</small></span></li>`
     ).join("");
     const typeName = typeFilter ? (ASSET_TYPES.find((t) => t.key === typeFilter) || {}).label : "";
-    const empty = shown.length ? "" : `<li class="state-row" aria-disabled="true">${typeFilter && !ofType.length ? `Nenhum resultado do tipo ${esc(typeName)} entre os carregados. ${next !== null ? "Role para carregar mais ou " : ""}tente o código.` : "Nenhum resultado nesse mercado entre os carregados."}</li>`;
+    const emptyText = typeFilter && !ofType.length
+      ? L(`Nenhum resultado do tipo ${esc(typeName)} entre os carregados. ${next !== null ? "Role para carregar mais ou " : ""}tente o código.`,
+        `No ${esc(typeName)} among the results loaded. ${next !== null ? "Scroll to load more or " : ""}try the ticker.`)
+      : L("Nenhum resultado nesse mercado entre os carregados.", "No results in this market among those loaded.");
+    const empty = shown.length ? "" : `<li class="state-row" aria-disabled="true">${emptyText}</li>`;
     const more = next === null ? "" :
-      `<li class="more-row" role="option" aria-disabled="true"><button type="button" class="more" ${loadingMore ? "disabled" : ""}>${loadingMore ? "Carregando…" : "Mostrar mais resultados"}</button></li>`;
+      `<li class="more-row" role="option" aria-disabled="true"><button type="button" class="more" ${loadingMore ? "disabled" : ""}>${loadingMore ? L("Carregando…", "Loading…") : L("Mostrar mais resultados", "Show more results")}</button></li>`;
     list.innerHTML = `<li class="filter-row" role="presentation">${chips}</li>${rowsHtml}${empty}${more}`;
     list.hidden = false; combo.setAttribute("aria-expanded", "true");
     input.setAttribute("aria-activedescendant", active >= 0 ? `hit-${active}` : "");
@@ -256,7 +265,7 @@
     hits = []; shown = []; active = -1; next = null; loadingMore = false; seq++;
     const text = input.value.trim();
     if (!text) { closeResults(); return; }
-    showState("Buscando…");
+    showState(L("Buscando…", "Searching…"));
     timer = setTimeout(async () => {
       const mine = ++seq;
       try {
@@ -299,7 +308,7 @@
 
   // ---------------------------------------------------------------- type picker
   function renderTypePicker() {
-    const all = [{ key: "", label: "Todos" }].concat(ASSET_TYPES);
+    const all = [{ key: "", label: L("Todos", "All") }].concat(ASSET_TYPES);
     $("type-picker").innerHTML = all.map((t) =>
       `<button type="button" class="type-option t-${t.key || "all"}" data-type="${t.key}" aria-pressed="${t.key === typeFilter}">` +
       `<span class="type-badge t-${t.key || "all"}">${t.key ? assetIcon(t.key, 18) : '<svg class="asset-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="5.5" height="5.5" rx="1.2"/><rect x="11.5" y="3" width="5.5" height="5.5" rx="1.2"/><rect x="3" y="11.5" width="5.5" height="5.5" rx="1.2"/><rect x="11.5" y="11.5" width="5.5" height="5.5" rx="1.2"/></svg>'}</span>` +
@@ -309,7 +318,7 @@
     $("cash-area").hidden = !cash;
     $("search-hint").textContent = TYPE_HINTS[typeFilter] || TYPE_HINTS[""];
     const one = (ASSET_TYPES.find((t) => t.key === typeFilter) || {}).one;
-    input.placeholder = typeFilter ? `Buscar ${one.toLowerCase()}` : "Nome ou código: Petrobras, HGLG11, IWDA, bitcoin";
+    input.placeholder = typeFilter ? L(`Buscar ${one.toLowerCase()}`, `Search for a ${one.toLowerCase()}`) : L("Nome ou código: Petrobras, HGLG11, IWDA, bitcoin", "Name or ticker: ASML, IWDA, Apple, bitcoin");
   }
   $("type-picker").addEventListener("click", (ev) => {
     const b = ev.target.closest("button[data-type]");
@@ -332,7 +341,8 @@
   $("analyse").addEventListener("click", async () => {
     const button = $("analyse"), progress = $("progress"), message = $("message");
     button.disabled = true; message.hidden = true; progress.hidden = false;
-    $("progress-text").textContent = `Baixando o histórico de ${rows.length} ${rows.length === 1 ? "ativo" : "ativos"} e o câmbio. Leva alguns segundos.`;
+    $("progress-text").textContent = L(`Baixando o histórico de ${rows.length} ${rows.length === 1 ? "ativo" : "ativos"} e o câmbio. Leva alguns segundos.`,
+      `Downloading the history of ${rows.length} ${rows.length === 1 ? "asset" : "assets"} and exchange rates. This takes a few seconds.`);
     try {
       const result = await api("/api/report", {
         method: "POST",

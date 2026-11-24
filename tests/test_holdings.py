@@ -104,7 +104,7 @@ def test_cash_row_needs_its_currency_as_symbol(tmp_path: Path) -> None:
 def test_cash_row_is_read(tmp_path: Path) -> None:
     path = tmp_path / "h.csv"
     path.write_text(
-        "asset,quantity,currency,source,symbol\nCaixa BRL,10,BRL,cash,BRL\n", encoding="utf-8"
+        "asset,quantity,currency,source,symbol\nCash BRL,10,BRL,cash,BRL\n", encoding="utf-8"
     )
 
-    assert load_holdings(path).loc["Caixa BRL", "source"] == "cash"
+    assert load_holdings(path).loc["Cash BRL", "source"] == "cash"

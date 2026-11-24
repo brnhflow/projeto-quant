@@ -12,14 +12,16 @@ const ICON_PATHS = {
   caixa: '<rect x="2.5" y="5.5" width="15" height="9" rx="1.6"/><circle cx="10" cy="10" r="2"/><path d="M5 8v4M15 8v4"/>',
 };
 
+// Names in the page's language (lang.js); English when loaded alone, as in the tests.
+const typeText = (pt, en) => (typeof L === "function" ? L(pt, en) : en);
 const ASSET_TYPES = [
-  { key: "acao", label: "Ações", one: "Ação" },
-  { key: "fii", label: "FIIs", one: "Fundo imobiliário" },
+  { key: "acao", label: typeText("Ações", "Stocks"), one: typeText("Ação", "Stock") },
+  { key: "fii", label: typeText("FIIs", "REITs (FII)"), one: typeText("Fundo imobiliário", "Brazilian REIT (FII)") },
   { key: "etf", label: "ETFs", one: "ETF" },
-  { key: "bdr", label: "BDRs", one: "BDR" },
-  { key: "fundo", label: "Fundos", one: "Fundo" },
-  { key: "cripto", label: "Cripto", one: "Criptomoeda" },
-  { key: "caixa", label: "Caixa", one: "Dinheiro em caixa" },
+  { key: "bdr", label: "BDRs", one: typeText("BDR", "BDR (depositary receipt)") },
+  { key: "fundo", label: typeText("Fundos", "Funds"), one: typeText("Fundo", "Mutual fund") },
+  { key: "cripto", label: typeText("Cripto", "Crypto"), one: typeText("Criptomoeda", "Cryptocurrency") },
+  { key: "caixa", label: typeText("Caixa", "Cash"), one: typeText("Dinheiro em caixa", "Cash") },
 ];
 
 function assetIcon(type, size = 18) {

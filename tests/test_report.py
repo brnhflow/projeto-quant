@@ -96,6 +96,15 @@ def test_report_numbers_match_the_tested_functions() -> None:
     assert sum(whole["risk"]["contributions"].values()) == pytest.approx(1.0)
     assert sum(p["weight"] for p in data["positions"]) == pytest.approx(1.0)
     assert sum(c["weight"] for c in data["currencies"]) == pytest.approx(1.0)
+    # The tearsheet agrees with the whole-history figures and compounds its months.
+    sheet = data["tearsheet"]
+    assert sheet["stats"]["maxDrawdown"] == pytest.approx(max_drawdown(value), abs=1e-6)
+    assert sheet["stats"]["var"] == pytest.approx(var, abs=1e-6)
+    compounded = 1.0
+    for row in sheet["monthly"]:
+        compounded *= 1 + row["total"]
+    assert compounded == pytest.approx(value.iloc[-1] / value.iloc[0], abs=1e-5)
+    assert sheet["drawdowns"][0]["depth"] == pytest.approx(max_drawdown(value), abs=1e-6)
 
 
 def test_short_history_hides_var_but_keeps_other_figures() -> None:
@@ -175,7 +184,7 @@ def test_build_report_returns_a_full_page() -> None:
 
     assert page.startswith("<!DOCTYPE html>")
     assert '"synthetic": true' in page
-    assert page.count("<section") == 16
+    assert page.count("<section") == 18
 
 
 def test_late_starting_asset_is_named_as_the_history_limit() -> None:

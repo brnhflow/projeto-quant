@@ -52,6 +52,16 @@ from quant.stress import (
     weekly_returns,
     window_return,
 )
+from quant.tearsheet import (
+    ROLLING_WINDOW,
+    annual_returns,
+    drawdown_periods,
+    monthly_returns,
+    return_histogram,
+    rolling_sharpe,
+    rolling_volatility,
+    summary,
+)
 from quant.validation import (
     annualized_return,
     annualized_vol,
@@ -79,12 +89,12 @@ class Period:
 
 
 PERIODS = (
-    Period("1M", "1 mês", 1),
-    Period("3M", "3 meses", 3),
-    Period("6M", "6 meses", 6),
-    Period("YTD", "No ano", None),
-    Period("12M", "12 meses", 12),
-    Period("ALL", "Tudo", 0),
+    Period("1M", "1M", 1),
+    Period("3M", "3M", 3),
+    Period("6M", "6M", 6),
+    Period("YTD", "YTD", None),
+    Period("12M", "12M", 12),
+    Period("ALL", "All", 0),
 )
 
 
@@ -427,20 +437,20 @@ def _stress(
 
 
 CURRENCY_NAMES = {
-    "USD": "Dólar",
-    "BRL": "Real",
-    "GBP": "Libra",
-    "CHF": "Franco suíço",
-    "JPY": "Iene",
-    "CAD": "Dólar canadense",
-    "AUD": "Dólar australiano",
-    "SEK": "Coroa sueca",
-    "NOK": "Coroa norueguesa",
-    "DKK": "Coroa dinamarquesa",
-    "HKD": "Dólar de Hong Kong",
-    "CNY": "Yuan",
-    "PLN": "Zloty",
-    "MXN": "Peso mexicano",
+    "USD": "US dollar",
+    "BRL": "Brazilian real",
+    "GBP": "British pound",
+    "CHF": "Swiss franc",
+    "JPY": "Japanese yen",
+    "CAD": "Canadian dollar",
+    "AUD": "Australian dollar",
+    "SEK": "Swedish krona",
+    "NOK": "Norwegian krone",
+    "DKK": "Danish krone",
+    "HKD": "Hong Kong dollar",
+    "CNY": "Chinese yuan",
+    "PLN": "Polish zloty",
+    "MXN": "Mexican peso",
 }
 
 
@@ -753,30 +763,44 @@ BENCHMARKS = (
 )
 
 
-def _benchmarks(
+def _benchmark_series(
     value: pd.Series, proxy_prices: pd.DataFrame | None, fx_rates: pd.DataFrame, base: str
-) -> dict[str, Any] | None:
-    """Benchmark series on the report's dates and, per period, how the portfolio compares."""
+) -> list[tuple[str, bool, pd.Series, pd.Series]]:
+    """Each available benchmark in the base currency on the report's dates.
+
+    Returns ``(symbol, includes dividends, series, exact)``: ``series`` carries holidays
+    forward for drawing; ``exact`` is NaN on days the index did not trade, for statistics
+    (a holiday carried forward would be a 0% day and bias beta, correlation and capture
+    towards zero).
+    """
     if proxy_prices is None:
-        return None
+        return []
     calendar = pd.DatetimeIndex(value.index)
     chosen = [(b, total) for b, total in BENCHMARKS if b in proxy_prices.columns]
     currencies = pd.Series({b: PROXIES[b][1] for b, _ in chosen})
     if not chosen or not set(currencies) - {base} <= set(fx_rates.columns):
-        return None
+        return []
     indices = to_base_currency(
         align_to_dates(proxy_prices[[b for b, _ in chosen]], calendar),
         currencies,
         align_to_dates(fx_rates, calendar),
         base=base,
     )
-    items: list[dict[str, Any]] = []
+    out: list[tuple[str, bool, pd.Series, pd.Series]] = []
     for b, total in chosen:
         series = indices[b]
-        # Statistics only on days the index itself traded: a holiday carried forward would
-        # be a 0% day and bias beta, correlation and capture towards zero.
         traded = proxy_prices[b].dropna().index
-        exact = series.where(series.index.isin(traded))
+        out.append((b, total, series, series.where(series.index.isin(traded))))
+    return out
+
+
+def _benchmarks(
+    value: pd.Series, proxy_prices: pd.DataFrame | None, fx_rates: pd.DataFrame, base: str
+) -> dict[str, Any] | None:
+    """Benchmark series on the report's dates and, per period, how the portfolio compares."""
+    calendar = pd.DatetimeIndex(value.index)
+    items: list[dict[str, Any]] = []
+    for b, total, series, exact in _benchmark_series(value, proxy_prices, fx_rates, base):
         stats: dict[str, Any] = {}
         for period in PERIODS:
             start = period_start(calendar, period)
@@ -810,6 +834,104 @@ def _benchmarks(
                 }
             )
     return {"items": items} if items else None
+
+
+def _tearsheet(
+    value: pd.Series, proxy_prices: pd.DataFrame | None, fx_rates: pd.DataFrame, base: str
+) -> dict[str, Any] | None:
+    """Build the tearsheet tab's data: whole history, against the first benchmark."""
+    if len(value) < 40:
+        return None
+
+    def stats(series: pd.Series) -> dict[str, Any]:
+        return {
+            k: (v if isinstance(v, int) or v is None else _num(float(v), 6))
+            for k, v in summary(series).items()
+        }
+
+    def rolling(series: pd.Series, dates: pd.DatetimeIndex) -> dict[str, list[float | None]]:
+        sharpe = rolling_sharpe(series).reindex(dates)
+        vol = rolling_volatility(series).reindex(dates)
+        return {
+            "sharpe": [None if math.isnan(float(x)) else _num(float(x), 4) for x in sharpe],
+            "volatility": [None if math.isnan(float(x)) else _num(float(x), 5) for x in vol],
+        }
+
+    bench: dict[str, Any] | None = None
+    bench_months: pd.Series | None = None
+    bench_years: pd.Series | None = None
+    calendar = pd.DatetimeIndex(value.index)
+    first = next(iter(_benchmark_series(value, proxy_prices, fx_rates, base)), None)
+    if first is not None:
+        b, total, _, exact = first
+        traded = exact.dropna()
+        if len(traded) >= 40:
+            bench_months = monthly_returns(traded)
+            bench_years = annual_returns(traded)
+            bench = {
+                "key": b,
+                "name": PROXIES[b][0],
+                "dividends": total,
+                "stats": stats(traded),
+                "rolling": rolling(traded, calendar),
+            }
+
+    months = monthly_returns(value)
+    years = annual_returns(value)
+    table: list[dict[str, Any]] = []
+    month_dates = pd.DatetimeIndex(months.index)
+    for year in sorted(set(month_dates.year.tolist())):
+        row: list[float | None] = [None] * 12
+        for d, r in zip(month_dates, months.to_numpy(dtype=float), strict=True):
+            if d.year == year:
+                row[d.month - 1] = _num(float(r))
+        table.append(
+            {
+                "year": int(year),
+                "months": row,
+                "total": _num(float(years[year])),
+                "benchmark": None
+                if bench_years is None or year not in bench_years.index
+                else _num(float(bench_years[year])),
+            }
+        )
+    hist = return_histogram(value)
+    return {
+        "start": _iso(value.index[0]),
+        "end": _iso(value.index[-1]),
+        "window": ROLLING_WINDOW,
+        "stats": stats(value),
+        "benchmark": bench,
+        "monthly": table,
+        "benchmarkMonths": None
+        if bench_months is None
+        else {
+            d.strftime("%Y-%m"): _num(float(r))
+            for d, r in zip(
+                pd.DatetimeIndex(bench_months.index),
+                bench_months.to_numpy(dtype=float),
+                strict=True,
+            )
+        },
+        "dates": [_iso(d) for d in calendar],
+        "rolling": rolling(value, calendar),
+        "drawdowns": [
+            {
+                "peak": _iso(p.peak),
+                "trough": _iso(p.trough),
+                "recovery": None if p.recovery is None else _iso(p.recovery),
+                "depth": _num(p.depth),
+                "daysDown": p.days_down,
+                "daysToRecover": p.days_to_recover,
+            }
+            for p in drawdown_periods(value)
+        ],
+        "histogram": {
+            "edges": [_num(e, 6) for e in hist.edges],
+            "counts": hist.counts,
+            "normal": [_num(x, 3) for x in hist.normal],
+        },
+    }
 
 
 def _result(
@@ -1124,6 +1246,7 @@ def build_report_data(
         "validation": _validation(value),
         "stress": stress,
         "benchmarks": _benchmarks(value, proxy_prices, fx_rates, base),
+        "tearsheet": _tearsheet(value, proxy_prices, fx_rates, base),
         "moves": unusual_moves(local),
         "result": _result(
             holdings, local, fx_rates, position_value, base, pd.Timestamp(value.index[-1])

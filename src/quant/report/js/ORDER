@@ -6,6 +6,7 @@ rebalance.js
 factors.js
 week.js
 future.js
+tearsheet.js
 income.js
 opportunities.js
 app.js

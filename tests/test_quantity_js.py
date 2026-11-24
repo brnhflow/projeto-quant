@@ -58,3 +58,33 @@ def test_formatted_input_parses_back_to_the_same_number() -> None:
     assert isinstance(result, list)
     assert [pair[1] for pair in result] == values  # pyright: ignore[reportUnknownVariableType]
     assert [pair[0] for pair in result] == ["1500", "0,05", "1234,56", "1000000", "3"]  # pyright: ignore[reportUnknownVariableType]
+
+
+ENGLISH = [
+    ("200", 200),
+    ("0.05", 0.05),
+    ("1.500", 1.5),  # English: the dot is always the decimal point
+    ("1,500", 1500),
+    ("1,234.56", 1234.56),
+    ("1,000,000", 1_000_000),
+    ("0,05", "NaN"),  # a decimal comma is not English
+    ("1,2,3", "NaN"),
+    ("", None),
+]
+
+
+@pytest.mark.skipif(NODE is None, reason="Node.js not installed")
+def test_parse_quantity_in_english() -> None:
+    inputs = [c[0] for c in ENGLISH]
+    mapper = "t => { const v = q.parseQuantity(t, 'en'); return Number.isNaN(v) ? 'NaN' : v; }"
+    expression = f"{json.dumps(inputs)}.map({mapper})"
+
+    assert _run(expression) == [c[1] for c in ENGLISH]
+
+
+@pytest.mark.skipif(NODE is None, reason="Node.js not installed")
+def test_english_input_round_trips() -> None:
+    values = [1500, 0.05, 1234.56]
+    mapper = "v => q.parseQuantity(q.formatQuantityInput(v, 'en'), 'en')"
+
+    assert _run(f"{json.dumps(values)}.map({mapper})") == values

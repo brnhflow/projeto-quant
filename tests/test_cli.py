@@ -96,7 +96,7 @@ def test_cash_does_not_push_the_report_past_the_last_trading_day(tmp_path: Path)
             "source": ["yahoo", "cash"],
             "symbol": ["PETR4.SA", "EUR"],
         },
-        index=pd.Index(["PETR4", "Caixa EUR"], name="asset"),
+        index=pd.Index(["PETR4", "Cash EUR"], name="asset"),
     )
     fixture = json.loads((FIXTURES / "yahoo_petr4.json").read_text(encoding="utf-8"))
     last_trade = pd.Timestamp(fixture["chart"]["result"][0]["timestamp"][-1], unit="s").normalize()

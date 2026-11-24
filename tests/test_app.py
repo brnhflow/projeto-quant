@@ -1,7 +1,9 @@
+import contextlib
 import http.client
 import json
+import re
 import threading
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +12,16 @@ import pytest
 
 from quant.app import AppConfig, BadRequestError, make_server, parse_positions
 from quant.holdings import load_holdings
+
+
+@contextlib.contextmanager
+def refused(pt: str) -> Generator[None]:
+    """Expect a BadRequestError with ``pt`` in its Portuguese message and an English one."""
+    with pytest.raises(BadRequestError) as caught:
+        yield
+    assert re.search(pt, caught.value.pt)
+    assert str(caught.value).isascii()
+
 
 FIXTURES = Path(__file__).parent / "fixtures"
 NOW = pd.Timestamp("2026-11-23 21:00", tz="UTC")
@@ -158,7 +170,8 @@ def test_search_with_every_source_down_is_a_gateway_error(app: tuple[AppConfig, 
     status, _, body = _request(app[1], "GET", "/api/search?q=petrobras")
 
     assert status == 502
-    assert "indisponível" in json.loads(body)["error"]
+    assert "unavailable" in json.loads(body)["error"]
+    assert "indisponível" in json.loads(body)["error_pt"]
 
 
 @pytest.mark.parametrize("start", ["-1", "abc", "5000"])
@@ -229,8 +242,8 @@ def test_cash_is_analysed_saved_and_restored(app: tuple[AppConfig, int]) -> None
 
     assert status == 200, body
     saved = load_holdings(config.holdings_path)
-    assert saved.index.tolist() == ["PETR4", "ASML", "Caixa BRL", "Caixa EUR"]
-    assert saved.loc["Caixa BRL", "source"] == "cash"
+    assert saved.index.tolist() == ["PETR4", "ASML", "Cash BRL", "Cash EUR"]
+    assert saved.loc["Cash BRL", "source"] == "cash"
     _, _, holdings = _request(port, "GET", "/api/holdings")
     assert json.loads(holdings)["positions"][2] == {
         "symbol": "BRL",
@@ -282,7 +295,7 @@ def test_cost_and_purchase_date_are_saved_and_give_a_result(app: tuple[AppConfig
 def test_bad_cost_or_date_is_refused(extra: dict[str, Any], message: str) -> None:
     item = {"symbol": "PETR4.SA", "quantity": 1, "currency": "BRL", **extra}
 
-    with pytest.raises(BadRequestError, match=message):
+    with refused(message):
         parse_positions({"positions": [item]})
 
 
@@ -296,12 +309,12 @@ def test_cash_and_a_ticker_with_the_same_code_can_coexist() -> None:
         }
     )
 
-    assert holdings.index.tolist() == ["USD", "Caixa USD"]
+    assert holdings.index.tolist() == ["USD", "Cash USD"]
     assert holdings["source"].tolist() == ["yahoo", "cash"]
 
 
 def test_cash_in_another_currency_than_its_code_is_refused() -> None:
-    with pytest.raises(BadRequestError, match="moeda precisa ser BRL"):
+    with refused("moeda precisa ser BRL"):
         parse_positions(
             {"positions": [{"symbol": "BRL", "quantity": 1, "currency": "EUR", "kind": "cash"}]}
         )
@@ -345,7 +358,8 @@ def test_invalid_positions_return_a_message(app: tuple[AppConfig, int]) -> None:
     status, _, body = _request(app[1], "POST", "/api/report", {"years": 1, "positions": bad})
 
     assert status == 400
-    assert "maior que zero" in json.loads(body)["error"]
+    assert "maior que zero" in json.loads(body)["error_pt"]
+    assert "above zero" in json.loads(body)["error"]
 
 
 # ---------------------------------------------------------------- parse_positions
@@ -391,7 +405,7 @@ def test_invalid_positions_return_a_message(app: tuple[AppConfig, int]) -> None:
     ],
 )
 def test_parse_positions_rejects(body: Any, message: str) -> None:
-    with pytest.raises(BadRequestError, match=message):
+    with refused(message):
         parse_positions(body)
 
 
@@ -440,11 +454,12 @@ def test_unexpected_error_still_answers(app: tuple[AppConfig, int]) -> None:
     status, _, body = _request(port, "GET", "/api/search?q=petr")
 
     assert status == 500
-    assert "inesperado" in json.loads(body)["error"]
+    assert "inesperado" in json.loads(body)["error_pt"]
+    assert "Unexpected" in json.loads(body)["error"]
 
 
 def test_cash_only_portfolio_is_refused_with_a_clear_message() -> None:
-    with pytest.raises(BadRequestError, match="além do caixa"):
+    with refused("além do caixa"):
         parse_positions(
             {"positions": [{"symbol": "EUR", "quantity": 1, "currency": "EUR", "kind": "cash"}]}
         )

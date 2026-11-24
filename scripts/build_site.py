@@ -25,7 +25,7 @@ def main() -> int:
         holdings,
         3,
         ROOT / "data" / "cache",
-        title="Carteira de exemplo",
+        title="",
         demo_url="https://github.com/brnhflow/projeto-quant",
     )
     OUT.parent.mkdir(parents=True, exist_ok=True)

@@ -9,7 +9,7 @@ const REB_KEY = "quant.rebalance.targets:" + positions.map((p) => p.asset).sort(
 const C = D.covariance;
 const rebState = { mode: "full", targets: {} };
 const num = (text) => { const v = parseQuantity(String(text).replace("%", "")); return v === null || Number.isNaN(v) ? NaN : v; };
-const pctInput = (w) => (Math.round(w * 1000) / 10).toLocaleString("pt-BR", { maximumFractionDigits: 1, useGrouping: false });
+const pctInput = (w) => (Math.round(w * 1000) / 10).toLocaleString(LOCALE, { maximumFractionDigits: 1, useGrouping: false });
 
 function savedTargets() {
   try {
@@ -53,9 +53,9 @@ function renderRebalance() {
   document.querySelector('#reb-presets [data-target="minvar"]').hidden = !C;
   rebState.targets = saved || presetTargets("current");
   const table = $("reb-table");
-  table.innerHTML = `<thead><tr><th>Ativo</th><th class="r">Peso hoje</th><th class="r">Meta</th><th class="r">Diferença</th><th>Operação</th><th class="r">Valor</th><th class="r">Custo</th></tr></thead><tbody>` +
-    positions.map((p) => `<tr data-asset="${esc(p.asset)}"><td><strong>${esc(p.asset)}</strong></td><td class="r">${fmt.share(p.weight)}</td>` +
-      `<td class="r"><span class="meta-input"><input class="reb-target" data-asset="${esc(p.asset)}" inputmode="decimal" aria-label="Meta de ${esc(p.asset)} em %"><span>%</span></span></td>` +
+  table.innerHTML = `<thead><tr><th>${L("Ativo", "Asset")}</th><th class="r">${L("Peso hoje", "Weight")}</th><th class="r">${L("Meta", "Target")}</th><th class="r">${L("Diferença", "Gap")}</th><th>${L("Operação", "Trade")}</th><th class="r">${L("Valor", "Amount")}</th><th class="r">${L("Custo", "Cost")}</th></tr></thead><tbody>` +
+    positions.map((p) => `<tr data-asset="${esc(p.asset)}"><td><strong>${esc(p.label)}</strong></td><td class="r">${fmt.share(p.weight)}</td>` +
+      `<td class="r"><span class="meta-input"><input class="reb-target" data-asset="${esc(p.asset)}" inputmode="decimal" aria-label="${esc(L(`Meta de ${p.label} em %`, `Target for ${p.label} in %`))}"><span>%</span></span></td>` +
       `<td class="r" data-c="diff"></td><td data-c="op"></td><td class="r" data-c="value"></td><td class="r" data-c="cost"></td></tr>`).join("") +
     `</tbody><tfoot><tr><td>Total</td><td class="r">100%</td><td class="r" id="reb-sum"></td><td></td><td></td><td class="r" id="reb-net"></td><td class="r" id="reb-cost-total"></td></tr></tfoot>`;
   fillTargets();
@@ -76,7 +76,7 @@ function updateRebalance() {
   const fee = Math.max(0, num($("reb-fee").value) || 0);
   const band = Math.max(0, num($("reb-band").value) || 0) / 100;
   if (!okSum) {
-    $("reb-summary").innerHTML = `<p class="reb-warn">${ICON.warn}<span>As metas somam ${fmt.share(sum)}; ajuste para 100% para ver as operações.</span></p>`;
+    $("reb-summary").innerHTML = `<p class="reb-warn">${ICON.warn}<span>${L(`As metas somam ${fmt.share(sum)}; ajuste para 100% para ver as operações.`, `Targets add up to ${fmt.share(sum)}; make them 100% to see the trades.`)}</span></p>`;
     document.querySelectorAll("#reb-table [data-c]").forEach((td) => { td.textContent = ""; });
     $("reb-net").textContent = ""; $("reb-cost-total").textContent = "";
     return;
@@ -93,8 +93,9 @@ function updateRebalance() {
     const diff = (rebState.targets[t.asset] || 0) - p.weight;
     tr.querySelector('[data-c="diff"]').textContent = fmt.pp(diff);
     const verb = t.delta > 1e-9 ? "buy" : t.delta < -1e-9 ? "sell" : "hold";
-    const amount = p.kind === "cash" ? fmt.eur(Math.abs(t.delta)) : `${fmt.qty(Math.abs(rnd(t.units, p.kind === "security" ? 4 : 8)))} ${p.kind === "crypto" ? "unid." : Math.abs(t.units) === 1 ? "cota" : "cotas"}`;
-    const label = verb === "hold" ? "Manter" : p.kind === "cash" ? (verb === "buy" ? "Deixar em caixa" : "Usar do caixa") : verb === "buy" ? "Comprar" : "Vender";
+    const units = Math.abs(t.units) === 1 ? L("cota", "unit") : L("cotas", "units");
+    const amount = p.kind === "cash" ? fmt.eur(Math.abs(t.delta)) : `${fmt.qty(Math.abs(rnd(t.units, p.kind === "security" ? 4 : 8)))} ${p.kind === "crypto" ? L("unid.", "units") : units}`;
+    const label = verb === "hold" ? L("Manter", "Hold") : p.kind === "cash" ? (verb === "buy" ? L("Deixar em caixa", "Keep in cash") : L("Usar do caixa", "Use cash")) : verb === "buy" ? L("Comprar", "Buy") : L("Vender", "Sell");
     tr.querySelector('[data-c="op"]').innerHTML = `<span class="op ${verb}">${label}</span>${verb === "hold" || p.kind === "cash" ? (verb === "hold" ? "" : ` ${amount}`) : ` ${amount}`}`;
     tr.querySelector('[data-c="value"]').textContent = verb === "hold" ? "—" : fmt.eurSigned(t.delta);
     tr.querySelector('[data-c="cost"]').textContent = t.cost > 0 ? fmt.eur(t.cost, 2) : "—";
@@ -112,14 +113,16 @@ function updateRebalance() {
     const v0 = portfolioVol(cov, positions.map((p) => p.weight)), v1 = portfolioVol(cov, after);
     const top = (w) => { const s = riskShares(cov, w); const k = s.indexOf(Math.max(...s)); return { asset: assets[k], share: s[k] }; };
     const t0 = top(positions.map((p) => p.weight)), t1 = top(after);
-    risk = `<div class="reb-fig"><p class="label">Volatilidade anual</p><p class="value">${fmt.share(v0)} <span class="arrow-word">para</span> ${fmt.share(v1)}</p><p class="note">${v1 < v0 - 0.0005 ? "A carteira fica mais estável." : v1 > v0 + 0.0005 ? "A carteira fica mais arriscada." : "Risco praticamente igual."} Covariância Ledoit-Wolf dos últimos ${C.days} dias.</p></div>` +
-      `<div class="reb-fig"><p class="label">Maior fonte de risco</p><p class="value">${esc(t1.asset)} ${fmt.share(t1.share, 0)}</p><p class="note">Hoje: ${esc(t0.asset)} com ${fmt.share(t0.share, 0)} das oscilações.</p></div>`;
+    const verdictText = v1 < v0 - 0.0005 ? L("A carteira fica mais estável.", "The portfolio becomes less volatile.")
+      : v1 > v0 + 0.0005 ? L("A carteira fica mais arriscada.", "The portfolio becomes riskier.") : L("Risco praticamente igual.", "Risk barely changes.");
+    risk = `<div class="reb-fig"><p class="label">${L("Volatilidade anual", "Annual volatility")}</p><p class="value">${fmt.share(v0)} <span class="arrow-word">${L("para", "to")}</span> ${fmt.share(v1)}</p><p class="note">${verdictText} ${L(`Covariância Ledoit-Wolf dos últimos ${C.days} dias.`, `Ledoit-Wolf covariance of the last ${C.days} days.`)}</p></div>` +
+      `<div class="reb-fig"><p class="label">${L("Maior fonte de risco", "Largest risk contributor")}</p><p class="value">${esc(T(t1.asset))} ${fmt.share(t1.share, 0)}</p><p class="note">${L(`Hoje: ${esc(T(t0.asset))} com ${fmt.share(t0.share, 0)} das oscilações.`, `Today: ${esc(T(t0.asset))} with ${fmt.share(t0.share, 0)} of the variance.`)}</p></div>`;
   }
   const turnover = (bought + sold) / Math.max(1, positions.reduce((a, p) => a + p.value, 0));
   const leftover = plan.leftover;
   $("reb-summary").innerHTML =
-    `<div class="reb-fig"><p class="label">Movimentado</p><p class="value">${fmt.eur(bought + sold)}</p><p class="note">${fmt.share(turnover, 0)} da carteira; custo estimado de ${fmt.eur(plan.totalCost, 2)}.</p></div>` + risk +
-    `<div class="reb-fig"><p class="label">${leftover >= 0 ? "Sobra em dinheiro" : "Falta em dinheiro"}</p><p class="value">${fmt.eur(Math.abs(leftover), 2)}</p><p class="note">${leftover >= 0 ? "Fica em caixa depois das operações e dos custos." : "Para pagar as operações e os custos, além das vendas."}</p></div>`;
+    `<div class="reb-fig"><p class="label">${L("Movimentado", "Turnover")}</p><p class="value">${fmt.eur(bought + sold)}</p><p class="note">${L(`${fmt.share(turnover, 0)} da carteira; custo estimado de ${fmt.eur(plan.totalCost, 2)}.`, `${fmt.share(turnover, 0)} of the portfolio; estimated cost ${fmt.eur(plan.totalCost, 2)}.`)}</p></div>` + risk +
+    `<div class="reb-fig"><p class="label">${leftover >= 0 ? L("Sobra em dinheiro", "Cash left over") : L("Falta em dinheiro", "Cash short")}</p><p class="value">${fmt.eur(Math.abs(leftover), 2)}</p><p class="note">${leftover >= 0 ? L("Fica em caixa depois das operações e dos custos.", "Stays in cash after trades and costs.") : L("Para pagar as operações e os custos, além das vendas.", "Needed to pay for trades and costs beyond the sales.")}</p></div>`;
 }
 
 $("rebalance").addEventListener("input", (ev) => {

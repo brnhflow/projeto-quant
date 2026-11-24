@@ -83,7 +83,7 @@ if __name__ == "__main__":
         index=pd.Index(["PETR4", "VALE3", "ASML", "IWDA", "BTC"], name="asset"),
     )
     prices, fx, calendar = synthetic_market()
-    page = build_report(holdings, prices, fx, calendar, title="Carteira de exemplo", synthetic=True)
+    page = build_report(holdings, prices, fx, calendar, title="", synthetic=True)
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(page, encoding="utf-8")
     print(f"wrote {OUT}")

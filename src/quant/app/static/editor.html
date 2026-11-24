@@ -1,100 +1,92 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en" data-lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Minha carteira</title>
+<title>Portfolio</title>
 <link rel="stylesheet" href="/base.css">
 <link rel="stylesheet" href="/editor.css">
+<script src="/lang.js"></script>
+<script>applyLang(); document.title = L("Minha carteira", "My portfolio");</script>
 </head>
 <body>
 <div class="page editor">
 
 <header class="masthead">
   <div class="masthead-text">
-    <p class="overline">Montar carteira</p>
-    <h1>Minha carteira</h1>
-    <p class="meta">Busque cada ativo, informe a quantidade e analise. Os preços são baixados na hora.</p>
+    <p class="overline"><span data-l="en">Build portfolio</span><span data-l="pt">Montar carteira</span></p>
+    <h1><span data-l="en">My portfolio</span><span data-l="pt">Minha carteira</span></h1>
+    <p class="meta"><span data-l="en">Search each asset, enter the quantity and analyse. Prices are downloaded on the spot.</span><span data-l="pt">Busque cada ativo, informe a quantidade e analise. Os preços são baixados na hora.</span></p>
   </div>
-  <div class="controls" id="report-link-box" hidden>
-    <a class="ghost link-button" href="/report">Ver último relatório</a>
+  <div class="controls">
+    <a class="ghost link-button" href="/report" id="report-link-box" hidden><span data-l="en">Last report</span><span data-l="pt">Ver último relatório</span></a>
+    <div class="segmented lang-switch" id="lang" role="group" aria-label="Language" data-pt-aria-label="Idioma"></div>
   </div>
 </header>
 
 <section class="block search-block">
-  <p class="field-label" id="type-label">Tipo de ativo</p>
+  <p class="field-label" id="type-label"><span data-l="en">Asset type</span><span data-l="pt">Tipo de ativo</span></p>
   <div class="type-picker" id="type-picker" role="group" aria-labelledby="type-label"></div>
   <div id="search-area">
-  <label class="field-label" for="search">Adicionar ativo</label>
+  <label class="field-label" for="search"><span data-l="en">Add an asset</span><span data-l="pt">Adicionar ativo</span></label>
   <div class="search" role="combobox" aria-haspopup="listbox" aria-owns="results" aria-expanded="false" id="combo">
     <svg class="search-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-    <input id="search" type="text" autocomplete="off" spellcheck="false"
-      placeholder="Nome ou código: Petrobras, ASML, IWDA, bitcoin" aria-autocomplete="list" aria-controls="results">
+    <input id="search" type="text" autocomplete="off" spellcheck="false" aria-autocomplete="list" aria-controls="results">
     <ul class="results" id="results" role="listbox" hidden></ul>
   </div>
   <p class="hint" id="search-hint"></p>
   </div>
   <div class="cash-add" id="cash-area" hidden>
-    <label class="field-label" for="cash-currency">Dinheiro em caixa</label>
+    <label class="field-label" for="cash-currency"><span data-l="en">Cash</span><span data-l="pt">Dinheiro em caixa</span></label>
     <div class="cash-row">
-      <select id="cash-currency">
-        <option value="EUR">EUR · euro</option>
-        <option value="BRL">BRL · real</option>
-        <option value="USD">USD · dólar americano</option>
-        <option value="GBP">GBP · libra</option>
-        <option value="CHF">CHF · franco suíço</option>
-        <option value="JPY">JPY · iene</option>
-        <option value="CAD">CAD · dólar canadense</option>
-        <option value="AUD">AUD · dólar australiano</option>
-        <option value="SEK">SEK · coroa sueca</option>
-        <option value="NOK">NOK · coroa norueguesa</option>
-        <option value="DKK">DKK · coroa dinamarquesa</option>
-        <option value="PLN">PLN · zloty</option>
-        <option value="CNY">CNY · yuan</option>
-        <option value="HKD">HKD · dólar de Hong Kong</option>
-        <option value="MXN">MXN · peso mexicano</option>
-      </select>
-      <button type="button" class="ghost" id="cash-add">Adicionar caixa</button>
+      <select id="cash-currency"></select>
+      <button type="button" class="ghost" id="cash-add"><span data-l="en">Add cash</span><span data-l="pt">Adicionar caixa</span></button>
     </div>
   </div>
 </section>
 
 <section class="block">
-  <h2><span class="num">1</span>Posições</h2>
-  <p class="lede" id="positions-lede">Nenhum ativo ainda.</p>
+  <h2><span class="num">1</span><span data-l="en">Positions</span><span data-l="pt">Posições</span></h2>
+  <p class="lede" id="positions-lede"></p>
   <div class="table-wrap">
     <table class="positions holdings" id="holdings" hidden>
       <thead><tr>
-        <th>Ativo</th><th>Bolsa</th><th>Moeda</th><th class="r">Último preço</th>
-        <th class="r">Quantidade</th><th class="r">Preço médio <span class="opt">opcional</span></th><th>Comprado em <span class="opt">opcional</span></th>
-        <th class="r">Valor</th><th><span class="sr">Remover</span></th>
+        <th><span data-l="en">Asset</span><span data-l="pt">Ativo</span></th>
+        <th><span data-l="en">Exchange</span><span data-l="pt">Bolsa</span></th>
+        <th><span data-l="en">Currency</span><span data-l="pt">Moeda</span></th>
+        <th class="r"><span data-l="en">Last price</span><span data-l="pt">Último preço</span></th>
+        <th class="r"><span data-l="en">Quantity</span><span data-l="pt">Quantidade</span></th>
+        <th class="r"><span data-l="en">Average cost</span><span data-l="pt">Preço médio</span> <span class="opt"><span data-l="en">optional</span><span data-l="pt">opcional</span></span></th>
+        <th><span data-l="en">Bought on</span><span data-l="pt">Comprado em</span> <span class="opt"><span data-l="en">optional</span><span data-l="pt">opcional</span></span></th>
+        <th class="r"><span data-l="en">Value</span><span data-l="pt">Valor</span></th>
+        <th><span class="sr"><span data-l="en">Remove</span><span data-l="pt">Remover</span></span></th>
       </tr></thead>
       <tbody></tbody>
     </table>
   </div>
-  <div class="empty" id="empty">Busque um ativo acima para começar.</div>
+  <div class="empty" id="empty"><span data-l="en">Search for an asset above to start.</span><span data-l="pt">Busque um ativo acima para começar.</span></div>
 </section>
 
 <section class="block analyse">
-  <h2><span class="num">2</span>Analisar</h2>
+  <h2><span class="num">2</span><span data-l="en">Analyse</span><span data-l="pt">Analisar</span></h2>
   <div class="analyse-row">
     <div>
-      <p class="field-label" id="years-label">Histórico usado na análise</p>
+      <p class="field-label" id="years-label"><span data-l="en">History used in the analysis</span><span data-l="pt">Histórico usado na análise</span></p>
       <div class="segmented" id="years" role="group" aria-labelledby="years-label">
-        <button type="button" data-years="1">1 ano</button>
-        <button type="button" data-years="2" aria-pressed="true">2 anos</button>
-        <button type="button" data-years="3">3 anos</button>
-        <button type="button" data-years="5">5 anos</button>
+        <button type="button" data-years="1"><span data-l="en">1 year</span><span data-l="pt">1 ano</span></button>
+        <button type="button" data-years="2" aria-pressed="true"><span data-l="en">2 years</span><span data-l="pt">2 anos</span></button>
+        <button type="button" data-years="3"><span data-l="en">3 years</span><span data-l="pt">3 anos</span></button>
+        <button type="button" data-years="5"><span data-l="en">5 years</span><span data-l="pt">5 anos</span></button>
       </div>
     </div>
-    <button type="button" class="primary" id="analyse" disabled>Analisar carteira</button>
+    <button type="button" class="primary" id="analyse" disabled><span data-l="en">Analyse portfolio</span><span data-l="pt">Analisar carteira</span></button>
   </div>
   <div class="progress" id="progress" hidden>
     <div class="progress-track"><div class="progress-fill"></div></div>
     <p class="progress-text" id="progress-text"></p>
   </div>
   <p class="message" id="message" role="alert" hidden></p>
-  <p class="hint">A carteira fica salva só neste computador, em data/private/holdings.csv, e volta preenchida da próxima vez.</p>
+  <p class="hint"><span data-l="en">The portfolio is saved only on this computer, in data/private/holdings.csv, and comes back filled in next time.</span><span data-l="pt">A carteira fica salva só neste computador, em data/private/holdings.csv, e volta preenchida da próxima vez.</span></p>
 </section>
 
 </div>

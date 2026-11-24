@@ -10,7 +10,7 @@ const ICON = {
   warn: `<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.16"/><path d="M8 4.2v4.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="11.4" r="1.1" fill="currentColor"/></svg>`,
   fail: `<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.16"/><path d="M5.4 5.4l5.2 5.2M10.6 5.4l-5.2 5.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
 };
-const pval = (p) => (p < 0.001 ? "menor que 0,001" : abs(p, p < 0.01 ? 3 : 2));
+const pval = (p) => (p < 0.001 ? L("menor que 0,001", "below 0.001") : abs(p, p < 0.01 ? 3 : 2));
 function verdict(state, label, title, body) {
   return `<div class="verdict ${state}"><p class="v-label">${esc(label)}</p>` +
     `<p class="v-title"><span class="v-icon">${ICON[state]}</span>${esc(title)}</p><p class="v-body">${body}</p></div>`;
@@ -21,60 +21,84 @@ function renderTrust() {
   $("trust").hidden = !bt && !iv;
   if (!bt && !iv) return;
   const years = (parseDate(V.end).t - parseDate(V.start).t) / (365.25 * 864e5);
-  const span = years >= 1 ? `${abs(years, 1)} ${rnd(years, 1) === 1 ? "ano" : "anos"}` : `${V.days} dias`;
-  $("trust-lede").innerHTML = `Um número de risco só serve se acertar. Esta seção testa o modelo contra o que aconteceu de fato, com ${span} de histórico, e mostra quanto cada número poderia ser diferente por puro acaso.`;
+  const span = years >= 1
+    ? `${abs(years, 1)} ${rnd(years, 1) === 1 ? L("ano", "year") : L("anos", "years")}`
+    : `${V.days} ${L("dias", "days")}`;
+  $("trust-lede").innerHTML = L(
+    `Um número de risco só serve se acertar. Esta seção testa o modelo contra o que aconteceu de fato, com ${span} de histórico, e mostra quanto cada número poderia ser diferente por puro acaso.`,
+    `A risk number is only useful if it is right. This section backtests the model against what actually happened over ${span} of history, and shows how different each number could be by chance alone.`);
 
   $("backtest-block").hidden = !bt;
   if (bt) {
     const ratio = bt.breaches / bt.expected;
     const many = bt.breaches > bt.expected;
     const kState = bt.kupiecP >= 0.05 ? "pass" : "fail";
-    const kTitle = kState === "pass" ? "Frequência dentro do esperado" : many ? "Errou para menos: risco subestimado" : "Errou para mais: risco superestimado";
+    const kTitle = kState === "pass" ? L("Frequência dentro do esperado", "Breach count as expected")
+      : many ? L("Errou para menos: risco subestimado", "Too many breaches: risk understated") : L("Errou para mais: risco superestimado", "Too few breaches: risk overstated");
     const iState = bt.independenceP >= 0.05 ? "pass" : "fail";
-    const iTitle = iState === "pass" ? "Sem sequências fora do normal" : "Os dias ruins vêm em sequência";
-    const zone = { green: ["pass", "Zona verde"], yellow: ["warn", "Zona amarela"], red: ["fail", "Zona vermelha"] }[bt.zone];
+    const iTitle = iState === "pass" ? L("Sem sequências fora do normal", "No clustering") : L("Os dias ruins vêm em sequência", "Breaches cluster");
+    const zone = {
+      green: ["pass", L("Zona verde", "Green zone")],
+      yellow: ["warn", L("Zona amarela", "Yellow zone")],
+      red: ["fail", L("Zona vermelha", "Red zone")],
+    }[bt.zone];
     $("verdicts").innerHTML =
-      verdict(kState, "Quantidade (Kupiec)", kTitle,
-        `<strong>${bt.breaches}</strong> dias com perda maior que a prevista, contra <strong>${abs(bt.expected, 1)}</strong> esperados em ${bt.days} dias. p-valor ${pval(bt.kupiecP)}.`) +
-      verdict(iState, "Sequência (Christoffersen)", iTitle,
-        iState === "pass" ? `Um dia ruim não tornou o seguinte mais provável. p-valor ${pval(bt.independenceP)}.`
-          : `Depois de um dia ruim, outro veio mais vezes do que o acaso explica: em crises o risco é maior que o número. p-valor ${pval(bt.independenceP)}.`) +
-      verdict(zone[0], "Regra dos bancos (Basileia)", zone[1],
-        zone[0] === "pass" ? "Um banco poderia usar este modelo sem penalidade." : zone[0] === "warn" ? "Um banco teria de reforçar o capital de reserva e explicar os erros." : "Um banco teria de trocar este modelo.");
+      verdict(kState, L("Quantidade (Kupiec)", "Coverage (Kupiec)"), kTitle,
+        L(`<strong>${bt.breaches}</strong> dias com perda maior que a prevista, contra <strong>${abs(bt.expected, 1)}</strong> esperados em ${bt.days} dias. p-valor ${pval(bt.kupiecP)}.`,
+          `<strong>${bt.breaches}</strong> breaches against <strong>${abs(bt.expected, 1)}</strong> expected in ${bt.days} days. p-value ${pval(bt.kupiecP)}.`)) +
+      verdict(iState, L("Sequência (Christoffersen)", "Independence (Christoffersen)"), iTitle,
+        iState === "pass"
+          ? L(`Um dia ruim não tornou o seguinte mais provável. p-valor ${pval(bt.independenceP)}.`, `A breach did not make the next day's breach more likely. p-value ${pval(bt.independenceP)}.`)
+          : L(`Depois de um dia ruim, outro veio mais vezes do que o acaso explica: em crises o risco é maior que o número. p-valor ${pval(bt.independenceP)}.`,
+            `Breaches followed breaches more often than chance explains: in a crisis the risk is larger than the number. p-value ${pval(bt.independenceP)}.`)) +
+      verdict(zone[0], L("Regra dos bancos (Basileia)", "Basel traffic light"), zone[1],
+        zone[0] === "pass" ? L("Um banco poderia usar este modelo sem penalidade.", "A bank could use this model with no capital add-on.")
+          : zone[0] === "warn" ? L("Um banco teria de reforçar o capital de reserva e explicar os erros.", "A bank would face a capital add-on and have to explain the breaches.")
+            : L("Um banco teria de trocar este modelo.", "A bank would have to replace this model."));
     const ok = kState === "pass" && iState === "pass";
     $("backtest-caption").innerHTML = ok
-      ? `Conclusão: a <strong>perda de dia ruim</strong> do quadro de números é confiável para esta carteira. Ela foi estimada com uma janela de ${bt.window} dias e testada em ${bt.days} dias seguintes.`
+      ? L(`Conclusão: a <strong>perda de dia ruim</strong> do quadro de números é confiável para esta carteira. Ela foi estimada com uma janela de ${bt.window} dias e testada em ${bt.days} dias seguintes.`,
+        `Conclusion: the <strong>1-day VaR</strong> in the key figures is reliable for this portfolio. Estimated on a ${bt.window}-day rolling window and tested on the following ${bt.days} days.`)
       : kState === "fail" && many
-        ? `Conclusão: a <strong>perda de dia ruim</strong> foi otimista nesta carteira (${abs(ratio, 1)} vezes mais erros que o esperado). Trate o número do quadro como piso, não como teto. Janela de ${bt.window} dias, testada em ${bt.days} dias.`
+        ? L(`Conclusão: a <strong>perda de dia ruim</strong> foi otimista nesta carteira (${abs(ratio, 1)} vezes mais erros que o esperado). Trate o número do quadro como piso, não como teto. Janela de ${bt.window} dias, testada em ${bt.days} dias.`,
+          `Conclusion: the <strong>1-day VaR</strong> was optimistic for this portfolio (${abs(ratio, 1)} times the expected breaches). Read the key figure as a floor, not a ceiling. ${bt.window}-day window, tested on ${bt.days} days.`)
         : kState === "fail"
-          ? `Conclusão: a perda de dia ruim foi pessimista nesta carteira (menos erros que o esperado): o risco real foi menor que o número do quadro.`
-          : `Conclusão: a perda de dia ruim acertou na quantidade, mas os erros se concentram em períodos de crise. Nesses períodos, espere perdas maiores que a prevista.`;
+          ? L("Conclusão: a perda de dia ruim foi pessimista nesta carteira (menos erros que o esperado): o risco real foi menor que o número do quadro.",
+            "Conclusion: the VaR was conservative for this portfolio (fewer breaches than expected): realised risk was lower than the key figure.")
+          : L("Conclusão: a perda de dia ruim acertou na quantidade, mas os erros se concentram em períodos de crise. Nesses períodos, espere perdas maiores que a prevista.",
+            "Conclusion: the VaR has the right breach count, but breaches cluster in crises. In those periods, expect losses beyond the forecast.");
     $("backtest-legend").innerHTML =
-      `<span class="key"><span class="swatch" style="background:${cssVar("--ink-3")}"></span>Retorno do dia</span>` +
-      `<span class="key"><span class="tick-key" style="background:${cssVar("--s1")}"></span>Perda prevista naquela manhã</span>` +
-      `<span class="key"><span class="swatch" style="background:${cssVar("--neg")}"></span>Dia em que a perda passou da prevista</span>`;
+      `<span class="key"><span class="swatch" style="background:${cssVar("--ink-3")}"></span>${L("Retorno do dia", "Daily return")}</span>` +
+      `<span class="key"><span class="tick-key" style="background:${cssVar("--s1")}"></span>${L("Perda prevista naquela manhã", "VaR forecast that morning")}</span>` +
+      `<span class="key"><span class="swatch" style="background:${cssVar("--neg")}"></span>${L("Dia em que a perda passou da prevista", "Breach")}</span>`;
   }
 
   $("intervals-block").hidden = !iv;
   if (iv) {
     const vals = iv.values;
     const rows = [
-      { key: "annualReturn", label: "Retorno por ano", f: (v) => fmt.pct(v), help: "crescimento composto" },
-      { key: "volatility", label: "Volatilidade anual", f: (v) => fmt.share(v), help: "oscilação típica" },
-      { key: "sharpe", label: "Índice de Sharpe", f: (v) => fmt.num(v, 2), help: "retorno por unidade de risco" },
-      { key: "var", label: "Perda de dia ruim (VaR 95%)", f: (v) => fmt.share(v), help: "1 dia em cada 20" },
+      { key: "annualReturn", label: L("Retorno por ano", "Annual return"), f: (v) => fmt.pct(v), help: L("crescimento composto", "compound growth") },
+      { key: "volatility", label: L("Volatilidade anual", "Annual volatility"), f: (v) => fmt.share(v), help: L("oscilação típica", "typical move") },
+      { key: "sharpe", label: L("Índice de Sharpe", "Sharpe ratio"), f: (v) => fmt.num(v, 2), help: L("retorno por unidade de risco", "return per unit of risk") },
+      { key: "var", label: L("Perda de dia ruim (VaR 95%)", "1-day VaR (95%)"), f: (v) => fmt.share(v), help: L("1 dia em cada 20", "1 day in 20") },
     ];
     const r = vals.annualReturn;
     const crossesZero = r.low < 0 && r.high > 0;
-    $("intervals-lede").innerHTML = `Faixa onde o número ficou em 90% de 2.000 históricos alternativos, desde ${dateLong(iv.start)}. ` +
-      (crossesZero ? `A faixa do retorno vai de ${fmt.pct(r.low)} a ${fmt.pct(r.high)} e inclui zero: <strong>com este histórico não dá para afirmar que a carteira rende acima de zero</strong>; o ganho visto pode ser sorte.`
-        : r.low > 0 ? `Mesmo no pior caso provável, o retorno anual fica acima de zero (${fmt.pct(r.low)}): o ganho não parece ser só sorte.`
-          : `Mesmo no melhor caso provável, o retorno anual fica abaixo de zero (${fmt.pct(r.high)}).`);
+    $("intervals-lede").innerHTML = L(`Faixa onde o número ficou em 90% de 2.000 históricos alternativos, desde ${dateLong(iv.start)}. `,
+      `90% interval across 2,000 bootstrap resamples of the history since ${dateLong(iv.start)}. `) +
+      (crossesZero
+        ? L(`A faixa do retorno vai de ${fmt.pct(r.low)} a ${fmt.pct(r.high)} e inclui zero: <strong>com este histórico não dá para afirmar que a carteira rende acima de zero</strong>; o ganho visto pode ser sorte.`,
+          `The return interval runs from ${fmt.pct(r.low)} to ${fmt.pct(r.high)} and includes zero: <strong>this history cannot show that the portfolio earns more than zero</strong>; the gain seen may be luck.`)
+        : r.low > 0
+          ? L(`Mesmo no pior caso provável, o retorno anual fica acima de zero (${fmt.pct(r.low)}): o ganho não parece ser só sorte.`,
+            `Even at the low end the annual return stays above zero (${fmt.pct(r.low)}): the gain does not look like luck alone.`)
+          : L(`Mesmo no melhor caso provável, o retorno anual fica abaixo de zero (${fmt.pct(r.high)}).`,
+            `Even at the high end the annual return stays below zero (${fmt.pct(r.high)}).`));
     $("intervals").innerHTML = rows.map((row) => {
       const v = vals[row.key];
       return `<div class="iv-row" data-key="${row.key}"><div class="iv-name">${esc(row.label)}<small>${esc(row.help)}</small></div>` +
         `<div class="iv-est">${esc(row.f(v.estimate))}</div><div class="iv-bar" data-low="${v.low}" data-high="${v.high}" data-est="${v.estimate}"></div>` +
-        `<div class="iv-range">${esc(row.f(v.low))} a ${esc(row.f(v.high))}</div></div>`;
+        `<div class="iv-range">${esc(row.f(v.low))} ${L("a", "to")} ${esc(row.f(v.high))}</div></div>`;
     }).join("");
   }
 }
@@ -142,9 +166,9 @@ function renderBacktestChart() {
     cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("visibility", "visible");
     const broke = bt.returns[i] < -bt.var[i];
     showTip(tipHtml(dateLong(bt.dates[i]), [
-      { label: "Retorno do dia", value: fmt.pct(bt.returns[i], 2) },
-      { label: "Perda prevista", value: fmt.pct(-bt.var[i], 2), color: cssVar("--s1") },
-      { label: "Resultado", value: broke ? "passou da prevista" : "dentro do previsto", color: broke ? cssVar("--neg") : null },
+      { label: L("Retorno do dia", "Daily return"), value: fmt.pct(bt.returns[i], 2) },
+      { label: L("Perda prevista", "VaR forecast"), value: fmt.pct(-bt.var[i], 2), color: cssVar("--s1") },
+      { label: L("Resultado", "Outcome"), value: broke ? L("passou da prevista", "breach") : L("dentro do previsto", "within VaR"), color: broke ? cssVar("--neg") : null },
     ]), ev);
   };
   hit.addEventListener("pointermove", move);

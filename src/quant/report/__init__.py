@@ -33,7 +33,12 @@ def report_script() -> str:
     """
     assets = resources.files("quant.report")
     static = resources.files("quant.app") / "static"
-    libraries = [static / "quantity.js", static / "assets.js", assets / "maths.js"]
+    libraries = [
+        static / "lang.js",
+        static / "quantity.js",
+        static / "assets.js",
+        assets / "maths.js",
+    ]
     parts = (assets / "js" / "ORDER").read_text(encoding="utf-8").split()
     page = "\n".join((assets / "js" / name).read_text(encoding="utf-8") for name in parts)
     js = "\n".join(f.read_text(encoding="utf-8") for f in libraries)

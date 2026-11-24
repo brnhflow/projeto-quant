@@ -527,3 +527,26 @@ h2 .num {
 }
 .reb-fig .value.up { color: var(--pos); }
 .reb-fig .value.down { color: var(--neg); }
+
+/* ---------------------------------------------------------------- language */
+/* Markup carries both languages; lang.js sets data-lang on <html>. */
+html[data-lang="pt"] [data-l="en"], html:not([data-lang="pt"]) [data-l="pt"] { display: none !important; }
+.lang-switch button { min-width: 40px; font-weight: 600; letter-spacing: 0.04em; }
+
+/* ---------------------------------------------------------------- tearsheet */
+.ts-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px 28px; margin: 8px 0 8px; }
+.ts-card h4 {
+  margin: 0 0 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-2); padding-bottom: 6px; border-bottom: 1px solid var(--rule-strong);
+}
+.ts-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ts-table th, .ts-table td { padding: 6px 4px; border-bottom: 1px solid var(--rule); text-align: left; }
+.ts-table thead th { font-size: 11px; font-weight: 600; color: var(--ink-3); border-bottom: 0; padding-top: 2px; }
+.ts-table .r { text-align: right; white-space: nowrap; }
+.heat { border-collapse: separate; border-spacing: 2px; font-size: 12px; font-variant-numeric: tabular-nums; min-width: 760px; }
+.heat th { font-weight: 600; color: var(--ink-2); padding: 4px 6px; text-align: center; }
+.heat th.rowh { text-align: right; padding-right: 10px; }
+.heat td { padding: 6px 4px; text-align: center; border-radius: 3px; min-width: 46px; color: var(--ink); }
+.heat td.empty-cell { background: transparent; }
+.heat td.year { font-weight: 600; padding-left: 10px; }
+.heat td.r, .heat th.r { text-align: right; }

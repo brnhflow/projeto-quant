@@ -210,11 +210,11 @@ def test_report_stress_block_adds_up() -> None:
             "source": ["yahoo", "yahoo", "cash"],
             "symbol": ["AAPL", "NEW3.SA", "EUR"],
         },
-        index=pd.Index(["AAPL", "NEW3", "Caixa EUR"], name="asset"),
+        index=pd.Index(["AAPL", "NEW3", "Cash EUR"], name="asset"),
     )
     new = ibov.copy()
     new[new.index < pd.Timestamp("2021-01-04")] = np.nan  # listed in 2021
-    local = pd.DataFrame({"AAPL": 1.3 * sp, "NEW3": new, "Caixa EUR": 1.0})
+    local = pd.DataFrame({"AAPL": 1.3 * sp, "NEW3": new, "Cash EUR": 1.0})
     fx = pd.DataFrame({"USD": 0.9, "BRL": 0.17}, index=DATES)
     proxies = pd.DataFrame({"^GSPC": sp, "^BVSP": ibov})
     calendar = pd.bdate_range("2024-11-20", "2026-11-20")
@@ -226,14 +226,14 @@ def test_report_stress_block_adds_up() -> None:
     by_asset = {p["asset"]: p for p in covid["positions"]}
     assert by_asset["AAPL"]["method"] == "history"
     assert by_asset["NEW3"]["method"] == "proxy"
-    assert by_asset["Caixa EUR"]["change"] == 0.0
+    assert by_asset["Cash EUR"]["change"] == 0.0
     assert covid["pnl"] == pytest.approx(sum(p["pnl"] for p in covid["positions"]), abs=0.05)
     assert sum(covid["coverage"].values()) == pytest.approx(1.0)
     assert covid["currencies"] == {"BRL": 0.0, "USD": 0.0}  # constant rates in this test
     new3 = next(p for p in stress["positions"] if p["asset"] == "NEW3")
     assert new3["proxy"] == "^BVSP"
     assert new3["beta"] == pytest.approx(1.0, abs=0.01)  # it is the index itself
-    assert next(p for p in stress["positions"] if p["asset"] == "Caixa EUR")["cash"]
+    assert next(p for p in stress["positions"] if p["asset"] == "Cash EUR")["cash"]
     assert stress["total"] == pytest.approx(sum(p["value"] for p in data["positions"]), abs=0.05)
     bench = {b["key"]: b for b in data["benchmarks"]["items"]}
     assert set(bench) == {"^GSPC", "^BVSP"}
@@ -246,7 +246,7 @@ def test_report_stress_block_adds_up() -> None:
     opp = data["opportunities"]
     assert set(opp) == {"farFromHigh", "yieldHigh", "diversifiers", "concentration", "rules"}
     assert all(r["gap"] <= -0.20 for r in opp["farFromHigh"])
-    assert "Caixa EUR" not in {c["asset"] for c in opp["concentration"]}
+    assert "Cash EUR" not in {c["asset"] for c in opp["concentration"]}
     factors = data["factors"]
     keys = {i["key"] for i in factors["items"]}
     assert keys == {"^GSPC", "^BVSP"}  # constant exchange rates are dropped as factors

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en" data-lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,82 +11,134 @@
 
 <header class="masthead">
   <div class="masthead-text">
-    <p class="overline">Relatório de carteira</p>
+    <p class="overline"><span data-l="en">Portfolio report</span><span data-l="pt">Relatório de carteira</span></p>
     <h1 id="title"></h1>
     <p class="meta" id="meta"></p>
   </div>
   <div class="controls">
-    <div class="segmented" id="periods" role="group" aria-label="Período"></div>
-    <a class="ghost link-button" id="edit" hidden>Editar carteira</a>
-    <button type="button" class="ghost" id="print">Salvar PDF</button>
+    <div class="segmented" id="periods" role="group" aria-label="Period" data-pt-aria-label="Período"></div>
+    <a class="ghost link-button" id="edit" hidden><span data-l="en">Edit portfolio</span><span data-l="pt">Editar carteira</span></a>
+    <button type="button" class="ghost" id="print"><span data-l="en">Save PDF</span><span data-l="pt">Salvar PDF</span></button>
+    <div class="segmented lang-switch" id="lang" role="group" aria-label="Language" data-pt-aria-label="Idioma"></div>
   </div>
 </header>
 
 <div class="notice" id="notice" role="status" hidden></div>
 
-<nav class="tabs" id="tabs" role="tablist" aria-label="Seções do relatório">
-  <button type="button" role="tab" id="tab-resumo" data-tab="resumo" aria-controls="page-resumo" aria-selected="false"><span class="tab-icon" data-icon="resumo"></span><span>Resumo</span><span class="tab-badge" id="badge-resumo" hidden></span></button>
-  <button type="button" role="tab" id="tab-semana" data-tab="semana" aria-controls="page-semana" aria-selected="false"><span class="tab-icon" data-icon="semana"></span><span>Esta semana</span><span class="tab-badge" id="badge-semana" hidden></span></button>
-  <button type="button" role="tab" id="tab-risco" data-tab="risco" aria-controls="page-risco" aria-selected="false"><span class="tab-icon" data-icon="risco"></span><span>Risco</span><span class="tab-badge" id="badge-risco" hidden></span></button>
-  <button type="button" role="tab" id="tab-cenarios" data-tab="cenarios" aria-controls="page-cenarios" aria-selected="false"><span class="tab-icon" data-icon="cenarios"></span><span>Cenários</span><span class="tab-badge" id="badge-cenarios" hidden></span></button>
-  <button type="button" role="tab" id="tab-renda" data-tab="renda" aria-controls="page-renda" aria-selected="false"><span class="tab-icon" data-icon="renda"></span><span>Renda</span><span class="tab-badge" id="badge-renda" hidden></span></button>
-  <button type="button" role="tab" id="tab-oportunidades" data-tab="oportunidades" aria-controls="page-oportunidades" aria-selected="false"><span class="tab-icon" data-icon="oportunidades"></span><span>Oportunidades</span><span class="tab-badge" id="badge-oportunidades" hidden></span></button>
-  <button type="button" role="tab" id="tab-rebalancear" data-tab="rebalancear" aria-controls="page-rebalancear" aria-selected="false"><span class="tab-icon" data-icon="rebalancear"></span><span>Rebalancear</span><span class="tab-badge" id="badge-rebalancear" hidden></span></button>
-  <button type="button" role="tab" id="tab-metodo" data-tab="metodo" aria-controls="page-metodo" aria-selected="false"><span class="tab-icon" data-icon="metodo"></span><span>Como ler</span><span class="tab-badge" id="badge-metodo" hidden></span></button>
+<nav class="tabs" id="tabs" role="tablist" aria-label="Report sections" data-pt-aria-label="Seções do relatório">
+  <button type="button" role="tab" id="tab-resumo" data-tab="resumo" aria-controls="page-resumo" aria-selected="false"><span class="tab-icon" data-icon="resumo"></span><span data-l="en">Summary</span><span data-l="pt">Resumo</span><span class="tab-badge" id="badge-resumo" hidden></span></button>
+  <button type="button" role="tab" id="tab-tearsheet" data-tab="tearsheet" aria-controls="page-tearsheet" aria-selected="false"><span class="tab-icon" data-icon="tearsheet"></span><span data-l="en">Tearsheet</span><span data-l="pt">Tearsheet</span><span class="tab-badge" id="badge-tearsheet" hidden></span></button>
+  <button type="button" role="tab" id="tab-semana" data-tab="semana" aria-controls="page-semana" aria-selected="false"><span class="tab-icon" data-icon="semana"></span><span data-l="en">This week</span><span data-l="pt">Esta semana</span><span class="tab-badge" id="badge-semana" hidden></span></button>
+  <button type="button" role="tab" id="tab-risco" data-tab="risco" aria-controls="page-risco" aria-selected="false"><span class="tab-icon" data-icon="risco"></span><span data-l="en">Risk</span><span data-l="pt">Risco</span><span class="tab-badge" id="badge-risco" hidden></span></button>
+  <button type="button" role="tab" id="tab-cenarios" data-tab="cenarios" aria-controls="page-cenarios" aria-selected="false"><span class="tab-icon" data-icon="cenarios"></span><span data-l="en">Scenarios</span><span data-l="pt">Cenários</span><span class="tab-badge" id="badge-cenarios" hidden></span></button>
+  <button type="button" role="tab" id="tab-renda" data-tab="renda" aria-controls="page-renda" aria-selected="false"><span class="tab-icon" data-icon="renda"></span><span data-l="en">Income</span><span data-l="pt">Renda</span><span class="tab-badge" id="badge-renda" hidden></span></button>
+  <button type="button" role="tab" id="tab-oportunidades" data-tab="oportunidades" aria-controls="page-oportunidades" aria-selected="false"><span class="tab-icon" data-icon="oportunidades"></span><span data-l="en">Signals</span><span data-l="pt">Oportunidades</span><span class="tab-badge" id="badge-oportunidades" hidden></span></button>
+  <button type="button" role="tab" id="tab-rebalancear" data-tab="rebalancear" aria-controls="page-rebalancear" aria-selected="false"><span class="tab-icon" data-icon="rebalancear"></span><span data-l="en">Rebalance</span><span data-l="pt">Rebalancear</span><span class="tab-badge" id="badge-rebalancear" hidden></span></button>
+  <button type="button" role="tab" id="tab-metodo" data-tab="metodo" aria-controls="page-metodo" aria-selected="false"><span class="tab-icon" data-icon="metodo"></span><span data-l="en">Methodology</span><span data-l="pt">Como ler</span><span class="tab-badge" id="badge-metodo" hidden></span></button>
 </nav>
 
 <div class="tab-page" id="page-resumo" data-page="resumo" role="tabpanel" aria-labelledby="tab-resumo">
-<section class="figures" id="figures" aria-label="Números principais"></section>
+<section class="figures" id="figures" aria-label="Key figures" data-pt-aria-label="Números principais"></section>
 
 <section class="block result" id="result-section" hidden>
-  <h2>Seu resultado</h2>
+  <h2><span data-l="en">Your result</span><span data-l="pt">Seu resultado</span></h2>
   <p class="lede" id="result-lede"></p>
   <div class="reb-summary" id="result-figures"></div>
+  <div id="ledger-block" hidden>
+    <h3 class="chart-title"><span data-l="en">Return on your money, from the transaction log</span><span data-l="pt">Retorno do seu dinheiro, pelo registro de operações</span></h3>
+    <p class="caption" id="ledger-lede"></p>
+    <div class="legend" id="ledger-legend"></div>
+    <div class="chart" id="chart-ledger" data-height="240"></div>
+    <div class="table-wrap"><table class="positions compact" id="ledger-table"></table></div>
+  </div>
 </section>
 
 <section class="block">
-  <h2>Desempenho</h2>
+  <h2><span data-l="en">Performance</span><span data-l="pt">Desempenho</span></h2>
   <p class="lede" id="perf-lede"></p>
   <div class="bench-bar" id="bench-bar" hidden>
-    <p class="field-label" id="bench-label">Comparar com</p>
+    <p class="field-label" id="bench-label"><span data-l="en">Compare with</span><span data-l="pt">Comparar com</span></p>
     <div class="segmented" id="bench-picker" role="group" aria-labelledby="bench-label"></div>
   </div>
   <div class="legend" id="perf-legend"></div>
   <div class="chart" id="chart-value" data-height="300"></div>
   <div class="reb-summary bench-stats" id="bench-stats" hidden></div>
-  <h3 class="chart-title">Queda desde o pico anterior</h3>
+  <h3 class="chart-title"><span data-l="en">Drawdown from the previous peak</span><span data-l="pt">Queda desde o pico anterior</span></h3>
   <div class="chart" id="chart-drawdown" data-height="130"></div>
 </section>
 
 <section class="block">
-  <h2>Composição hoje</h2>
+  <h2><span data-l="en">Holdings today</span><span data-l="pt">Composição hoje</span></h2>
   <p class="lede" id="mix-lede"></p>
   <div class="two-col">
-    <div><h3 class="chart-title">Por ativo</h3><div class="barlist" id="mix-assets"></div></div>
+    <div><h3 class="chart-title"><span data-l="en">By asset</span><span data-l="pt">Por ativo</span></h3><div class="barlist" id="mix-assets"></div></div>
     <div>
-      <h3 class="chart-title">Por tipo de ativo</h3><div class="barlist" id="mix-types"></div>
-      <h3 class="chart-title">Por moeda</h3><div class="barlist" id="mix-currencies"></div>
+      <h3 class="chart-title"><span data-l="en">By asset type</span><span data-l="pt">Por tipo de ativo</span></h3><div class="barlist" id="mix-types"></div>
+      <h3 class="chart-title"><span data-l="en">By currency</span><span data-l="pt">Por moeda</span></h3><div class="barlist" id="mix-currencies"></div>
     </div>
   </div>
 </section>
 
 <section class="block">
-  <h2>De onde veio o resultado</h2>
+  <h2><span data-l="en">Return attribution</span><span data-l="pt">De onde veio o resultado</span></h2>
   <p class="lede" id="attr-lede"></p>
   <div class="legend" id="attr-legend"></div>
   <div class="chart" id="chart-attribution"></div>
 </section>
 
+<section class="block" id="brinson" hidden>
+  <h2><span data-l="en">Allocation and selection against the benchmark</span><span data-l="pt">Alocação e seleção contra o índice</span></h2>
+  <p class="lede" id="brinson-lede"></p>
+  <div class="reb-summary" id="brinson-figures"></div>
+  <div class="table-wrap"><table class="positions compact" id="brinson-table"></table></div>
+</section>
+
 <section class="block">
-  <h2>Posições</h2>
-  <p class="lede">Clique no nome de uma coluna para ordenar.</p>
+  <h2><span data-l="en">Positions</span><span data-l="pt">Posições</span></h2>
+  <p class="lede"><span data-l="en">Click a column name to sort.</span><span data-l="pt">Clique no nome de uma coluna para ordenar.</span></p>
   <div class="table-wrap"><table class="positions" id="positions"></table></div>
+</section>
+</div>
+
+<div class="tab-page" id="page-tearsheet" data-page="tearsheet" role="tabpanel" aria-labelledby="tab-tearsheet">
+<section class="block" id="tearsheet">
+  <h2><span data-l="en">Tearsheet</span><span data-l="pt">Tearsheet</span></h2>
+  <p class="lede" id="ts-lede"></p>
+  <div class="ts-stats" id="ts-stats"></div>
+  <h3 class="chart-title"><span data-l="en">Monthly returns</span><span data-l="pt">Retornos mensais</span></h3>
+  <p class="caption" id="ts-monthly-lede"></p>
+  <div class="table-wrap"><table class="heat" id="ts-monthly"></table></div>
+  <div class="two-col">
+    <div>
+      <h3 class="chart-title"><span data-l="en">Rolling 6-month Sharpe ratio</span><span data-l="pt">Sharpe em janelas de 6 meses</span></h3>
+      <div class="chart" id="chart-rolling-sharpe" data-height="190"></div>
+    </div>
+    <div>
+      <h3 class="chart-title"><span data-l="en">Rolling 6-month volatility</span><span data-l="pt">Volatilidade em janelas de 6 meses</span></h3>
+      <div class="chart" id="chart-rolling-vol" data-height="190"></div>
+    </div>
+  </div>
+  <h3 class="chart-title"><span data-l="en">Worst drawdowns</span><span data-l="pt">Piores quedas</span></h3>
+  <div class="table-wrap"><table class="positions compact" id="ts-drawdowns"></table></div>
+  <div class="two-col">
+    <div>
+      <h3 class="chart-title"><span data-l="en">Calendar-year returns</span><span data-l="pt">Retorno por ano</span></h3>
+      <div class="legend" id="ts-years-legend"></div>
+      <div class="chart" id="chart-years" data-height="210"></div>
+    </div>
+    <div>
+      <h3 class="chart-title"><span data-l="en">Distribution of daily returns</span><span data-l="pt">Distribuição dos retornos diários</span></h3>
+      <div class="legend" id="ts-hist-legend"></div>
+      <div class="chart" id="chart-hist" data-height="190"></div>
+      <p class="caption" id="ts-hist-caption"></p>
+    </div>
+  </div>
 </section>
 </div>
 
 <div class="tab-page" id="page-semana" data-page="semana" role="tabpanel" aria-labelledby="tab-semana">
 <section class="block" id="watch">
-  <h2>Esta semana</h2>
+  <h2><span data-l="en">This week</span><span data-l="pt">Esta semana</span></h2>
   <p class="lede" id="watch-lede"></p>
   <div class="watch-grid" id="watch-grid"></div>
 </section>
@@ -94,17 +146,17 @@
 
 <div class="tab-page" id="page-risco" data-page="risco" role="tabpanel" aria-labelledby="tab-risco">
 <section class="block">
-  <h2>Risco</h2>
+  <h2><span data-l="en">Risk</span><span data-l="pt">Risco</span></h2>
   <p class="lede" id="risk-lede"></p>
   <div class="reb-summary ratios" id="ratios"></div>
   <div class="two-col">
     <div>
-      <h3 class="chart-title">Peso na carteira e parcela do risco</h3>
+      <h3 class="chart-title"><span data-l="en">Weight and share of risk</span><span data-l="pt">Peso na carteira e parcela do risco</span></h3>
       <div class="legend" id="risk-legend"></div>
       <div class="chart" id="chart-risk"></div>
     </div>
     <div>
-      <h3 class="chart-title">Correlação dos retornos diários</h3>
+      <h3 class="chart-title"><span data-l="en">Correlation of daily returns</span><span data-l="pt">Correlação dos retornos diários</span></h3>
       <div id="corr"></div>
       <div class="scale" id="corr-scale"></div>
     </div>
@@ -112,16 +164,16 @@
 </section>
 
 <section class="block" id="factors">
-  <h2>Do que a carteira depende de verdade</h2>
+  <h2><span data-l="en">What the portfolio really depends on</span><span data-l="pt">Do que a carteira depende de verdade</span></h2>
   <p class="lede" id="factors-lede"></p>
   <div class="two-col factors-cols">
     <div>
-      <h3 class="chart-title">Sensibilidade a cada fator</h3>
+      <h3 class="chart-title"><span data-l="en">Factor betas</span><span data-l="pt">Sensibilidade a cada fator</span></h3>
       <div class="legend" id="factors-legend"></div>
       <div class="chart" id="chart-factors"></div>
     </div>
     <div>
-      <h3 class="chart-title">De onde vêm as oscilações</h3>
+      <h3 class="chart-title"><span data-l="en">Where the variance comes from</span><span data-l="pt">De onde vêm as oscilações</span></h3>
       <div id="factor-shares"></div>
       <div class="verdict-inline" id="factors-check"></div>
     </div>
@@ -129,17 +181,17 @@
 </section>
 
 <section class="block" id="trust">
-  <h2>Quanto confiar nestes números</h2>
+  <h2><span data-l="en">How far to trust these numbers</span><span data-l="pt">Quanto confiar nestes números</span></h2>
   <p class="lede" id="trust-lede"></p>
   <div id="backtest-block">
-    <h3 class="chart-title">A perda de dia ruim prevista contra o que aconteceu</h3>
+    <h3 class="chart-title"><span data-l="en">VaR backtest: forecast loss against what happened</span><span data-l="pt">A perda de dia ruim prevista contra o que aconteceu</span></h3>
     <div class="verdicts" id="verdicts"></div>
     <div class="legend" id="backtest-legend"></div>
     <div class="chart" id="chart-backtest" data-height="240"></div>
     <p class="caption" id="backtest-caption"></p>
   </div>
   <div id="intervals-block">
-    <h3 class="chart-title">Margem de erro de cada número</h3>
+    <h3 class="chart-title"><span data-l="en">Confidence interval of each statistic</span><span data-l="pt">Margem de erro de cada número</span></h3>
     <p class="caption" id="intervals-lede"></p>
     <div class="intervals" id="intervals"></div>
   </div>
@@ -148,14 +200,14 @@
 
 <div class="tab-page" id="page-cenarios" data-page="cenarios" role="tabpanel" aria-labelledby="tab-cenarios">
 <section class="block" id="stress">
-  <h2>E se uma crise acontecesse hoje</h2>
+  <h2><span data-l="en">If a crisis happened today</span><span data-l="pt">E se uma crise acontecesse hoje</span></h2>
   <p class="lede" id="stress-lede"></p>
-  <h3 class="chart-title">Crises reais, aplicadas à carteira de hoje</h3>
+  <h3 class="chart-title"><span data-l="en">Historical crises, applied to today's holdings</span><span data-l="pt">Crises reais, aplicadas à carteira de hoje</span></h3>
   <div class="scenarios" id="scenarios"></div>
   <p class="caption" id="stress-caption"></p>
-  <h3 class="chart-title builder-title">Monte o seu cenário</h3>
+  <h3 class="chart-title builder-title"><span data-l="en">Build your own scenario</span><span data-l="pt">Monte o seu cenário</span></h3>
   <p class="caption" id="builder-lede"></p>
-  <div class="presets" id="presets" role="group" aria-label="Partir de uma crise"></div>
+  <div class="presets" id="presets" role="group" aria-label="Start from a crisis" data-pt-aria-label="Partir de uma crise"></div>
   <div class="builder">
     <div class="sliders" id="sliders"></div>
     <div class="builder-result" id="builder-result" aria-live="polite"></div>
@@ -163,17 +215,17 @@
 </section>
 
 <section class="block" id="future">
-  <h2>E daqui para frente</h2>
+  <h2><span data-l="en">From here on</span><span data-l="pt">E daqui para frente</span></h2>
   <p class="lede" id="future-lede"></p>
   <div class="future-controls">
-    <div class="segmented" id="future-horizon" role="group" aria-label="Horizonte">
-      <button type="button" data-years="1" aria-pressed="true">1 ano</button>
-      <button type="button" data-years="3">3 anos</button>
-      <button type="button" data-years="5">5 anos</button>
+    <div class="segmented" id="future-horizon" role="group" aria-label="Horizon" data-pt-aria-label="Horizonte">
+      <button type="button" data-years="1" aria-pressed="true"><span data-l="en">1 year</span><span data-l="pt">1 ano</span></button>
+      <button type="button" data-years="3"><span data-l="en">3 years</span><span data-l="pt">3 anos</span></button>
+      <button type="button" data-years="5"><span data-l="en">5 years</span><span data-l="pt">5 anos</span></button>
     </div>
-    <div class="segmented" id="future-mode" role="group" aria-label="Tendência">
-      <button type="button" data-mode="neutral" aria-pressed="true">Sem tendência</button>
-      <button type="button" data-mode="trend">Repetindo o passado</button>
+    <div class="segmented" id="future-mode" role="group" aria-label="Drift" data-pt-aria-label="Tendência">
+      <button type="button" data-mode="neutral" aria-pressed="true"><span data-l="en">Zero drift</span><span data-l="pt">Sem tendência</span></button>
+      <button type="button" data-mode="trend"><span data-l="en">Historical drift</span><span data-l="pt">Repetindo o passado</span></button>
     </div>
   </div>
   <div class="legend" id="future-legend"></div>
@@ -185,38 +237,38 @@
 
 <div class="tab-page" id="page-renda" data-page="renda" role="tabpanel" aria-labelledby="tab-renda">
 <section class="block" id="income-section">
-  <h2>Renda da carteira</h2>
+  <h2><span data-l="en">Portfolio income</span><span data-l="pt">Renda da carteira</span></h2>
   <p class="lede" id="income-summary"></p>
   <div class="reb-summary" id="income-figures"></div>
-  <h3 class="chart-title">Próximos 12 meses, mês a mês</h3>
+  <h3 class="chart-title"><span data-l="en">Next 12 months, month by month</span><span data-l="pt">Próximos 12 meses, mês a mês</span></h3>
   <p class="caption" id="income-months-lede"></p>
   <div class="legend" id="income-legend"></div>
   <div class="chart" id="chart-income-months" data-height="220"></div>
-  <h3 class="chart-title">Renda futura</h3>
+  <h3 class="chart-title"><span data-l="en">Future income</span><span data-l="pt">Renda futura</span></h3>
   <div class="reb-controls">
-    <label class="reb-field"><span class="field-label">Aporte por mês (€)</span><input id="inc-contribution" inputmode="decimal" value="0"></label>
-    <label class="reb-field"><span class="field-label">Renda desejada por mês (€)</span><input id="inc-goal" inputmode="decimal" value="0"></label>
+    <label class="reb-field"><span class="field-label"><span data-l="en">Monthly contribution (€)</span><span data-l="pt">Aporte por mês (€)</span></span><input id="inc-contribution" inputmode="decimal" value="0"></label>
+    <label class="reb-field"><span class="field-label"><span data-l="en">Target income per month (€)</span><span data-l="pt">Renda desejada por mês (€)</span></span><input id="inc-goal" inputmode="decimal" value="0"></label>
     <div>
-      <p class="field-label" id="inc-reinvest-label">Proventos recebidos</p>
+      <p class="field-label" id="inc-reinvest-label"><span data-l="en">Dividends received</span><span data-l="pt">Proventos recebidos</span></p>
       <div class="segmented" id="inc-reinvest" role="group" aria-labelledby="inc-reinvest-label">
-        <button type="button" data-reinvest="1" aria-pressed="true">Reinvestir</button>
-        <button type="button" data-reinvest="0">Gastar</button>
+        <button type="button" data-reinvest="1" aria-pressed="true"><span data-l="en">Reinvest</span><span data-l="pt">Reinvestir</span></button>
+        <button type="button" data-reinvest="0"><span data-l="en">Spend</span><span data-l="pt">Gastar</span></button>
       </div>
     </div>
     <div>
-      <p class="field-label" id="inc-growth-label">Crescimento dos proventos</p>
+      <p class="field-label" id="inc-growth-label"><span data-l="en">Dividend growth</span><span data-l="pt">Crescimento dos proventos</span></p>
       <div class="segmented" id="inc-growth" role="group" aria-labelledby="inc-growth-label">
-        <button type="button" data-growth="history" aria-pressed="true">Como no passado</button>
-        <button type="button" data-growth="zero">Sem crescimento</button>
+        <button type="button" data-growth="history" aria-pressed="true"><span data-l="en">As in the past</span><span data-l="pt">Como no passado</span></button>
+        <button type="button" data-growth="zero"><span data-l="en">No growth</span><span data-l="pt">Sem crescimento</span></button>
       </div>
     </div>
   </div>
   <div class="chart" id="chart-income-future" data-height="240"></div>
   <p class="caption" id="income-future-lede"></p>
-  <h3 class="chart-title">Por ativo</h3>
+  <h3 class="chart-title"><span data-l="en">By asset</span><span data-l="pt">Por ativo</span></h3>
   <div class="table-wrap"><table class="positions compact" id="income-assets"></table></div>
   <div id="income-block">
-    <h3 class="chart-title">O que a carteira pagou nos últimos 12 meses</h3>
+    <h3 class="chart-title"><span data-l="en">What the portfolio paid in the last 12 months</span><span data-l="pt">O que a carteira pagou nos últimos 12 meses</span></h3>
     <p class="caption" id="income-lede"></p>
     <div class="table-wrap"><table class="positions compact" id="income"></table></div>
   </div>
@@ -225,50 +277,202 @@
 
 <div class="tab-page" id="page-oportunidades" data-page="oportunidades" role="tabpanel" aria-labelledby="tab-oportunidades">
 <section class="block" id="opportunities">
-  <h2>Oportunidades para analisar</h2>
+  <h2><span data-l="en">Signals worth investigating</span><span data-l="pt">Oportunidades para analisar</span></h2>
   <p class="lede" id="opp-lede"></p>
   <div class="opp-grid" id="opp-grid"></div>
-  <p class="caption opp-disclaimer">Sinais calculados com regras fixas e dados públicos, para você investigar. Não são recomendação de compra ou venda: cada um tem um motivo possível que a regra não enxerga.</p>
+  <p class="caption opp-disclaimer"><span data-l="en">Signals computed with fixed rules on public data, for you to investigate. They are not buy or sell recommendations: each one may have a reason the rule cannot see.</span><span data-l="pt">Sinais calculados com regras fixas e dados públicos, para você investigar. Não são recomendação de compra ou venda: cada um tem um motivo possível que a regra não enxerga.</span></p>
 </section>
 </div>
 
 <div class="tab-page" id="page-rebalancear" data-page="rebalancear" role="tabpanel" aria-labelledby="tab-rebalancear">
 <section class="block" id="rebalance">
-  <h2>Rebalancear</h2>
-  <p class="lede" id="reb-lede">Defina a meta de cada ativo e veja o que comprar e vender, quanto custa e como o risco muda. As metas ficam salvas neste navegador.</p>
+  <h2><span data-l="en">Rebalance</span><span data-l="pt">Rebalancear</span></h2>
+  <p class="lede" id="reb-lede"><span data-l="en">Set a target weight for each asset and see what to buy and sell, what it costs and how the risk changes. Targets are saved in this browser.</span><span data-l="pt">Defina a meta de cada ativo e veja o que comprar e vender, quanto custa e como o risco muda. As metas ficam salvas neste navegador.</span></p>
   <div class="reb-controls">
     <div>
-      <p class="field-label" id="reb-mode-label">Como chegar lá</p>
+      <p class="field-label" id="reb-mode-label"><span data-l="en">How to get there</span><span data-l="pt">Como chegar lá</span></p>
       <div class="segmented" id="reb-mode" role="group" aria-labelledby="reb-mode-label">
-        <button type="button" data-mode="full" aria-pressed="true">Comprar e vender</button>
-        <button type="button" data-mode="contribute">Só aportar</button>
+        <button type="button" data-mode="full" aria-pressed="true"><span data-l="en">Buy and sell</span><span data-l="pt">Comprar e vender</span></button>
+        <button type="button" data-mode="contribute"><span data-l="en">New money only</span><span data-l="pt">Só aportar</span></button>
       </div>
     </div>
-    <label class="reb-field"><span class="field-label">Aporte novo (€)</span><input id="reb-contribution" inputmode="decimal" value="0"></label>
-    <label class="reb-field"><span class="field-label">Custo por operação (%)</span><input id="reb-cost" inputmode="decimal" value="0,10"></label>
-    <label class="reb-field"><span class="field-label">Tarifa fixa (€)</span><input id="reb-fee" inputmode="decimal" value="0"></label>
-    <label class="reb-field" id="reb-band-field"><span class="field-label">Tolerância (p.p.)</span><input id="reb-band" inputmode="decimal" value="2"></label>
+    <label class="reb-field"><span class="field-label"><span data-l="en">New money (€)</span><span data-l="pt">Aporte novo (€)</span></span><input id="reb-contribution" inputmode="decimal" value="0"></label>
+    <label class="reb-field"><span class="field-label"><span data-l="en">Cost per trade (%)</span><span data-l="pt">Custo por operação (%)</span></span><input id="reb-cost" inputmode="decimal" value="0.10" data-pt-value="0,10"></label>
+    <label class="reb-field"><span class="field-label"><span data-l="en">Fixed fee (€)</span><span data-l="pt">Tarifa fixa (€)</span></span><input id="reb-fee" inputmode="decimal" value="0"></label>
+    <label class="reb-field" id="reb-band-field"><span class="field-label"><span data-l="en">Tolerance band (pp)</span><span data-l="pt">Tolerância (p.p.)</span></span><input id="reb-band" inputmode="decimal" value="2"></label>
   </div>
-  <div class="presets" id="reb-presets" role="group" aria-label="Metas prontas">
-    <button type="button" class="chip" data-target="current">Pesos atuais</button>
-    <button type="button" class="chip" data-target="equal">Pesos iguais</button>
-    <button type="button" class="chip" data-target="parity">Paridade de risco</button>
-    <button type="button" class="chip" data-target="minvar">Mínima variância</button>
-    <button type="button" class="chip" data-target="saved" hidden>Minhas metas salvas</button>
+  <div class="presets" id="reb-presets" role="group" aria-label="Preset targets" data-pt-aria-label="Metas prontas">
+    <button type="button" class="chip" data-target="current"><span data-l="en">Current weights</span><span data-l="pt">Pesos atuais</span></button>
+    <button type="button" class="chip" data-target="equal"><span data-l="en">Equal weights</span><span data-l="pt">Pesos iguais</span></button>
+    <button type="button" class="chip" data-target="parity"><span data-l="en">Risk parity</span><span data-l="pt">Paridade de risco</span></button>
+    <button type="button" class="chip" data-target="minvar"><span data-l="en">Minimum variance</span><span data-l="pt">Mínima variância</span></button>
+    <button type="button" class="chip" data-target="saved" hidden><span data-l="en">My saved targets</span><span data-l="pt">Minhas metas salvas</span></button>
   </div>
   <div class="table-wrap"><table class="positions reb-table" id="reb-table"></table></div>
   <div class="reb-summary" id="reb-summary" aria-live="polite"></div>
-  <label class="reb-check"><input type="checkbox" id="reb-whole" checked> Ações e ETFs em quantidades inteiras (cripto e caixa aceitam frações)</label>
+  <label class="reb-check"><input type="checkbox" id="reb-whole" checked> <span data-l="en">Whole units for stocks and ETFs (crypto and cash accept fractions)</span><span data-l="pt">Ações e ETFs em quantidades inteiras (cripto e caixa aceitam frações)</span></label>
 </section>
 </div>
 
 <div class="tab-page" id="page-metodo" data-page="metodo" role="tabpanel" aria-labelledby="tab-metodo">
 <section class="block method">
-  <h2>Como ler e premissas</h2>
-  <dl class="defs">
+  <h2><span data-l="en">Methodology and assumptions</span><span data-l="pt">Como ler e premissas</span></h2>
+  <dl class="defs" data-l="en">
+    <dt>Period return</dt>
+    <dd>Change in the portfolio's value in euro from the close of the first day to the close of
+    the last, holding today's quantities throughout: no trades or contributions (a buy-and-hold
+    view of the current portfolio). Returns on your actual money are under Your result.</dd>
+    <dt>Annualised volatility</dt>
+    <dd>Standard deviation of daily returns times √252. It measures the typical size of moves,
+    not their direction, and assumes returns are independent from day to day.</dd>
+    <dt>Maximum drawdown</dt>
+    <dd>The largest fall from a peak to the following trough within the period: what someone who
+    bought at the worst moment would have seen on their statement.</dd>
+    <dt>Historical VaR and expected shortfall (95%, 1 day)</dt>
+    <dd>The loss not exceeded on 95% of the days in the period: the worst day in every 20. The
+    average loss on those days is the expected shortfall (ES). It uses only what happened in the
+    period, so a calm period understates the risk. Needs at least <span class="min-var"></span>
+    days.</dd>
+    <dt>Price and currency effect</dt>
+    <dd>Each asset's contribution to the return, split into the price move (at the starting
+    exchange rate) and the currency effect on the final position. The parts add up exactly to
+    the total.</dd>
+    <dt>Risk contribution</dt>
+    <dd>Euler decomposition: the share of portfolio variance coming from each asset, with today's
+    weights and the period's covariances. An asset can carry more risk than its weight if it is
+    volatile or moves with the others. Needs at least <span class="min-cov"></span> days.</dd>
+    <dt>Correlation</dt>
+    <dd>From −1 to 1: how closely the daily returns of two assets move together. Near 1, one does
+    not hedge the other.</dd>
+    <dt>VaR backtest</dt>
+    <dd>Each day the VaR is re-estimated from the previous year only, as if computed that morning,
+    and compared with what happened. A correct model is breached on about 1 day in 20. Today's
+    quantities are applied to the whole history.</dd>
+    <dt>Kupiec test</dt>
+    <dd>Unconditional coverage: is the number of breaches consistent with 1 in 20? Rejects when
+    the chance of a correct model breaching that often (or that rarely) is below 5% (Kupiec,
+    1995).</dd>
+    <dt>Christoffersen test</dt>
+    <dd>Independence: do breaches cluster? If one bad day makes the next more likely, the risk in
+    a crisis is larger than the number suggests (Christoffersen, 1998).</dd>
+    <dt>Basel traffic light</dt>
+    <dd>The rule banks use to validate their risk models: green up to where a correct model would
+    land 95% of the time, red from 99.99% (Basel Committee, 1996).</dd>
+    <dt>Confidence intervals</dt>
+    <dd>Each statistic is recomputed on 2,000 alternative histories built by resampling blocks of
+    consecutive days (stationary bootstrap, Politis and Romano, 1994), which keeps calm and crisis
+    periods together. 90% of the resamples fall inside the interval. It cannot invent crises the
+    history never had.</dd>
+    <dt>Sharpe ratio</dt>
+    <dd>Mean annual return divided by annual volatility. Computed without subtracting the
+    risk-free rate.</dd>
+    <dt>Stress tests</dt>
+    <dd>Each crisis runs from the close before the shock to the trough, applied to today's
+    quantities in euro (exchange rates of the time included). An asset that did not exist yet is
+    mapped to the index it resembles most (highest R², weekly returns since 2007) times its beta,
+    as professional risk systems do. A future crisis will differ: read the result as an order of
+    magnitude, not a forecast.</dd>
+    <dt>Beta</dt>
+    <dd>How much the asset tends to move when the index moves 1%. Betas are shrunk towards 1
+    (Vasicek, 1973). R² is the share of the asset's variance the index explains.</dd>
+    <dt>Rebalancing</dt>
+    <dd>"Buy and sell" brings each asset outside its tolerance band back to target; inside the
+    band it does nothing (trading less saves costs). "New money only" uses only fresh cash,
+    starting with the assets furthest below target, without selling (useful to avoid realising
+    gains). Today's prices in euro; costs are an estimate of commission and spread. Capital gains
+    tax is not included.</dd>
+    <dt>Risk parity</dt>
+    <dd>Weights at which every asset contributes the same share of variance (equal risk
+    contribution, solved by cyclical coordinate descent). Calm assets get more weight, volatile
+    ones less. Uses the last 12 months of covariances; cash is left out.</dd>
+    <dt>Factor model</dt>
+    <dd>OLS regression of the portfolio's weekly euro returns on the indices its assets follow (in
+    local currency) and on the currencies you hold. A beta is the portfolio's expected move for a
+    1% factor move; the thin line around it is ±2 standard errors. Weekly, because markets close
+    at different times.</dd>
+    <dt>Out-of-sample test</dt>
+    <dd>Each week the model is fitted on previous weeks only and predicts the next one
+    (walk-forward). If it fits well in sample but poorly out of sample, the exposures changed over
+    time and should not drive decisions.</dd>
+    <dt>Unusual move</dt>
+    <dd>The asset's last day or week compared with the typical size of its moves over the previous
+    year. Beyond 2.5 times that size (about 1% of days) the asset is flagged, with the headlines
+    beside it. News explains; it does not predict.</dd>
+    <dt>News</dt>
+    <dd>Headlines from the last 14 days on Google News: B3 stocks by ticker, in Portuguese; the
+    rest by company name, in English. Funds and cash have no search of their own.</dd>
+    <dt>Dividends</dt>
+    <dd>Dividends and interest on capital paid in the last 12 months as reported by Yahoo,
+    multiplied by today's quantities and converted at today's rate. Gross, before tax. They are
+    already included in the report's returns.</dd>
+    <dt>Monte Carlo simulation</dt>
+    <dd>2,000 five-year paths built by resampling blocks of consecutive days from the portfolio's
+    history (same bootstrap as the intervals). "Zero drift" removes the historical mean return and
+    keeps only the size of moves; "Historical drift" keeps it. The bands show where 50% and 90% of
+    paths ended. No contributions, withdrawals or crises larger than the history.</dd>
+    <dt>Simulation calibration</dt>
+    <dd>Month by month, using only data before that month, the simulation gives a 90% interval for
+    where the month should end. If the outcome lands inside in about 90% of months, the bands are
+    honest; far less means risk was understated (binomial test).</dd>
+    <dt>Benchmark comparison</dt>
+    <dd>The portfolio against an index, in euro and on the same days. Beta: the portfolio's move for
+    a 1% index move. Jensen's alpha: annual return the index does not explain. Tracking error: how
+    far the portfolio strays from the index. Information ratio: alpha per unit of tracking error
+    (above 0.5 is good even for professional managers). A down-capture below 1 means the portfolio
+    fell less than the index on its down days. MSCI ACWI comes from an ETF with dividends; the
+    other indices are price-only, which flatters the portfolio by about 2 to 4 points a year.</dd>
+    <dt>Minimum variance</dt>
+    <dd>Long-only weights with the lowest possible volatility under last year's Ledoit-Wolf
+    covariance (projected gradient on the simplex). It ignores expected returns on purpose:
+    estimating returns is much harder than estimating risk. It tends to concentrate in the calmest
+    assets; cash is left out.</dd>
+    <dt>Sharpe, Sortino and Calmar</dt>
+    <dd>Return per unit of risk, without the risk-free rate. Sharpe uses volatility; Sortino,
+    downside deviation only; Calmar, annual return over the maximum drawdown. Above 1 is good;
+    above 2 is rare and suspect over a short period.</dd>
+    <dt>Ledoit-Wolf covariance</dt>
+    <dd>Risk parity and rebalancing use the Ledoit and Wolf (2004) covariance: the sample
+    covariance shrunk towards a simpler matrix, in the proportion that minimises the expected
+    error. With few days and many assets, the sample covariance exaggerates extreme correlations
+    and variances, and any optimiser built on it chases that noise.</dd>
+    <dt>Future income</dt>
+    <dd>The next 12 months repeat each calendar month's average over the last two years. Each
+    asset's growth is the median year-on-year change over the last five years (which ignores a
+    one-off special dividend), capped at ±10%, applied for five years and fading to zero by year
+    ten. New money yields like today's portfolio. Prices and exchange rates stay as today; gross,
+    before tax.</dd>
+    <dt>Your result and XIRR</dt>
+    <dd>With the average price and first purchase date of each asset, the cost is converted to euro
+    at that date's rate and compared with today's value. XIRR is the annual rate that equates the
+    money invested, at each date, with today's value: it accounts for when the money went in. A
+    position bought several times enters at its first purchase date, which tends to understate the
+    XIRR; the transaction log fixes that.</dd>
+    <dt>Time- and money-weighted return</dt>
+    <dd>With a transaction log, the time-weighted return (TWR) chains the daily returns between
+    cash flows, so it measures the investments and not the timing of your deposits: it is the
+    number fund managers report. The money-weighted return (XIRR) is the rate your own money
+    earned, timing included. Realised gains use the average cost of the units sold.</dd>
+    <dt>Brinson attribution</dt>
+    <dd>Brinson, Hood and Beebower (1986): the gap to the benchmark split into allocation (more or
+    less weight in a market than the benchmark, times that market's return over the benchmark),
+    selection (your assets against their market's index) and interaction. Each market is the
+    regional index the assets follow; the benchmark weights are the global index's regional
+    mix.</dd>
+    <dt>Tearsheet</dt>
+    <dd>The standard one-page summary of a strategy: annual statistics, the month-by-month returns
+    table, rolling Sharpe and volatility over 126 trading days, the five worst drawdowns with their
+    recovery, and the distribution of daily returns against a normal with the same mean and
+    volatility. Skew and excess kurtosis show how far the tails depart from that normal.</dd>
+    <dt>Calendar and exchange rates</dt>
+    <dd>European business days. On another exchange's holiday the asset keeps its last close (up to
+    5 days); crypto weekends roll into Monday. Each price is converted at the same day's rate.
+    <span class="dropped"></span></dd>
+  </dl>
+  <dl class="defs" data-l="pt">
     <dt>Retorno no período</dt>
     <dd>Variação do valor da carteira em euros entre o fechamento do primeiro e do último dia,
-    mantendo as quantidades de hoje durante todo o período, sem compras, vendas ou aportes.</dd>
+    mantendo as quantidades de hoje durante todo o período, sem compras, vendas ou aportes. O
+    retorno do seu dinheiro de verdade está em Seu resultado.</dd>
     <dt>Volatilidade anualizada</dt>
     <dd>Desvio-padrão dos retornos diários multiplicado por √252 (dias úteis num ano). Mede o
     tamanho típico das oscilações, não a direção. Supõe que um dia não depende do anterior.</dd>
@@ -279,14 +483,14 @@
     <dd>A perda que não foi ultrapassada em 95% dos dias do período: o pior dia de cada 20.
     A média das perdas nesses dias é o ES (perda esperada além do VaR). Usa só o que
     aconteceu no período, então um período calmo subestima o risco. Exige pelo menos
-    <span id="min-var"></span> dias.</dd>
+    <span class="min-var"></span> dias.</dd>
     <dt>Preço e câmbio</dt>
     <dd>A contribuição de cada ativo para o retorno, separada em movimento do preço (no câmbio
     do início) e efeito do câmbio sobre a posição final. As partes somam exatamente o total.</dd>
     <dt>Parcela do risco</dt>
     <dd>Quanto da variância da carteira vem de cada ativo, com os pesos de hoje e as
     covariâncias do período. Um ativo pode ter parcela maior que o peso se oscila muito ou
-    se move junto com os outros. Exige pelo menos <span id="min-cov"></span> dias.</dd>
+    se move junto com os outros. Exige pelo menos <span class="min-cov"></span> dias.</dd>
     <dt>Correlação</dt>
     <dd>De −1 a 1: quanto os retornos diários de dois ativos andam juntos. Perto de 1, um
     não protege o outro.</dd>
@@ -395,14 +599,32 @@
     euro pelo câmbio daquela data e comparado com o valor de hoje. A TIR (taxa interna de
     retorno) é a taxa anual que iguala o dinheiro investido, em cada data, ao valor de hoje: ela
     leva em conta quando o dinheiro entrou. Uma posição comprada várias vezes entra pela data da
-    primeira compra, o que tende a subestimar a TIR.</dd>
+    primeira compra, o que tende a subestimar a TIR; o registro de operações corrige isso.</dd>
+    <dt>Retorno ponderado pelo tempo e pelo dinheiro</dt>
+    <dd>Com o registro de operações, o retorno ponderado pelo tempo (TWR) encadeia os retornos
+    diários entre as entradas e saídas de dinheiro, então mede os investimentos e não o momento
+    dos seus aportes: é o número que os gestores de fundos divulgam. O retorno ponderado pelo
+    dinheiro (TIR) é a taxa que o seu dinheiro rendeu, contando quando ele entrou. O ganho
+    realizado usa o custo médio das unidades vendidas.</dd>
+    <dt>Atribuição de Brinson</dt>
+    <dd>Brinson, Hood e Beebower (1986): a diferença para o índice separada em alocação (mais ou
+    menos peso num mercado do que o índice, vezes o quanto esse mercado rendeu acima do índice),
+    seleção (os seus ativos contra o índice do próprio mercado) e interação. Cada mercado é o
+    índice regional que os ativos acompanham; os pesos do índice são a divisão regional do índice
+    global.</dd>
+    <dt>Tearsheet</dt>
+    <dd>O resumo de uma página que gestores usam para comparar estratégias: estatísticas anuais,
+    a tabela de retornos mês a mês, Sharpe e volatilidade em janelas de 126 dias úteis, as cinco
+    piores quedas com a recuperação, e a distribuição dos retornos diários contra uma normal com a
+    mesma média e volatilidade. Assimetria e curtose em excesso mostram o quanto as caudas fogem
+    dessa normal.</dd>
     <dt>Calendário e câmbio</dt>
     <dd>Dias úteis europeus. Num feriado de outra bolsa, o ativo vale o último fechamento (até
     5 dias); o fim de semana das criptomoedas entra na segunda-feira. Cada preço é convertido
-    pelo câmbio do mesmo dia. <span id="dropped"></span></dd>
+    pelo câmbio do mesmo dia. <span class="dropped"></span></dd>
   </dl>
   <div id="freshness-block" hidden>
-    <h3 class="chart-title">Fonte e atualização dos dados</h3>
+    <h3 class="chart-title"><span data-l="en">Data sources and freshness</span><span data-l="pt">Fonte e atualização dos dados</span></h3>
     <div class="table-wrap"><table class="positions freshness" id="freshness"></table></div>
   </div>
 </section>

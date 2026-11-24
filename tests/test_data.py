@@ -215,7 +215,7 @@ def test_update_downloads_caches_and_reports_status(tmp_path: Path) -> None:
 
 
 def test_cash_is_worth_one_unit_every_business_day_without_download(tmp_path: Path) -> None:
-    holdings = _holdings([("Caixa BRL", "BRL", "cash", "BRL")])
+    holdings = _holdings([("Cash BRL", "BRL", "cash", "BRL")])
 
     def fetch(url: str) -> Any:
         assert "frankfurter" in url  # only the exchange rate is downloaded
@@ -223,7 +223,7 @@ def test_cash_is_worth_one_unit_every_business_day_without_download(tmp_path: Pa
 
     data = update_market_data(holdings, START, tmp_path, fetch=fetch, now=NOW, pause=0)
 
-    cash = data.prices["Caixa BRL"]
+    cash = data.prices["Cash BRL"]
     assert (cash == 1.0).all()
     assert cash.index[0] == pd.Timestamp("2026-11-02")  # START is a Sunday
     assert cash.index[-1] == pd.Timestamp("2026-11-23")
@@ -302,7 +302,7 @@ def test_search_drops_futures() -> None:
     hits = parse_yahoo_search(_fixture("yahoo_search_bitcoin"))
 
     assert "BTC-USD" in [h.symbol for h in hits]
-    assert next(h for h in hits if h.symbol == "BTC-USD").exchange == "Cripto"
+    assert next(h for h in hits if h.symbol == "BTC-USD").exchange == "Crypto"
     assert all(h.kind != "FUTURE" for h in hits)
     assert all(not h.symbol.endswith("=F") for h in hits)
 

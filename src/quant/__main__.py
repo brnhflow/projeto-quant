@@ -36,7 +36,7 @@ def _parser() -> argparse.ArgumentParser:
     report.add_argument(
         "--cache", type=Path, default=Path("data/cache"), help="folder for downloaded data"
     )
-    report.add_argument("--title", default="Minha carteira", help="report title")
+    report.add_argument("--title", default="", help="report title (default: My portfolio)")
     report.add_argument("--offline", action="store_true", help="use only cached data, no network")
 
     app = commands.add_parser("app", help="open the portfolio editor in the browser")

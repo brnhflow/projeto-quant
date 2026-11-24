@@ -4,10 +4,10 @@
 
 // ---------------------------------------------------------------- stress
 const S = D.stress;
-const METHOD = { history: "histórico real", proxy: "estimado pelo índice", missing: "sem dado" };
+const METHOD = { history: L("histórico real", "own history"), proxy: L("estimado pelo índice", "index proxy"), missing: L("sem dado", "no data") };
 const CHEVRON = `<svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M3 2l4 3-4 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const proxyName = (sym) => (S.proxies.find((p) => p.symbol === sym) || { name: sym }).name;
-const period = (a, b) => (a === b ? dateLong(a) : `${dateLong(a)} a ${dateLong(b)}`);
+const proxyName = (sym) => T((S.proxies.find((p) => p.symbol === sym) || { name: sym }).name);
+const period = (a, b) => (a === b ? dateLong(a) : `${dateLong(a)} ${L("a", "to")} ${dateLong(b)}`);
 
 function renderStress() {
   $("stress").hidden = !S;
@@ -17,31 +17,37 @@ function renderStress() {
   const whole = D.periods.find((p) => p.key === "ALL");
   const allVar = whole && whole.available && whole.var ? whole.var.var : null;
   $("stress-lede").innerHTML = worst.change < 0
-    ? `Se a pior crise da lista (<strong>${esc(worst.name)}</strong>) se repetisse hoje, a carteira perderia <strong>${fmt.eur(-worst.pnl)}</strong> (${fmt.share(-worst.change)}). ` +
+    ? L(`Se a pior crise da lista (<strong>${esc(T(worst.name))}</strong>) se repetisse hoje, a carteira perderia <strong>${fmt.eur(-worst.pnl)}</strong> (${fmt.share(-worst.change)}). ` +
       (allVar ? `É ${fmt.num(-worst.change / allVar, 0)} vezes a perda de um dia ruim. ` : "") +
-      `Clique numa crise para ver o efeito em cada ativo.`
-    : `Nenhuma das crises da lista teria derrubado esta carteira. Clique numa crise para ver o efeito em cada ativo.`;
+      `Clique numa crise para ver o efeito em cada ativo.`,
+    `If the worst crisis on the list (<strong>${esc(T(worst.name))}</strong>) happened again today, the portfolio would lose <strong>${fmt.eur(-worst.pnl)}</strong> (${fmt.share(-worst.change)}). ` +
+      (allVar ? `That is ${fmt.num(-worst.change / allVar, 0)} times the 1-day VaR. ` : "") +
+      `Click a crisis to see the effect on each asset.`)
+    : L(`Nenhuma das crises da lista teria derrubado esta carteira. Clique numa crise para ver o efeito em cada ativo.`,
+      `None of the crises on the list would have hurt this portfolio. Click a crisis to see the effect on each asset.`);
   const reach = Math.max(...list.map((s) => Math.abs(s.change))) || 0.01;
   $("scenarios").innerHTML = list.map((s) => {
     const share = s.coverage.proxy + s.coverage.missing;
     const note = s.coverage.missing > 0.005
-      ? `<span class="chip-note warn">${fmt.share(s.coverage.missing, 0)} sem dado</span>`
-      : share > 0.005 ? `<span class="chip-note">${fmt.share(s.coverage.proxy, 0)} estimado</span>` : "";
+      ? `<span class="chip-note warn">${fmt.share(s.coverage.missing, 0)} ${L("sem dado", "no data")}</span>`
+      : share > 0.005 ? `<span class="chip-note">${fmt.share(s.coverage.proxy, 0)} ${L("estimado", "proxied")}</span>` : "";
     const rows = s.positions.slice().sort((a, b) => (a.pnl ?? 0) - (b.pnl ?? 0)).map((p) =>
-      `<tr><td>${esc(p.asset)}</td><td class="r">${p.change === null ? "—" : fmt.pct(p.change)}</td>` +
+      `<tr><td>${esc(T(p.asset))}</td><td class="r">${p.change === null ? "—" : fmt.pct(p.change)}</td>` +
       `<td class="r">${p.pnl === null ? "—" : fmt.eurSigned(p.pnl)}</td><td class="method ${p.method}">${METHOD[p.method]}` +
       (p.method === "proxy" ? ` (${esc(proxyName(S.positions.find((x) => x.asset === p.asset).proxy))})` : "") + `</td></tr>`
     ).join("");
     const idx = Object.entries(s.indices).map(([k, v]) => `${esc(proxyName(k))} ${fmt.pct(v, 0)}`).join(" · ");
     return `<details class="scenario"><summary>` +
-      `<span class="sc-name">${CHEVRON}<span><strong>${esc(s.name)}</strong><small>${esc(period(s.start, s.end))}</small></span></span>` +
+      `<span class="sc-name">${CHEVRON}<span><strong>${esc(T(s.name))}</strong><small>${esc(period(s.start, s.end))}</small></span></span>` +
       `<span class="sc-bar" data-change="${s.change}" data-reach="${reach}"></span>` +
       `<span class="sc-value"><strong>${fmt.pct(s.change)}</strong><small>${fmt.eurSigned(s.pnl)}</small></span>${note}</summary>` +
-      `<div class="sc-body"><p>${esc(s.description)}${idx ? ` Índices em euro no período: ${idx}.` : ""}</p>` +
-      `<div class="table-wrap"><table class="positions compact"><thead><tr><th>Ativo</th><th class="r">Variação em €</th><th class="r">Resultado</th><th>Como foi calculado</th></tr></thead><tbody>${rows}</tbody></table></div></div></details>`;
+      `<div class="sc-body"><p>${esc(T(s.description))}${idx ? L(` Índices em euro no período: ${idx}.`, ` Indices in euro over the period: ${idx}.`) : ""}</p>` +
+      `<div class="table-wrap"><table class="positions compact"><thead><tr><th>${L("Ativo", "Asset")}</th><th class="r">${L("Variação em €", "Change in €")}</th><th class="r">${L("Resultado", "P&amp;L")}</th><th>${L("Como foi calculado", "Method")}</th></tr></thead><tbody>${rows}</tbody></table></div></div></details>`;
   }).join("");
-  $("stress-caption").innerHTML = `Barras para a esquerda são perdas. Ativos que ainda não existiam numa crise têm o efeito estimado pelo índice com que mais se parecem; ` +
-    `quando nem o índice existia (cripto antes de 2014), a parte aparece como "sem dado" e fica fora da conta. Índices atualizados até ${dateLong(S.indicesUntil)}.`;
+  $("stress-caption").innerHTML = L(`Barras para a esquerda são perdas. Ativos que ainda não existiam numa crise têm o efeito estimado pelo índice com que mais se parecem; ` +
+    `quando nem o índice existia (cripto antes de 2014), a parte aparece como "sem dado" e fica fora da conta. Índices atualizados até ${dateLong(S.indicesUntil)}.`,
+  `Bars to the left are losses. Assets that did not exist yet in a crisis are mapped to the index they resemble most; ` +
+    `when even the index did not exist (crypto before 2014), that part shows as "no data" and is left out. Indices up to ${dateLong(S.indicesUntil)}.`);
   renderBuilder();
 }
 
@@ -69,10 +75,10 @@ function factorList() {
   const moves = (get) => S.scenarios.map(get).filter((v) => typeof v === "number");
   return used.map((sym) => {
     const [min, max] = reach(moves((s) => s.indices[sym]).concat([0]), sym === "BTC-USD" ? -90 : -60, sym === "BTC-USD" ? 100 : 40);
-    return { key: sym, label: `${proxyName(sym)}, em euro`, min: Math.max(-100, min), max };
+    return { key: sym, label: L(`${proxyName(sym)}, em euro`, `${proxyName(sym)}, in euro`), min: Math.max(-100, min), max };
   }).concat(cash.map((c) => {
     const [min, max] = reach(moves((s) => (s.currencies || {})[c]).concat([0]), -50, 30);
-    return { key: "fx:" + c, label: `${c} contra o euro (caixa)`, min: Math.max(-100, min), max };
+    return { key: "fx:" + c, label: L(`${c} contra o euro (caixa)`, `${c} against the euro (cash)`), min: Math.max(-100, min), max };
   }));
 }
 function builderImpact() {
@@ -85,9 +91,10 @@ function builderImpact() {
 }
 function renderBuilder() {
   const factors = factorList();
-  $("builder-lede").innerHTML = `Mova os índices e veja o efeito. Cada ativo acompanha o índice com que mais se parece, na proporção medida pelo seu beta (veja a tabela ao lado). Comece de uma crise real ou do zero.`;
-  $("presets").innerHTML = `<button type="button" class="chip" data-preset="">Zerar</button>` +
-    S.scenarios.filter((s) => Object.keys(s.indices).length).map((s) => `<button type="button" class="chip" data-preset="${s.key}">${esc(s.name)}</button>`).join("");
+  $("builder-lede").innerHTML = L(`Mova os índices e veja o efeito. Cada ativo acompanha o índice com que mais se parece, na proporção medida pelo seu beta (veja a tabela ao lado). Comece de uma crise real ou do zero.`,
+    `Move the indices and see the effect. Each asset follows the index it resembles most, scaled by its beta (see the table beside). Start from a historical crisis or from zero.`);
+  $("presets").innerHTML = `<button type="button" class="chip" data-preset="">${L("Zerar", "Reset")}</button>` +
+    S.scenarios.filter((s) => Object.keys(s.indices).length).map((s) => `<button type="button" class="chip" data-preset="${s.key}">${esc(T(s.name))}</button>`).join("");
   $("sliders").innerHTML = factors.map((f) =>
     `<label class="slider"><span class="sl-head"><span>${esc(f.label)}</span><output data-out="${f.key}">0%</output></span>` +
     `<input type="range" min="${f.min}" max="${f.max}" step="1" value="0" data-factor="${f.key}" aria-label="${esc(f.label)}"></label>`
@@ -118,12 +125,13 @@ function updateBuilder() {
   const pnl = rows.reduce((a, r) => a + r.pnl, 0), change = pnl / S.total;
   const ranked = rows.slice().sort((a, b) => a.pnl - b.pnl);
   $("builder-result").innerHTML =
-    `<p class="br-label">Efeito na carteira</p><p class="br-value ${change < 0 ? "loss" : ""}">${fmt.pct(change)}</p>` +
-    `<p class="br-eur">${fmt.eurSigned(pnl)} sobre ${fmt.eur(S.total)}</p>` +
-    (preset ? `<p class="br-note">Na lista acima, a ${esc(preset.name)} dá ${fmt.pct(preset.change)}: lá cada ativo usa o próprio histórico quando existe; aqui todos seguem só o índice e o beta.</p>` : "") +
-    `<table class="positions compact"><thead><tr><th>Ativo</th><th>Segue</th><th class="r">Beta</th><th class="r">Efeito</th></tr></thead><tbody>` +
-    ranked.map((r) => `<tr><td>${esc(r.asset)}</td><td>${r.p.cash ? (r.p.currency === D.base ? "caixa em euro" : "câmbio " + esc(r.p.currency)) : esc(proxyName(r.p.proxy))}` +
-      `${!r.p.cash && !r.p.fitted ? `<small class="muted"> (pouco histórico)</small>` : ""}</td>` +
+    `<p class="br-label">${L("Efeito na carteira", "Portfolio impact")}</p><p class="br-value ${change < 0 ? "loss" : ""}">${fmt.pct(change)}</p>` +
+    `<p class="br-eur">${fmt.eurSigned(pnl)} ${L("sobre", "on")} ${fmt.eur(S.total)}</p>` +
+    (preset ? `<p class="br-note">${L(`Na lista acima, ${esc(T(preset.name))} dá ${fmt.pct(preset.change)}: lá cada ativo usa o próprio histórico quando existe; aqui todos seguem só o índice e o beta.`,
+      `In the list above, ${esc(T(preset.name))} gives ${fmt.pct(preset.change)}: there each asset uses its own history where it exists; here every asset follows only its index and beta.`)}</p>` : "") +
+    `<table class="positions compact"><thead><tr><th>${L("Ativo", "Asset")}</th><th>${L("Segue", "Follows")}</th><th class="r">Beta</th><th class="r">${L("Efeito", "Impact")}</th></tr></thead><tbody>` +
+    ranked.map((r) => `<tr><td>${esc(T(r.asset))}</td><td>${r.p.cash ? (r.p.currency === D.base ? L("caixa em euro", "euro cash") : L("câmbio ", "FX ") + esc(r.p.currency)) : esc(proxyName(r.p.proxy))}` +
+      `${!r.p.cash && !r.p.fitted ? `<small class="muted"> ${L("(pouco histórico)", "(short history)")}</small>` : ""}</td>` +
       `<td class="r">${r.p.cash ? "—" : fmt.num(r.p.beta, 2)}</td><td class="r">${fmt.eurSigned(r.pnl)}</td></tr>`).join("") +
     `</tbody></table>`;
 }

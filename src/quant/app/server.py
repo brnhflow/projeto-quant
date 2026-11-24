@@ -55,6 +55,7 @@ STATIC = {
     "/editor.js": ("quant.app", "static/editor.js", "text/javascript; charset=utf-8"),
     "/quantity.js": ("quant.app", "static/quantity.js", "text/javascript; charset=utf-8"),
     "/assets.js": ("quant.app", "static/assets.js", "text/javascript; charset=utf-8"),
+    "/lang.js": ("quant.app", "static/lang.js", "text/javascript; charset=utf-8"),
     "/base.css": ("quant.report", "report.css", "text/css; charset=utf-8"),
 }
 
@@ -66,7 +67,7 @@ class AppConfig:
     holdings_path: Path
     cache_dir: Path
     report_path: Path
-    title: str = "Minha carteira"
+    title: str = ""  # empty: the page shows "My portfolio" in its own language
     fetch: Fetch = fetch_json
     now: Callable[[], pd.Timestamp] = lambda: pd.Timestamp.now(tz="UTC")
     pause: float = 0.2
@@ -75,16 +76,24 @@ class AppConfig:
 
 
 class BadRequestError(ValueError):
-    """Input from the page that cannot be used; the message is shown to the user."""
+    """Input from the page that cannot be used; the message is shown to the user.
+
+    Carries the message in English (``str(error)``) and in Portuguese (``error.pt``), so the
+    page can show the one it is in.
+    """
+
+    def __init__(self, en: str, pt: str) -> None:
+        super().__init__(en)
+        self.pt = pt
 
 
 def _labels(symbols: list[str], sources: list[str]) -> list[str]:
-    """Report names: short tickers for instruments, "Caixa BRL" for cash."""
+    """Report names: short tickers for instruments, "Cash BRL" for cash."""
     tickers = iter(
         asset_labels([s for s, src in zip(symbols, sources, strict=True) if src != CASH])
     )
     return [
-        f"Caixa {s}" if src == CASH else next(tickers)
+        f"Cash {s}" if src == CASH else next(tickers)
         for s, src in zip(symbols, sources, strict=True)
     ]
 
@@ -94,10 +103,16 @@ def _cost(raw: Any, symbol: str) -> float:
     if raw is None or raw == "":
         return math.nan
     if isinstance(raw, bool) or not isinstance(raw, int | float):
-        raise BadRequestError(f"Preço médio de {symbol} precisa ser um número.")
+        raise BadRequestError(
+            f"The average cost of {symbol} must be a number.",
+            f"Preço médio de {symbol} precisa ser um número.",
+        )
     value = float(raw)
     if not math.isfinite(value) or not 0 < value <= MAX_QUANTITY:
-        raise BadRequestError(f"Preço médio de {symbol} precisa ser maior que zero.")
+        raise BadRequestError(
+            f"The average cost of {symbol} must be above zero.",
+            f"Preço médio de {symbol} precisa ser maior que zero.",
+        )
     return value
 
 
@@ -108,11 +123,15 @@ def _since(raw: Any, symbol: str) -> pd.Timestamp | None:
     try:
         date = pd.Timestamp(str(raw))
     except ValueError as error:
-        raise BadRequestError(f"Data de compra de {symbol} inválida.") from error
+        raise BadRequestError(
+            f"Invalid purchase date for {symbol}.", f"Data de compra de {symbol} inválida."
+        ) from error
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(raw)) or not (
         pd.Timestamp("1990-01-01") <= date <= pd.Timestamp.now().normalize()
     ):
-        raise BadRequestError(f"Data de compra de {symbol} inválida.")
+        raise BadRequestError(
+            f"Invalid purchase date for {symbol}.", f"Data de compra de {symbol} inválida."
+        )
     return date
 
 
@@ -134,21 +153,23 @@ def parse_positions(body: Any) -> tuple[pd.DataFrame, int]:
     Raises
     ------
     BadRequestError
-        With a message in Portuguese, for the page to show.
+        With a message in English and Portuguese, for the page to show.
 
     """
     if not isinstance(body, dict):
-        raise BadRequestError("Pedido inválido.")
+        raise BadRequestError("Invalid request.", "Pedido inválido.")
     request = cast(dict[str, Any], body)
     raw = request.get("positions")
     if not isinstance(raw, list) or not raw:
-        raise BadRequestError("Adicione pelo menos um ativo.")
+        raise BadRequestError("Add at least one asset.", "Adicione pelo menos um ativo.")
     positions = cast(list[Any], raw)
     if len(positions) > MAX_POSITIONS:
-        raise BadRequestError(f"No máximo {MAX_POSITIONS} ativos.")
+        raise BadRequestError(
+            f"At most {MAX_POSITIONS} assets.", f"No máximo {MAX_POSITIONS} ativos."
+        )
     years = request.get("years", 2)
     if years not in YEARS:
-        raise BadRequestError("Período de histórico inválido.")
+        raise BadRequestError("Invalid history length.", "Período de histórico inválido.")
 
     symbols: list[str] = []
     quantities: list[float] = []
@@ -161,28 +182,39 @@ def parse_positions(body: Any) -> tuple[pd.DataFrame, int]:
         item = cast(dict[str, Any], raw_item) if isinstance(raw_item, dict) else {}
         symbol = str(item.get("symbol", ""))
         if not SYMBOL.match(symbol):
-            raise BadRequestError(f"Código inválido: {symbol or '(vazio)'}.")
+            raise BadRequestError(
+                f"Invalid ticker: {symbol or '(empty)'}.",
+                f"Código inválido: {symbol or '(vazio)'}.",
+            )
         cash = item.get("kind") == "cash"
         key = (cash, symbol.upper())
         if key in seen:
-            raise BadRequestError(f"{symbol} aparece duas vezes.")
+            raise BadRequestError(f"{symbol} appears twice.", f"{symbol} aparece duas vezes.")
         seen.add(key)
         quantity: Any = item.get("quantity")
+        bad_quantity = BadRequestError(
+            f"The quantity of {symbol} must be a number above zero.",
+            f"Quantidade de {symbol} precisa ser um número maior que zero.",
+        )
         if isinstance(quantity, bool) or not isinstance(quantity, int | float):
-            raise BadRequestError(f"Quantidade de {symbol} precisa ser um número maior que zero.")
+            raise bad_quantity
         try:
             quantity = float(quantity)
         except OverflowError:
             quantity = math.inf
         if not math.isfinite(quantity) or not 0 < quantity <= MAX_QUANTITY:
-            raise BadRequestError(f"Quantidade de {symbol} precisa ser um número maior que zero.")
+            raise bad_quantity
         currency = str(item.get("currency", ""))
         if not CURRENCY.match(currency):
             raise BadRequestError(
-                f"Moeda de {symbol} desconhecida; remova e adicione o ativo de novo."
+                f"Unknown currency for {symbol}; remove the asset and add it again.",
+                f"Moeda de {symbol} desconhecida; remova e adicione o ativo de novo.",
             )
         if cash and symbol != currency:
-            raise BadRequestError(f"Caixa em {symbol}: a moeda precisa ser {symbol}.")
+            raise BadRequestError(
+                f"Cash in {symbol}: the currency must be {symbol}.",
+                f"Caixa em {symbol}: a moeda precisa ser {symbol}.",
+            )
         symbols.append(symbol)
         quantities.append(float(quantity))
         currencies.append(currency)
@@ -191,7 +223,9 @@ def parse_positions(body: Any) -> tuple[pd.DataFrame, int]:
         dates.append(_since(item.get("since"), symbol))
 
     if all(src == CASH for src in sources):
-        raise BadRequestError("Adicione pelo menos um ativo além do caixa.")
+        raise BadRequestError(
+            "Add at least one asset besides cash.", "Adicione pelo menos um ativo além do caixa."
+        )
     holdings = pd.DataFrame(
         {
             "quantity": quantities,
@@ -314,8 +348,9 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
             body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             self._send(status, body, "application/json; charset=utf-8")
 
-        def _error(self, status: int, message: str) -> None:
-            self._json(status, {"error": message})
+        def _error(self, status: int, message: str, message_pt: str | None = None) -> None:
+            # English for "error"; the page shows "error_pt" when it is in Portuguese.
+            self._json(status, {"error": message, "error_pt": message_pt or message})
 
         # ---------------------------------------------------------- routes
         def do_GET(self) -> None:
@@ -333,16 +368,22 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
                 print(f"unexpected error on {self.path}: {error!r}", file=sys.stderr)
                 with contextlib.suppress(OSError):
                     self._error(
-                        HTTPStatus.INTERNAL_SERVER_ERROR, "Erro inesperado; veja o terminal."
+                        HTTPStatus.INTERNAL_SERVER_ERROR,
+                        "Unexpected error; see the terminal.",
+                        "Erro inesperado; veja o terminal.",
                     )
 
         def _get(self) -> None:
             if not self._allowed_host():
-                self._error(HTTPStatus.FORBIDDEN, "Host não permitido.")
+                self._error(HTTPStatus.FORBIDDEN, "Host not allowed.", "Host não permitido.")
                 return
             url = urlparse(self.path)
             if url.path.startswith("/api/") and self.headers.get(API_HEADER) != "1":
-                self._error(HTTPStatus.FORBIDDEN, "Pedido fora do aplicativo.")
+                self._error(
+                    HTTPStatus.FORBIDDEN,
+                    "Request from outside the app.",
+                    "Pedido fora do aplicativo.",
+                )
                 return
             query = parse_qs(url.query)
             if url.path in STATIC:
@@ -364,7 +405,9 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
                     self._json(HTTPStatus.OK, {"positions": saved_positions(config)})
                 except ValueError as error:
                     self._error(
-                        HTTPStatus.UNPROCESSABLE_ENTITY, f"Carteira salva com problema: {error}"
+                        HTTPStatus.UNPROCESSABLE_ENTITY,
+                        f"The saved portfolio has a problem: {error}",
+                        f"Carteira salva com problema: {error}",
                     )
             elif url.path == "/api/search":
                 text = (query.get("q") or [""])[0].strip()
@@ -375,22 +418,30 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
                 try:
                     self._json(HTTPStatus.OK, search(config, text, int(start)))
                 except ConnectionError as error:
-                    self._error(HTTPStatus.BAD_GATEWAY, f"Busca indisponível agora ({error}).")
+                    self._error(
+                        HTTPStatus.BAD_GATEWAY,
+                        f"Search unavailable right now ({error}).",
+                        f"Busca indisponível agora ({error}).",
+                    )
             elif url.path == "/api/quote":
                 symbol = (query.get("symbol") or [""])[0]
                 if not SYMBOL.match(symbol):
-                    self._error(HTTPStatus.BAD_REQUEST, "Código inválido.")
+                    self._error(HTTPStatus.BAD_REQUEST, "Invalid ticker.", "Código inválido.")
                     return
                 try:
                     snap = parse_yahoo_snapshot(
                         config.fetch(yahoo_snapshot_url(symbol)), config.now()
                     )
                 except (ConnectionError, ValueError) as error:
-                    self._error(HTTPStatus.BAD_GATEWAY, f"Sem cotação para {symbol} ({error}).")
+                    self._error(
+                        HTTPStatus.BAD_GATEWAY,
+                        f"No quote for {symbol} ({error}).",
+                        f"Sem cotação para {symbol} ({error}).",
+                    )
                     return
                 self._json(HTTPStatus.OK, asdict(snap))
             else:
-                self._error(HTTPStatus.NOT_FOUND, "Página não encontrada.")
+                self._error(HTTPStatus.NOT_FOUND, "Page not found.", "Página não encontrada.")
 
         def _post(self) -> None:
             # Read the body before any answer: replying while the client is still sending
@@ -401,40 +452,56 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
                 length = -1
             if not 0 < length <= MAX_BODY:
                 self.close_connection = True
-                self._error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "Pedido vazio ou grande demais.")
+                self._error(
+                    HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                    "Empty or oversized request.",
+                    "Pedido vazio ou grande demais.",
+                )
                 return
             raw = self.rfile.read(length)
             if not self._allowed_host():
-                self._error(HTTPStatus.FORBIDDEN, "Host não permitido.")
+                self._error(HTTPStatus.FORBIDDEN, "Host not allowed.", "Host não permitido.")
                 return
             if urlparse(self.path).path != "/api/report":
-                self._error(HTTPStatus.NOT_FOUND, "Página não encontrada.")
+                self._error(HTTPStatus.NOT_FOUND, "Page not found.", "Página não encontrada.")
                 return
             if self.headers.get(API_HEADER) != "1":
-                self._error(HTTPStatus.FORBIDDEN, "Pedido fora do aplicativo.")
+                self._error(
+                    HTTPStatus.FORBIDDEN,
+                    "Request from outside the app.",
+                    "Pedido fora do aplicativo.",
+                )
                 return
             # Requiring JSON forces a CORS preflight for cross-site requests, which this
             # server never approves, so other websites cannot trigger an analysis.
             if not self.headers.get("Content-Type", "").startswith("application/json"):
-                self._error(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, "Envie JSON.")
+                self._error(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, "Send JSON.", "Envie JSON.")
                 return
             try:
                 holdings, years = parse_positions(json.loads(raw))
             except json.JSONDecodeError:
-                self._error(HTTPStatus.BAD_REQUEST, "Pedido inválido.")
+                self._error(HTTPStatus.BAD_REQUEST, "Invalid request.", "Pedido inválido.")
                 return
             except BadRequestError as error:
-                self._error(HTTPStatus.BAD_REQUEST, str(error))
+                self._error(HTTPStatus.BAD_REQUEST, str(error), error.pt)
                 return
             if not config.lock.acquire(blocking=False):
-                self._error(HTTPStatus.CONFLICT, "Já existe uma análise em andamento.")
+                self._error(
+                    HTTPStatus.CONFLICT,
+                    "An analysis is already running.",
+                    "Já existe uma análise em andamento.",
+                )
                 return
             try:
                 self._json(HTTPStatus.OK, analyse(config, holdings, years))
             except DataConfigError as error:
                 self._error(HTTPStatus.UNPROCESSABLE_ENTITY, str(error))
             except (ConnectionError, ValueError) as error:
-                self._error(HTTPStatus.BAD_GATEWAY, f"Não foi possível obter os dados: {error}")
+                self._error(
+                    HTTPStatus.BAD_GATEWAY,
+                    f"Could not get the data: {error}",
+                    f"Não foi possível obter os dados: {error}",
+                )
             finally:
                 config.lock.release()
 

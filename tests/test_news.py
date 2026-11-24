@@ -171,7 +171,7 @@ def test_news_is_fetched_for_stocks_only_and_failures_stay_local() -> None:
             "source": ["yahoo", "yahoo", "yahoo", "cash"],
             "symbol": ["PETR4.SA", "ASML.AS", "IWDA.AS", "EUR"],
         },
-        index=pd.Index(["PETR4", "ASML", "IWDA", "Caixa EUR"], name="asset"),
+        index=pd.Index(["PETR4", "ASML", "IWDA", "Cash EUR"], name="asset"),
     )
     empty = pd.Series(dtype=float)
     details = {

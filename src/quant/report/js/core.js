@@ -8,29 +8,41 @@
 const D = JSON.parse(document.getElementById("report-data").textContent);
 const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
-const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const MONTHS = L(["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"],
+  ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]);
 const MINUS = "−";
-const PHRASE = {
+const PHRASE = L({
   "1M": "no último mês", "3M": "nos últimos 3 meses", "6M": "nos últimos 6 meses",
   YTD: "desde o início do ano", "12M": "nos últimos 12 meses", ALL: "em todo o histórico",
-};
-const CURRENCY = { EUR: "euro", BRL: "real", USD: "dólar", GBP: "libra", CHF: "franco suíço" };
+}, {
+  "1M": "over the last month", "3M": "over the last 3 months", "6M": "over the last 6 months",
+  YTD: "year to date", "12M": "over the last 12 months", ALL: "over the whole history",
+});
+const CURRENCY = L({ EUR: "euro", BRL: "real", USD: "dólar", GBP: "libra", CHF: "franco suíço" },
+  { EUR: "euro", BRL: "real", USD: "dollar", GBP: "pound", CHF: "Swiss franc" });
+// "1 ano" / "2 anos": a count with the right word.
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+applyLang();
+languageSwitch($("lang"));
 
 // ---------------------------------------------------------------- formatting
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-const abs = (v, d) => Math.abs(v).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const abs = (v, d) => Math.abs(v).toLocaleString(LOCALE, { minimumFractionDigits: d, maximumFractionDigits: d });
 // Round first, then pick the sign: -0.0004 shown with 1 decimal is "0%", not "−0%".
 const rnd = (v, d) => Number(v.toFixed(d)) || 0;
 const sign = (v) => (v > 0 ? "+" : v < 0 ? MINUS : "");
 const neg = (v) => (v < 0 ? MINUS : "");
+// Euro amounts: "1.234 €" in Portuguese, "€1,234" in English.
+const euro = (s, digits) => (LANG === "pt" ? `${s}${digits} €` : `${s}€${digits}`);
 const fmt = {
-  eur: (v, d = 0) => { const r = rnd(v, d); return neg(r) + abs(r, d) + " €"; },
-  eurSigned: (v, d = 0) => { const r = rnd(v, d); return sign(r) + abs(r, d) + " €"; },
+  eur: (v, d = 0) => { const r = rnd(v, d); return euro(neg(r), abs(r, d)); },
+  eurSigned: (v, d = 0) => { const r = rnd(v, d); return euro(sign(r), abs(r, d)); },
   pct: (v, d = 1) => { const r = rnd(v * 100, d); return sign(r) + abs(r, d) + "%"; },
   share: (v, d = 1) => { const r = rnd(v * 100, d); return neg(r) + abs(r, d) + "%"; },
-  pp: (v) => { const r = rnd(v * 100, 1); return sign(r) + abs(r, 1) + " p.p."; },
+  pp: (v) => { const r = rnd(v * 100, 1); return sign(r) + abs(r, 1) + L(" p.p.", " pp"); },
   num: (v, d) => { const r = rnd(v, d); return neg(r) + abs(r, d); },
-  qty: (v) => v.toLocaleString("pt-BR", { maximumFractionDigits: 8 }),
+  qty: (v) => v.toLocaleString(LOCALE, { maximumFractionDigits: 8 }),
+  int: (v) => Math.round(v).toLocaleString(LOCALE),
 };
 const parseDate = (iso) => { const [y, m, d] = iso.split("-").map(Number); return { y, m, d, t: Date.UTC(y, m - 1, d) }; };
 const dateLong = (iso) => { const p = parseDate(iso); return `${p.d} ${MONTHS[p.m - 1]} ${p.y}`; };

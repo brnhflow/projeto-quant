@@ -16,30 +16,38 @@ function renderFuture() {
   const s = SIM[futureState.mode], months = futureState.years * 12;
   const at = (q) => s.fan[q][months - 1];
   const lo = at(0), mid = at(2), hi = at(4);
-  const years = futureState.years === 1 ? "1 ano" : `${futureState.years} anos`;
-  $("future-lede").innerHTML = `Daqui a ${years}, em 90% dos ${SIM.paths.toLocaleString("pt-BR")} caminhos simulados a carteira ficou entre <strong>${fmt.eur(lo)}</strong> e <strong>${fmt.eur(hi)}</strong>; ` +
-    `no meio, ${fmt.eur(mid)}. Hoje vale ${fmt.eur(SIM.value)}. ` +
-    (futureState.mode === "neutral" ? "Sem supor que o retorno do passado se repete: só o tamanho das oscilações." : "Supondo que o retorno médio do passado se repete, o que raramente acontece.");
+  const years = futureState.years === 1 ? L("1 ano", "1 year") : L(`${futureState.years} anos`, `${futureState.years} years`);
+  $("future-lede").innerHTML = L(`Daqui a ${years}, em 90% dos ${fmt.int(SIM.paths)} caminhos simulados a carteira ficou entre <strong>${fmt.eur(lo)}</strong> e <strong>${fmt.eur(hi)}</strong>; no meio, ${fmt.eur(mid)}. Hoje vale ${fmt.eur(SIM.value)}. `,
+    `In ${years}, 90% of the ${fmt.int(SIM.paths)} simulated paths end between <strong>${fmt.eur(lo)}</strong> and <strong>${fmt.eur(hi)}</strong>; the median is ${fmt.eur(mid)}. Today's value is ${fmt.eur(SIM.value)}. `) +
+    (futureState.mode === "neutral"
+      ? L("Sem supor que o retorno do passado se repete: só o tamanho das oscilações.", "No assumption that past returns repeat: only the size of the moves.")
+      : L("Supondo que o retorno médio do passado se repete, o que raramente acontece.", "Assuming the past mean return repeats, which it rarely does."));
   $("future-legend").innerHTML =
-    `<span class="key"><span class="swatch" style="background:${cssVar("--s1-soft")}"></span>90% dos caminhos</span>` +
-    `<span class="key"><span class="swatch" style="background:${cssVar("--s1")};opacity:.45"></span>50% dos caminhos</span>` +
-    `<span class="key"><span class="tick-key" style="background:${cssVar("--s1")}"></span>Caminho do meio</span>`;
+    `<span class="key"><span class="swatch" style="background:${cssVar("--s1-soft")}"></span>${L("90% dos caminhos", "90% of paths")}</span>` +
+    `<span class="key"><span class="swatch" style="background:${cssVar("--s1")};opacity:.45"></span>${L("50% dos caminhos", "50% of paths")}</span>` +
+    `<span class="key"><span class="tick-key" style="background:${cssVar("--s1")}"></span>${L("Caminho do meio", "Median path")}</span>`;
   const dd = s.drawdown;
   $("future-figures").innerHTML =
     (futureState.mode === "neutral"
-      ? `<div class="reb-fig"><p class="label">Perda em um ano ruim (1 em 20)</p><p class="value">${fmt.eur(Math.max(0, SIM.value - s.fan[0][11]))}</p><p class="note">Em 5% dos caminhos, a carteira valia isso a menos daqui a 12 meses.</p></div>`
-      : `<div class="reb-fig"><p class="label">Chance de terminar o ano no prejuízo</p><p class="value">${fmt.share(s.loss, 0)}</p><p class="note">Mesmo repetindo o retorno do passado, o valor daqui a 12 meses fica abaixo do de hoje.</p></div>`) +
-    `<div class="reb-fig"><p class="label">Queda de 20% em algum momento</p><p class="value">${fmt.share(dd["20"], 0)}</p><p class="note">Nos próximos 12 meses, do pico ao fundo. Para 10%: ${fmt.share(dd["10"], 0)}; para 30%: ${fmt.share(dd["30"], 0)}.</p></div>` +
-    `<div class="reb-fig"><p class="label">Faixa do meio em ${years}</p><p class="value">${fmt.eur(at(1))} a ${fmt.eur(at(3))}</p><p class="note">Metade dos caminhos terminou aqui.</p></div>`;
+      ? `<div class="reb-fig"><p class="label">${L("Perda em um ano ruim (1 em 20)", "1-year VaR (95%)")}</p><p class="value">${fmt.eur(Math.max(0, SIM.value - s.fan[0][11]))}</p><p class="note">${L("Em 5% dos caminhos, a carteira valia isso a menos daqui a 12 meses.", "In 5% of paths the portfolio is worth at least this much less in 12 months.")}</p></div>`
+      : `<div class="reb-fig"><p class="label">${L("Chance de terminar o ano no prejuízo", "Probability of a loss after a year")}</p><p class="value">${fmt.share(s.loss, 0)}</p><p class="note">${L("Mesmo repetindo o retorno do passado, o valor daqui a 12 meses fica abaixo do de hoje.", "Even with the historical drift, the value in 12 months ends below today's.")}</p></div>`) +
+    `<div class="reb-fig"><p class="label">${L("Queda de 20% em algum momento", "Probability of a 20% drawdown")}</p><p class="value">${fmt.share(dd["20"], 0)}</p><p class="note">${L(`Nos próximos 12 meses, do pico ao fundo. Para 10%: ${fmt.share(dd["10"], 0)}; para 30%: ${fmt.share(dd["30"], 0)}.`, `Peak to trough within the next 12 months. For 10%: ${fmt.share(dd["10"], 0)}; for 30%: ${fmt.share(dd["30"], 0)}.`)}</p></div>` +
+    `<div class="reb-fig"><p class="label">${L(`Faixa do meio em ${years}`, `Interquartile range in ${years}`)}</p><p class="value">${fmt.eur(at(1))} ${L("a", "to")} ${fmt.eur(at(3))}</p><p class="note">${L("Metade dos caminhos terminou aqui.", "Half of the paths ended here.")}</p></div>`;
   const c = SIM.calibration;
   let state, title, body;
-  if (!c) { state = "warn"; title = "Histórico curto para testar a simulação"; body = "O teste mês a mês precisa de pelo menos um ano e meio de dados. Use 2 anos ou mais."; }
-  else {
+  if (!c) {
+    state = "warn"; title = L("Histórico curto para testar a simulação", "History too short to test the simulation");
+    body = L("O teste mês a mês precisa de pelo menos um ano e meio de dados. Use 2 anos ou mais.", "The monthly test needs at least a year and a half of data. Use 2 years or more.");
+  } else {
     const cov = c.inside / c.checks;
     state = c.pValue >= 0.05 ? "pass" : cov < c.level ? "fail" : "warn";
-    title = state === "pass" ? "As faixas acertaram no passado" : state === "fail" ? "As faixas foram estreitas demais no passado" : "As faixas foram largas demais no passado";
-    body = `Prevendo cada mês só com os dados anteriores, o resultado real ficou dentro da faixa de 90% em <strong>${c.inside} de ${c.checks}</strong> meses (${fmt.share(cov, 0)}). p-valor ${pval(c.pValue)}. ` +
-      (state === "pass" ? "As faixas acima merecem confiança." : state === "fail" ? "Trate as faixas acima como otimistas: o risco real foi maior." : "As faixas acima tendem a exagerar o risco.");
+    title = state === "pass" ? L("As faixas acertaram no passado", "The bands were well calibrated")
+      : state === "fail" ? L("As faixas foram estreitas demais no passado", "The bands were too narrow") : L("As faixas foram largas demais no passado", "The bands were too wide");
+    body = L(`Prevendo cada mês só com os dados anteriores, o resultado real ficou dentro da faixa de 90% em <strong>${c.inside} de ${c.checks}</strong> meses (${fmt.share(cov, 0)}). p-valor ${pval(c.pValue)}. `,
+      `Forecasting each month from earlier data only, the outcome landed inside the 90% band in <strong>${c.inside} of ${c.checks}</strong> months (${fmt.share(cov, 0)}). p-value ${pval(c.pValue)}. `) +
+      (state === "pass" ? L("As faixas acima merecem confiança.", "The bands above can be trusted.")
+        : state === "fail" ? L("Trate as faixas acima como otimistas: o risco real foi maior.", "Treat the bands above as optimistic: realised risk was larger.")
+          : L("As faixas acima tendem a exagerar o risco.", "The bands above tend to overstate the risk."));
   }
   $("future-check").className = `verdict-inline ${state}`;
   $("future-check").innerHTML = `<p class="v-title"><span class="v-icon">${ICON[state]}</span>${esc(title)}</p><p class="v-body">${body}</p>`;
@@ -67,7 +75,7 @@ function renderFutureChart() {
   const step = months <= 12 ? 3 : 12;
   for (let k = 0; k <= months; k += step) {
     const p = parseDate(addMonths(D.asOf, k));
-    text(axis, x(k), height - 6, k === 0 ? "hoje" : `${MONTHS[p.m - 1]} ${p.y}`, { "text-anchor": "middle" });
+    text(axis, x(k), height - 6, k === 0 ? L("hoje", "today") : `${MONTHS[p.m - 1]} ${p.y}`, { "text-anchor": "middle" });
   }
   const band = (a, b, fill, opacity) => {
     const top = series[b].map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
@@ -84,10 +92,11 @@ function renderFutureChart() {
     const r = svg.getBoundingClientRect();
     const i = Math.max(0, Math.min(months, Math.round((((ev.clientX - r.left) / r.width) * width - m.left) / ((width - m.left - m.right) / months))));
     cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("visibility", "visible");
-    showTip(tipHtml(i === 0 ? "Hoje" : `Daqui a ${i} ${i === 1 ? "mês" : "meses"}`, [
-      { label: "Caminho do meio", value: fmt.eur(series[2][i]), color: cssVar("--s1") },
-      { label: "50% dos caminhos", value: `${fmt.eur(series[1][i])} a ${fmt.eur(series[3][i])}` },
-      { label: "90% dos caminhos", value: `${fmt.eur(series[0][i])} a ${fmt.eur(series[4][i])}` },
+    const to = L(" a ", " to ");
+    showTip(tipHtml(i === 0 ? L("Hoje", "Today") : L(`Daqui a ${i} ${i === 1 ? "mês" : "meses"}`, `In ${i} ${i === 1 ? "month" : "months"}`), [
+      { label: L("Caminho do meio", "Median path"), value: fmt.eur(series[2][i]), color: cssVar("--s1") },
+      { label: L("50% dos caminhos", "50% of paths"), value: fmt.eur(series[1][i]) + to + fmt.eur(series[3][i]) },
+      { label: L("90% dos caminhos", "90% of paths"), value: fmt.eur(series[0][i]) + to + fmt.eur(series[4][i]) },
     ]), ev);
   };
   hit.addEventListener("pointermove", move);
