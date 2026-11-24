@@ -204,3 +204,38 @@ def test_whole_units_never_leave_the_plan_short_of_money() -> None:
         )
         assert plan["leftover"] >= -1e-9
         assert all(float(t["units"]).is_integer() for t in plan["trades"])
+
+
+# ---------------------------------------------------------------- income projection
+
+
+def test_income_without_growth_or_new_money_stays_flat() -> None:
+    result = _call(
+        "projectIncome", [{"annual": 1200, "growth": 0.1}], 0.05, {"years": 5, "useGrowth": False}
+    )
+
+    assert [r["total"] for r in result["rows"]] == pytest.approx([1200] * 5)
+
+
+def test_growth_holds_five_years_then_fades_out_by_year_ten() -> None:
+    rows = _call("projectIncome", [{"annual": 100, "growth": 0.10}], 0.0, {"years": 12})["rows"]
+
+    totals = [r["total"] for r in rows]
+    assert totals[5] == pytest.approx(100 * 1.1**5)  # years 2-6 grow 10%
+    # Then 8%, 6%, 4%, 2%, and nothing from year 11 on.
+    assert totals[10] == pytest.approx(100 * 1.1**5 * 1.08 * 1.06 * 1.04 * 1.02)
+    assert totals[11] == pytest.approx(totals[10])
+
+
+def test_reinvested_income_and_contributions_compound_at_the_portfolio_yield() -> None:
+    rows = _call(
+        "projectIncome",
+        [{"annual": 100, "growth": None}],
+        0.10,
+        {"years": 3, "reinvest": True, "contribution": 10},
+    )["rows"]
+
+    # Year 2: 100 own + (100 reinvested + 120 contributed) * 10% = 122.
+    assert rows[1]["total"] == pytest.approx(122)
+    # Year 3: 22 + (122 + 120) * 10% = 46.2 of extra income.
+    assert rows[2]["extra"] == pytest.approx(46.2)

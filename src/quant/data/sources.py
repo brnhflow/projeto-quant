@@ -59,6 +59,7 @@ class Quote:
     last_update: pd.Timestamp
     name: str = ""
     kind: str = ""  # the source's instrument type, e.g. EQUITY, ETF, CRYPTOCURRENCY
+    detail: str = ""  # exchange short name, e.g. "FII HGLG PAXCI"
     dividends: pd.Series | None = None  # cash paid per unit, by payment date, in currency
 
 
@@ -206,6 +207,7 @@ def parse_yahoo_chart(payload: dict[str, Any], now: pd.Timestamp) -> Quote:
         last_update,
         name=_clean(meta.get("longName") or meta.get("shortName") or ""),
         kind=str(meta.get("instrumentType") or ""),
+        detail=_clean(meta.get("shortName") or ""),
         dividends=dividends,
     )
 
@@ -463,6 +465,8 @@ class Snapshot:
     currency: str
     price: float
     in_progress: bool
+    kind: str = ""  # instrument type, e.g. EQUITY, ETF, CRYPTOCURRENCY
+    detail: str = ""  # exchange short name, e.g. "FII HGLG PAXCI": tells FIIs and BDRs apart
 
 
 def yahoo_snapshot_url(symbol: str) -> str:
@@ -496,6 +500,8 @@ def parse_yahoo_snapshot(payload: dict[str, Any], now: pd.Timestamp) -> Snapshot
         currency=series.currency,
         price=float(series.prices.iloc[-1]),
         in_progress=series.in_progress,
+        kind=str(meta.get("instrumentType") or ""),
+        detail=_clean(meta.get("shortName") or ""),
     )
 
 

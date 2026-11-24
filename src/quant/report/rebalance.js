@@ -100,4 +100,32 @@ function planTrades(o) {
   return { trades, totalCost, leftover: leftover() };
 }
 
-if (typeof module !== "undefined") module.exports = { portfolioVol, riskShares, riskParity, planTrades };
+// Yearly dividend income for ``years`` years.
+//   assets: [{ annual (income now, a year), growth (yearly, or null) }]
+//   portfolioYield: income per unit of money invested today (annual income / value)
+//   contribution: new money per month; reinvest: income buys more of the portfolio
+//   useGrowth: false keeps every payment at today's level
+// Holdings keep their own growth for 5 years, fading to zero by year 10. New money buys
+// more of the same portfolio at today's yield; prices and exchange rates stay as today.
+// Returns [{ year, own, extra, total }], incomes per year.
+function projectIncome(assets, portfolioYield, o) {
+  const years = o.years || 25;
+  const g = (a) => (o.useGrowth === false ? 0 : a.growth || 0);
+  const now = assets.reduce((s, a) => s + a.annual, 0);
+  const weighted = now > 0 ? assets.reduce((s, a) => s + a.annual * g(a), 0) / now : 0;
+  const fade = (t) => (t <= 5 ? 1 : t >= 10 ? 0 : (10 - t) / 5);
+  const level = assets.map(() => 1);
+  const out = [];
+  let extra = 0;
+  for (let t = 0; t < years; t++) {
+    if (t > 0) assets.forEach((a, i) => { level[i] *= 1 + g(a) * fade(t); });
+    const own = assets.reduce((s, a, i) => s + a.annual * level[i], 0);
+    const total = own + extra;
+    out.push({ year: t + 1, own, extra, total });
+    const inflow = (o.reinvest ? total : 0) + 12 * (o.contribution || 0);
+    extra = extra * (1 + weighted * fade(t + 1)) + inflow * portfolioYield;
+  }
+  return { rows: out, weighted };
+}
+
+if (typeof module !== "undefined") module.exports = { portfolioVol, riskShares, riskParity, planTrades, projectIncome };

@@ -65,8 +65,11 @@ unsigned `.exe` launchers that pip/uv generate. On Linux or macOS, `uv run pytes
 
 ## The report
 
-One self-contained HTML file (no server, no network once written). Every number comes from
-tested Python functions; the page only draws them. Sections:
+One self-contained HTML file (no server, no network once written), organised in tabs:
+Summary, This week, Risk, Scenarios, Income, Opportunities, Rebalance and Method. Every
+position carries an icon for its type (stock, real-estate fund, ETF, BDR, fund, crypto,
+cash), detected from the names the exchange publishes. Every number comes from tested
+Python functions; the page only draws them. Sections:
 
 | Section | What it answers | How it is checked |
 |---|---|---|
@@ -77,6 +80,8 @@ tested Python functions; the page only draws them. Sections:
 | Crises | Eight real crises (2008, euro debt, Brazil 2015, Brexit, Joesley Day, Covid, 2022 rates, FTX) replayed on today's positions, plus sliders to build a scenario | Assets that did not exist yet use their best index proxy and a Vasicek-shrunk beta; coverage is shown per crisis |
 | The future | A fan of 2000 block-bootstrapped paths for 1, 3 or 5 years, with and without the past trend, and the chance of a 10/20/30% fall | Month-by-month calibration: how often reality landed inside the 90% range, with a binomial test |
 | How far to trust the numbers | Day-by-day VaR backtest; 90% bootstrap ranges for return, volatility, Sharpe and VaR | Kupiec, Christoffersen and the Basel traffic light, with textbook answers in the tests |
+| Income | Dividends expected month by month for the next 12 months, by asset type, and income over 25 years with contributions, reinvestment and a monthly goal | Calendar from the last two years; growth is the median yearly change over five years (ignores one-off specials), fading out after year 5; tested on known paths |
+| Opportunities | Rule-based signals to investigate: 20%+ below the 52-week high, dividend yield 25%+ above its 5-year median, indices that would lower volatility, positions below your targets, concentration | Each rule is fixed and stated on the card, with what to check before acting. Signals, not advice |
 | Rebalance | What to buy and sell to reach target weights (or only with new money), costs, cash left, risk before and after; current, equal or risk-parity targets | Plans always pay for themselves; risk parity equals inverse volatility for independent assets |
 
 Plus a sortable positions table, plain-language definitions of every method, light and dark

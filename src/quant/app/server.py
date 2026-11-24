@@ -54,6 +54,7 @@ STATIC = {
     "/editor.css": ("quant.app", "static/editor.css", "text/css; charset=utf-8"),
     "/editor.js": ("quant.app", "static/editor.js", "text/javascript; charset=utf-8"),
     "/quantity.js": ("quant.app", "static/quantity.js", "text/javascript; charset=utf-8"),
+    "/assets.js": ("quant.app", "static/assets.js", "text/javascript; charset=utf-8"),
     "/base.css": ("quant.report", "report.css", "text/css; charset=utf-8"),
 }
 

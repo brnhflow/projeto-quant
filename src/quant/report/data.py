@@ -19,6 +19,7 @@ from quant.data.news import Headline
 from quant.data.sources import Quote
 from quant.factors import factor_exposure
 from quant.fx import to_base_currency
+from quant.income import outlook
 from quant.returns import portfolio_value, simple_returns
 from quant.risk import (
     annualized_volatility,
@@ -26,6 +27,16 @@ from quant.risk import (
     effective_number_of_positions,
     historical_var_es,
     risk_contributions,
+)
+from quant.signals import (
+    CONCENTRATION_RISK,
+    CONCENTRATION_WEIGHT,
+    FAR_FROM_HIGH,
+    MIN_VOL_GAIN,
+    YIELD_PREMIUM,
+    diversification_gain,
+    gap_from_high,
+    yield_vs_history,
 )
 from quant.simulation import calibrate, drawdown_probability, quantile_table, simulate_growth
 from quant.stress import (
@@ -203,6 +214,7 @@ def _period_data(
 
 
 COVARIANCE_DAYS = 252
+_NO_QUOTE = Quote(pd.Series(dtype=float), "", False, pd.Timestamp(0, tz="UTC"))
 
 
 def _kind(holdings: pd.DataFrame, asset: Any) -> str:
@@ -560,6 +572,159 @@ def dividend_income(
     }
 
 
+def income_plan(
+    details: dict[str, Quote],
+    quantities: pd.Series,
+    rates: pd.Series,
+    position_value: pd.Series,
+    currencies: pd.Series,
+    last: pd.Timestamp,
+    base: str,
+) -> dict[str, Any] | None:
+    """Project income for the next 12 months per asset, in base currency, with its growth."""
+    months: list[pd.Timestamp] = []
+    rows: list[dict[str, Any]] = []
+    for asset in quantities.index:
+        quote = details.get(str(asset))
+        if quote is None or quote.dividends is None:
+            continue
+        view = outlook(quote.dividends, last)
+        months = view.months
+        currency = str(currencies[asset])
+        rate = 1.0 if currency == base else float(rates.get(currency, float("nan")))
+        if not math.isfinite(rate):
+            continue
+        per_month = [v * float(quantities[asset]) * rate for v in view.per_unit]
+        annual = sum(per_month)
+        if annual <= 0 and view.last is None:
+            continue
+        rows.append(
+            {
+                "asset": str(asset),
+                "months": [_num(v, 2) for v in per_month],
+                "annual": _num(annual, 2),
+                "yield": _num(annual / float(position_value[asset])),
+                "growth": None if view.growth is None else _num(view.growth, 4),
+                "paidYears": view.paid_years,
+                "last": None if view.last is None else _iso(view.last),
+            }
+        )
+    if not rows:
+        return None
+    total = sum(float(r["annual"]) for r in rows)
+    return {
+        "months": [f"{m:%Y-%m}" for m in months],
+        "assets": sorted(rows, key=lambda r: -float(r["annual"])),
+        "annual": _num(total, 2),
+        "value": _num(float(position_value.sum()), 2),
+        "yield": _num(total / float(position_value.sum())),
+        "growthYears": 5,
+    }
+
+
+def _opportunities(
+    holdings: pd.DataFrame,
+    local_prices: pd.DataFrame,
+    base_prices: pd.DataFrame,
+    value: pd.Series,
+    weights_now: pd.Series,
+    fx_rates: pd.DataFrame,
+    proxy_prices: pd.DataFrame | None,
+    details: dict[str, Quote] | None,
+    base: str,
+) -> dict[str, Any]:
+    """Rule-based signals of :mod:`quant.signals`, for the "opportunities" page."""
+    cash = (
+        {str(a) for a, src in holdings["source"].items() if src == "cash"}
+        if "source" in holdings
+        else set[str]()
+    )
+    far: list[dict[str, Any]] = []
+    rich: list[dict[str, Any]] = []
+    for asset in holdings.index:
+        name = str(asset)
+        if name in cash or name not in local_prices.columns:
+            continue
+        gap = gap_from_high(local_prices[name])
+        if gap is not None and gap.gap <= FAR_FROM_HIGH:
+            far.append(
+                {
+                    "asset": name,
+                    "gap": _num(gap.gap),
+                    "high": _num(gap.high, 4),
+                    "highDate": _iso(gap.high_date),
+                    "last": _num(gap.last, 4),
+                    "currency": str(holdings.loc[asset, "currency"]),
+                }
+            )
+        quote = (details or {}).get(name)
+        if quote is not None and quote.dividends is not None and not quote.dividends.empty:
+            check = yield_vs_history(local_prices[name], quote.dividends)
+            if (
+                check is not None
+                and check.median > 0
+                and check.current >= YIELD_PREMIUM * check.median
+            ):
+                rich.append(
+                    {"asset": name, "current": _num(check.current), "median": _num(check.median)}
+                )
+
+    diversifiers: list[dict[str, Any]] = []
+    if proxy_prices is not None:
+        calendar = pd.DatetimeIndex(value.index)
+        available = [p for p in PROXIES if p in proxy_prices.columns]
+        currencies = pd.Series({p: PROXIES[p][1] for p in available})
+        if available and set(currencies) - {base} <= set(fx_rates.columns):
+            indices = to_base_currency(
+                align_to_dates(proxy_prices[available], calendar),
+                currencies,
+                align_to_dates(fx_rates, calendar),
+                base=base,
+            )
+            for p in available:
+                result = diversification_gain(value, indices[p])
+                if result is None:
+                    continue
+                now, after, corr = result
+                if now - after >= MIN_VOL_GAIN:
+                    diversifiers.append(
+                        {
+                            "symbol": p,
+                            "name": PROXIES[p][0],
+                            "volNow": _num(now),
+                            "volWith": _num(after),
+                            "corr": _num(corr, 3),
+                        }
+                    )
+    diversifiers.sort(key=lambda d: float(d["volWith"]))
+
+    concentrated: list[dict[str, Any]] = []
+    returns = simple_returns(base_prices).iloc[-COVARIANCE_DAYS:]
+    shares: pd.Series | None = None
+    if len(returns) >= MIN_DAYS_COVARIANCE:
+        try:
+            shares = risk_contributions(returns, weights_now)
+        except ValueError:
+            shares = None
+    for asset in holdings.index:
+        weight = float(weights_now[asset])
+        risk = float(shares[asset]) if shares is not None else float("nan")
+        if weight > CONCENTRATION_WEIGHT or (math.isfinite(risk) and risk > CONCENTRATION_RISK):
+            concentrated.append({"asset": str(asset), "weight": _num(weight), "risk": _num(risk)})
+    return {
+        "farFromHigh": sorted(far, key=lambda r: float(r["gap"])),
+        "yieldHigh": sorted(rich, key=lambda r: -float(r["current"]) / float(r["median"])),
+        "diversifiers": diversifiers[:3],
+        "concentration": concentrated,
+        "rules": {
+            "farFromHigh": FAR_FROM_HIGH,
+            "yieldPremium": YIELD_PREMIUM,
+            "concentrationWeight": CONCENTRATION_WEIGHT,
+            "concentrationRisk": CONCENTRATION_RISK,
+        },
+    }
+
+
 def _news(news: dict[str, list[Headline] | None]) -> dict[str, Any]:
     return {
         asset: None
@@ -773,6 +938,10 @@ def build_report_data(
                 "value": _num(float(position_value[a]), 2),
                 "weight": _num(float(weights_now[a])),
                 "kind": _kind(holdings, a),
+                # What the source says about it, for the asset-type icon in the page.
+                "symbol": str(holdings.loc[a, "symbol"]) if "symbol" in holdings.columns else a,
+                "srcKind": (details or {}).get(a, _NO_QUOTE).kind,
+                "detail": (details or {}).get(a, _NO_QUOTE).detail,
             }
             for a in order
         ],
@@ -798,6 +967,28 @@ def build_report_data(
             position_value,
             currencies,
             pd.Timestamp(value.index[-1]),
+            base,
+        ),
+        "incomePlan": None
+        if not details
+        else income_plan(
+            details,
+            quantities,
+            rates.iloc[-1] if not rates.empty else pd.Series(dtype=float),
+            position_value,
+            currencies,
+            pd.Timestamp(value.index[-1]),
+            base,
+        ),
+        "opportunities": _opportunities(
+            holdings,
+            local_prices,
+            base_prices,
+            value,
+            weights_now,
+            fx_rates,
+            proxy_prices,
+            details,
             base,
         ),
         "news": None if news is None else _news(news),

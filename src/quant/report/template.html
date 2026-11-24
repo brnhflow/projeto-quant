@@ -24,45 +24,65 @@
 
 <div class="notice" id="notice" role="status" hidden></div>
 
+<nav class="tabs" id="tabs" role="tablist" aria-label="Seções do relatório">
+  <button type="button" role="tab" id="tab-resumo" data-tab="resumo" aria-controls="page-resumo" aria-selected="false"><span class="tab-icon" data-icon="resumo"></span><span>Resumo</span><span class="tab-badge" id="badge-resumo" hidden></span></button>
+  <button type="button" role="tab" id="tab-semana" data-tab="semana" aria-controls="page-semana" aria-selected="false"><span class="tab-icon" data-icon="semana"></span><span>Esta semana</span><span class="tab-badge" id="badge-semana" hidden></span></button>
+  <button type="button" role="tab" id="tab-risco" data-tab="risco" aria-controls="page-risco" aria-selected="false"><span class="tab-icon" data-icon="risco"></span><span>Risco</span><span class="tab-badge" id="badge-risco" hidden></span></button>
+  <button type="button" role="tab" id="tab-cenarios" data-tab="cenarios" aria-controls="page-cenarios" aria-selected="false"><span class="tab-icon" data-icon="cenarios"></span><span>Cenários</span><span class="tab-badge" id="badge-cenarios" hidden></span></button>
+  <button type="button" role="tab" id="tab-renda" data-tab="renda" aria-controls="page-renda" aria-selected="false"><span class="tab-icon" data-icon="renda"></span><span>Renda</span><span class="tab-badge" id="badge-renda" hidden></span></button>
+  <button type="button" role="tab" id="tab-oportunidades" data-tab="oportunidades" aria-controls="page-oportunidades" aria-selected="false"><span class="tab-icon" data-icon="oportunidades"></span><span>Oportunidades</span><span class="tab-badge" id="badge-oportunidades" hidden></span></button>
+  <button type="button" role="tab" id="tab-rebalancear" data-tab="rebalancear" aria-controls="page-rebalancear" aria-selected="false"><span class="tab-icon" data-icon="rebalancear"></span><span>Rebalancear</span><span class="tab-badge" id="badge-rebalancear" hidden></span></button>
+  <button type="button" role="tab" id="tab-metodo" data-tab="metodo" aria-controls="page-metodo" aria-selected="false"><span class="tab-icon" data-icon="metodo"></span><span>Como ler</span><span class="tab-badge" id="badge-metodo" hidden></span></button>
+</nav>
+
+<div class="tab-page" id="page-resumo" data-page="resumo" role="tabpanel" aria-labelledby="tab-resumo">
 <section class="figures" id="figures" aria-label="Números principais"></section>
 
 <section class="block">
-  <h2><span class="num">1</span>Desempenho</h2>
+  <h2>Desempenho</h2>
   <p class="lede" id="perf-lede"></p>
   <div class="chart" id="chart-value" data-height="300"></div>
   <h3 class="chart-title">Queda desde o pico anterior</h3>
   <div class="chart" id="chart-drawdown" data-height="130"></div>
 </section>
 
-<section class="block" id="watch">
-  <h2><span class="num">2</span>Esta semana</h2>
-  <p class="lede" id="watch-lede"></p>
-  <div class="watch-grid" id="watch-grid"></div>
-  <div id="income-block">
-    <h3 class="chart-title">Proventos recebidos nos últimos 12 meses</h3>
-    <p class="caption" id="income-lede"></p>
-    <div class="table-wrap"><table class="positions compact" id="income"></table></div>
-  </div>
-</section>
-
 <section class="block">
-  <h2><span class="num">3</span>Composição hoje</h2>
+  <h2>Composição hoje</h2>
   <p class="lede" id="mix-lede"></p>
   <div class="two-col">
     <div><h3 class="chart-title">Por ativo</h3><div class="barlist" id="mix-assets"></div></div>
-    <div><h3 class="chart-title">Por moeda</h3><div class="barlist" id="mix-currencies"></div></div>
+    <div>
+      <h3 class="chart-title">Por tipo de ativo</h3><div class="barlist" id="mix-types"></div>
+      <h3 class="chart-title">Por moeda</h3><div class="barlist" id="mix-currencies"></div>
+    </div>
   </div>
 </section>
 
 <section class="block">
-  <h2><span class="num">4</span>De onde veio o resultado</h2>
+  <h2>De onde veio o resultado</h2>
   <p class="lede" id="attr-lede"></p>
   <div class="legend" id="attr-legend"></div>
   <div class="chart" id="chart-attribution"></div>
 </section>
 
 <section class="block">
-  <h2><span class="num">5</span>Risco</h2>
+  <h2>Posições</h2>
+  <p class="lede">Clique no nome de uma coluna para ordenar.</p>
+  <div class="table-wrap"><table class="positions" id="positions"></table></div>
+</section>
+</div>
+
+<div class="tab-page" id="page-semana" data-page="semana" role="tabpanel" aria-labelledby="tab-semana">
+<section class="block" id="watch">
+  <h2>Esta semana</h2>
+  <p class="lede" id="watch-lede"></p>
+  <div class="watch-grid" id="watch-grid"></div>
+</section>
+</div>
+
+<div class="tab-page" id="page-risco" data-page="risco" role="tabpanel" aria-labelledby="tab-risco">
+<section class="block">
+  <h2>Risco</h2>
   <p class="lede" id="risk-lede"></p>
   <div class="two-col">
     <div>
@@ -79,7 +99,7 @@
 </section>
 
 <section class="block" id="factors">
-  <h2><span class="num">6</span>Do que a carteira depende de verdade</h2>
+  <h2>Do que a carteira depende de verdade</h2>
   <p class="lede" id="factors-lede"></p>
   <div class="two-col factors-cols">
     <div>
@@ -95,8 +115,27 @@
   </div>
 </section>
 
+<section class="block" id="trust">
+  <h2>Quanto confiar nestes números</h2>
+  <p class="lede" id="trust-lede"></p>
+  <div id="backtest-block">
+    <h3 class="chart-title">A perda de dia ruim prevista contra o que aconteceu</h3>
+    <div class="verdicts" id="verdicts"></div>
+    <div class="legend" id="backtest-legend"></div>
+    <div class="chart" id="chart-backtest" data-height="240"></div>
+    <p class="caption" id="backtest-caption"></p>
+  </div>
+  <div id="intervals-block">
+    <h3 class="chart-title">Margem de erro de cada número</h3>
+    <p class="caption" id="intervals-lede"></p>
+    <div class="intervals" id="intervals"></div>
+  </div>
+</section>
+</div>
+
+<div class="tab-page" id="page-cenarios" data-page="cenarios" role="tabpanel" aria-labelledby="tab-cenarios">
 <section class="block" id="stress">
-  <h2><span class="num">7</span>E se uma crise acontecesse hoje</h2>
+  <h2>E se uma crise acontecesse hoje</h2>
   <p class="lede" id="stress-lede"></p>
   <h3 class="chart-title">Crises reais, aplicadas à carteira de hoje</h3>
   <div class="scenarios" id="scenarios"></div>
@@ -111,7 +150,7 @@
 </section>
 
 <section class="block" id="future">
-  <h2><span class="num">8</span>E daqui para frente</h2>
+  <h2>E daqui para frente</h2>
   <p class="lede" id="future-lede"></p>
   <div class="future-controls">
     <div class="segmented" id="future-horizon" role="group" aria-label="Horizonte">
@@ -129,32 +168,60 @@
   <div class="reb-summary" id="future-figures"></div>
   <div class="verdict-inline" id="future-check"></div>
 </section>
+</div>
 
-<section class="block" id="trust">
-  <h2><span class="num">9</span>Quanto confiar nestes números</h2>
-  <p class="lede" id="trust-lede"></p>
-  <div id="backtest-block">
-    <h3 class="chart-title">A perda de dia ruim prevista contra o que aconteceu</h3>
-    <div class="verdicts" id="verdicts"></div>
-    <div class="legend" id="backtest-legend"></div>
-    <div class="chart" id="chart-backtest" data-height="240"></div>
-    <p class="caption" id="backtest-caption"></p>
+<div class="tab-page" id="page-renda" data-page="renda" role="tabpanel" aria-labelledby="tab-renda">
+<section class="block" id="income-section">
+  <h2>Renda da carteira</h2>
+  <p class="lede" id="income-summary"></p>
+  <div class="reb-summary" id="income-figures"></div>
+  <h3 class="chart-title">Próximos 12 meses, mês a mês</h3>
+  <p class="caption" id="income-months-lede"></p>
+  <div class="legend" id="income-legend"></div>
+  <div class="chart" id="chart-income-months" data-height="220"></div>
+  <h3 class="chart-title">Renda futura</h3>
+  <div class="reb-controls">
+    <label class="reb-field"><span class="field-label">Aporte por mês (€)</span><input id="inc-contribution" inputmode="decimal" value="0"></label>
+    <label class="reb-field"><span class="field-label">Renda desejada por mês (€)</span><input id="inc-goal" inputmode="decimal" value="0"></label>
+    <div>
+      <p class="field-label" id="inc-reinvest-label">Proventos recebidos</p>
+      <div class="segmented" id="inc-reinvest" role="group" aria-labelledby="inc-reinvest-label">
+        <button type="button" data-reinvest="1" aria-pressed="true">Reinvestir</button>
+        <button type="button" data-reinvest="0">Gastar</button>
+      </div>
+    </div>
+    <div>
+      <p class="field-label" id="inc-growth-label">Crescimento dos proventos</p>
+      <div class="segmented" id="inc-growth" role="group" aria-labelledby="inc-growth-label">
+        <button type="button" data-growth="history" aria-pressed="true">Como no passado</button>
+        <button type="button" data-growth="zero">Sem crescimento</button>
+      </div>
+    </div>
   </div>
-  <div id="intervals-block">
-    <h3 class="chart-title">Margem de erro de cada número</h3>
-    <p class="caption" id="intervals-lede"></p>
-    <div class="intervals" id="intervals"></div>
+  <div class="chart" id="chart-income-future" data-height="240"></div>
+  <p class="caption" id="income-future-lede"></p>
+  <h3 class="chart-title">Por ativo</h3>
+  <div class="table-wrap"><table class="positions compact" id="income-assets"></table></div>
+  <div id="income-block">
+    <h3 class="chart-title">O que a carteira pagou nos últimos 12 meses</h3>
+    <p class="caption" id="income-lede"></p>
+    <div class="table-wrap"><table class="positions compact" id="income"></table></div>
   </div>
 </section>
+</div>
 
-<section class="block">
-  <h2><span class="num">10</span>Posições</h2>
-  <p class="lede">Clique no nome de uma coluna para ordenar.</p>
-  <div class="table-wrap"><table class="positions" id="positions"></table></div>
+<div class="tab-page" id="page-oportunidades" data-page="oportunidades" role="tabpanel" aria-labelledby="tab-oportunidades">
+<section class="block" id="opportunities">
+  <h2>Oportunidades para analisar</h2>
+  <p class="lede" id="opp-lede"></p>
+  <div class="opp-grid" id="opp-grid"></div>
+  <p class="caption opp-disclaimer">Sinais calculados com regras fixas e dados públicos, para você investigar. Não são recomendação de compra ou venda: cada um tem um motivo possível que a regra não enxerga.</p>
 </section>
+</div>
 
+<div class="tab-page" id="page-rebalancear" data-page="rebalancear" role="tabpanel" aria-labelledby="tab-rebalancear">
 <section class="block" id="rebalance">
-  <h2><span class="num">11</span>Rebalancear</h2>
+  <h2>Rebalancear</h2>
   <p class="lede" id="reb-lede">Defina a meta de cada ativo e veja o que comprar e vender, quanto custa e como o risco muda. As metas ficam salvas neste navegador.</p>
   <div class="reb-controls">
     <div>
@@ -179,9 +246,11 @@
   <div class="reb-summary" id="reb-summary" aria-live="polite"></div>
   <label class="reb-check"><input type="checkbox" id="reb-whole" checked> Ações e ETFs em quantidades inteiras (cripto e caixa aceitam frações)</label>
 </section>
+</div>
 
+<div class="tab-page" id="page-metodo" data-page="metodo" role="tabpanel" aria-labelledby="tab-metodo">
 <section class="block method">
-  <h2><span class="num">12</span>Como ler e premissas</h2>
+  <h2>Como ler e premissas</h2>
   <dl class="defs">
     <dt>Retorno no período</dt>
     <dd>Variação do valor da carteira em euros entre o fechamento do primeiro e do último dia,
@@ -289,6 +358,7 @@
     <div class="table-wrap"><table class="positions freshness" id="freshness"></table></div>
   </div>
 </section>
+</div>
 
 <footer class="foot" id="foot"></footer>
 </div>

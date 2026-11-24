@@ -35,10 +35,15 @@ def render_html(data: dict[str, Any]) -> str:
     template = (assets / "template.html").read_text(encoding="utf-8")
     css = (assets / "report.css").read_text(encoding="utf-8")
     # Pure functions tested with Node, then the page script that calls them.
-    quantity = resources.files("quant.app") / "static" / "quantity.js"
+    static = resources.files("quant.app") / "static"
     js = "\n".join(
         f.read_text(encoding="utf-8")
-        for f in (quantity, assets / "rebalance.js", assets / "report.js")
+        for f in (
+            static / "quantity.js",
+            static / "assets.js",
+            assets / "rebalance.js",
+            assets / "report.js",
+        )
     )
     # "</" inside the JSON would close the <script> tag early.
     payload = (

@@ -7,6 +7,31 @@
 }
 .hint { margin: 10px 0 0; font-size: 13px; color: var(--ink-2); }
 
+/* ---------------------------------------------------------------- asset types */
+.type-picker { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
+.type-option {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px 0 8px;
+  font: 500 14px/1 var(--sans); color: var(--ink); background: var(--paper); cursor: pointer;
+  border: 1px solid var(--rule); border-radius: 999px;
+}
+.type-option:hover { background: var(--field); }
+.type-option[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.type-option:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+.type-badge {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 30px; height: 30px; border-radius: 50%; color: var(--tc, var(--ink-2));
+  background: color-mix(in srgb, var(--tc, var(--ink-2)) 14%, transparent);
+}
+.results .type-badge, .holdings .type-badge { width: 26px; height: 26px; margin-right: 8px; }
+.t-acao { --tc: #2a78d6; } .t-fii { --tc: #b0662c; } .t-etf { --tc: #2f8f6b; } .t-bdr { --tc: #7b5cc4; }
+.t-fundo { --tc: #8a7a2e; } .t-cripto { --tc: #c4562f; } .t-caixa { --tc: #5f6f7a; } .t-all { --tc: var(--ink-2); }
+@media (prefers-color-scheme: dark) {
+  .t-acao { --tc: #5b9cf0; } .t-fii { --tc: #e0955a; } .t-etf { --tc: #5cc59b; } .t-bdr { --tc: #a68cf0; }
+  .t-fundo { --tc: #c9b45a; } .t-cripto { --tc: #f08a62; } .t-caixa { --tc: #9fb0bb; }
+}
+.asset-cell { display: inline-flex; align-items: center; }
+.results .sym { display: inline-flex; align-items: center; }
+
 /* ---------------------------------------------------------------- search */
 .search-block { padding-top: 28px; }
 .search { position: relative; max-width: 720px; }
@@ -22,7 +47,7 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14); max-height: 420px; overflow-y: auto;
 }
 .results li {
-  display: grid; grid-template-columns: 120px 1fr auto; gap: 14px; align-items: center;
+  display: grid; grid-template-columns: 160px 1fr auto; gap: 14px; align-items: center;
   padding: 10px 14px; cursor: pointer;
 }
 .results li[aria-selected="true"], .results li:hover { background: var(--field); }

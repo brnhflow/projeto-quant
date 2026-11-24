@@ -231,6 +231,11 @@
   // ---------------------------------------------------------------- sections
   let current = D.periods.find((p) => p.key === D.defaultPeriod);
   const positions = D.positions;
+  positions.forEach((p) => {
+    p.type = assetType({ symbol: p.symbol, kind: p.srcKind, detail: p.detail, name: (D.names || {})[p.asset], cash: p.kind === "cash" });
+  });
+  const typeInfo = (t) => ASSET_TYPES.find((x) => x.key === t) || ASSET_TYPES[0];
+  const badge = (t, size = 14) => `<span class="type-badge t-${t}" title="${esc(typeInfo(t).one)}">${assetIcon(t, size)}</span>`;
   const nonBase = D.currencies.filter((c) => c.code !== D.base).reduce((a, c) => a + c.weight, 0);
 
   function renderHeader() {
@@ -353,7 +358,7 @@
   function barList(host, rows) {
     const top = Math.max(...rows.map((r) => r.value));
     host.innerHTML = rows.map((r, k) =>
-      `<div class="bar-row" data-k="${k}"><span class="bar-name">${esc(r.label)}</span>` +
+      `<div class="bar-row" data-k="${k}"><span class="bar-name">${r.icon || ""}${esc(r.label)}</span>` +
       `<span class="bar-track"><span class="bar-fill" style="width:${Math.max(0.6, (r.value / top) * 100)}%"></span></span>` +
       `<span class="bar-figure">${fmt.eur(r.value)}<span class="share">${fmt.share(r.weight, 1)}</span></span></div>`
     ).join("");
@@ -370,10 +375,22 @@
       `Em peso, a carteira equivale a <strong>${fmt.num(D.effectivePositions, 1)}</strong> posições iguais (de ${positions.length}). ` +
       (nonBase > 0 ? `${fmt.share(nonBase, 0)} do valor está fora do ${CURRENCY[D.base] || D.base} e oscila também com o câmbio.` : "");
     barList($("mix-assets"), positions.map((a) => ({
-      label: a.asset, value: a.value, weight: a.weight,
+      label: a.asset, value: a.value, weight: a.weight, icon: badge(a.type),
       tip: [
         { label: "Valor", value: fmt.eur(a.value) }, { label: "Peso", value: fmt.share(a.weight) },
         { label: "Quantidade", value: fmt.qty(a.quantity) }, { label: "Moeda", value: a.currency },
+      ],
+    })));
+    const byType = ASSET_TYPES.map((t) => {
+      const held = positions.filter((p) => p.type === t.key);
+      const value = held.reduce((s, p) => s + p.value, 0);
+      return { t, held, value, weight: held.reduce((s, p) => s + p.weight, 0) };
+    }).filter((x) => x.held.length).sort((a, b) => b.value - a.value);
+    barList($("mix-types"), byType.map((x) => ({
+      label: x.t.label, value: x.value, weight: x.weight, icon: badge(x.t.key),
+      tip: [
+        { label: "Valor", value: fmt.eur(x.value) }, { label: "Peso", value: fmt.share(x.weight) },
+        { label: "Ativos", value: x.held.map((p) => p.asset).join(", ") },
       ],
     })));
     barList($("mix-currencies"), D.currencies.map((c) => ({
@@ -490,7 +507,8 @@
 
   // ---------------------------------------------------------------- positions table
   const COLUMNS = [
-    { key: "asset", label: "Ativo", cls: "asset", get: (a) => a.asset, show: (a) => esc(a.asset) },
+    { key: "asset", label: "Ativo", cls: "asset", get: (a) => a.asset, show: (a) => `<span class="asset-cell">${badge(a.type)}${esc(a.asset)}</span>` },
+    { key: "type", label: "Tipo", get: (a) => typeInfo(a.type).one, show: (a) => esc(typeInfo(a.type).one) },
     { key: "currency", label: "Moeda", get: (a) => a.currency, show: (a) => a.currency },
     { key: "quantity", label: "Quantidade", r: true, get: (a) => a.quantity, show: (a) => fmt.qty(a.quantity) },
     { key: "priceLocal", label: "Preço local", r: true, get: (a) => a.priceLocal, show: (a) => fmt.num(a.priceLocal, 2) },
@@ -955,6 +973,7 @@
       if (!bad) {
         rebState.targets[target.dataset.asset] = v / 100;
         localStorage.setItem(REB_KEY, JSON.stringify(rebState.targets));
+        renderOpportunities();
         document.querySelector('#reb-presets [data-target="saved"]').hidden = false;
       }
       document.querySelectorAll("#reb-presets .chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
@@ -976,6 +995,7 @@
     if (!t) return;
     rebState.targets = t;
     localStorage.setItem(REB_KEY, JSON.stringify(t));
+    renderOpportunities();
     document.querySelector('#reb-presets [data-target="saved"]').hidden = false;
     fillTargets();
     document.querySelectorAll("#reb-presets .chip").forEach((c) => c.setAttribute("aria-pressed", String(c === chip)));
@@ -1224,6 +1244,308 @@
     renderFuture();
   });
 
+  // ---------------------------------------------------------------- income
+  const IP = D.incomePlan;
+  const incState = { reinvest: true, growth: "history" };
+  const typeColor = (t) => {
+    const probe = document.createElement("span");
+    probe.className = "t-" + t;
+    document.body.appendChild(probe);
+    const c = getComputedStyle(probe).getPropertyValue("--tc").trim();
+    probe.remove();
+    return c || cssVar("--s1");
+  };
+  const monthLabel = (ym) => { const [y, m] = ym.split("-").map(Number); return `${MONTHS[m - 1]} ${String(y).slice(2)}`; };
+
+  function renderIncome() {
+    $("income-section").hidden = false;
+    const empty = !IP;
+    ["income-figures", "chart-income-months", "income-legend", "chart-income-future", "income-assets"].forEach((id) => { $(id).hidden = empty; });
+    if (empty) {
+      $("income-summary").textContent = "Nenhum ativo da carteira pagou proventos nos últimos anos, ou os dados não foram baixados nesta análise.";
+      return;
+    }
+    const perMonth = IP.annual / 12;
+    const payers = IP.assets.filter((a) => a.annual > 0);
+    $("income-summary").innerHTML = `Pelo que pagaram nos últimos dois anos, os seus ativos devem render cerca de <strong>${fmt.eur(IP.annual)}</strong> nos próximos 12 meses, ` +
+      `em média <strong>${fmt.eur(perMonth)} por mês</strong> (${fmt.share(IP.yield, 2)} do valor da carteira). ${payers.length} de ${positions.filter((p) => p.kind !== "cash").length} ativos pagam. Valores brutos, antes de impostos.`;
+    const best = payers[0];
+    $("income-figures").innerHTML =
+      `<div class="reb-fig"><p class="label">Próximos 12 meses</p><p class="value">${fmt.eur(IP.annual)}</p><p class="note">Estimativa pela média dos dois últimos anos.</p></div>` +
+      `<div class="reb-fig"><p class="label">Por mês, em média</p><p class="value">${fmt.eur(perMonth)}</p><p class="note">Os meses variam: veja o gráfico abaixo.</p></div>` +
+      `<div class="reb-fig"><p class="label">Maior pagador</p><p class="value">${best ? esc(best.asset) : "—"}</p><p class="note">${best ? `${fmt.eur(best.annual)} por ano, ${fmt.share(best.yield, 1)} do valor da posição.` : ""}</p></div>`;
+
+    const types = [...new Set(payers.map((a) => positions.find((p) => p.asset === a.asset).type))];
+    $("income-legend").innerHTML = types.map((t) => `<span class="key"><span class="swatch" style="background:${typeColor(t)}"></span>${esc(typeInfo(t).label)}</span>`).join("");
+    $("income-months-lede").textContent = "Cada barra soma o que os ativos pagaram naquele mês do ano, em média, nos dois últimos anos. Passe o mouse para ver quem paga.";
+
+    $("income-assets").innerHTML = `<thead><tr><th>Ativo</th><th class="r">Próximos 12 meses</th><th class="r">Por mês</th><th class="r">Rendimento</th><th class="r">Crescimento por ano</th><th class="r">Anos pagando</th><th class="r">Último pagamento</th></tr></thead><tbody>` +
+      IP.assets.map((a) => {
+        const p = positions.find((x) => x.asset === a.asset);
+        return `<tr><td><span class="asset-cell">${badge(p.type)}${esc(a.asset)}</span></td><td class="r">${fmt.eur(a.annual)}</td><td class="r">${fmt.eur(a.annual / 12)}</td>` +
+          `<td class="r">${fmt.share(a.yield, 2)}</td><td class="r">${a.growth === null ? "—" : fmt.pct(a.growth)}</td>` +
+          `<td class="r">${a.paidYears} de ${IP.growthYears}</td><td class="r">${a.last ? dateLong(a.last) : "—"}</td></tr>`;
+      }).join("") + `</tbody>`;
+    renderIncomeFuture();
+  }
+
+  function renderIncomeMonths() {
+    if (!IP) return;
+    const host = $("chart-income-months");
+    const height = +host.dataset.height;
+    const { svg, width } = svgFor(host, height);
+    const m = { left: 64, right: 8, top: 10, bottom: 26 };
+    const n = IP.months.length;
+    const groups = IP.months.map((_, k) => {
+      const parts = {};
+      IP.assets.forEach((a) => {
+        const t = positions.find((p) => p.asset === a.asset).type;
+        parts[t] = (parts[t] || 0) + a.months[k];
+      });
+      return parts;
+    });
+    const totals = groups.map((g) => Object.values(g).reduce((s, v) => s + v, 0));
+    const ticks = niceTicks(0, Math.max(...totals, 1), 4);
+    const top = ticks[ticks.length - 1];
+    const y = (v) => m.top + (1 - v / top) * (height - m.top - m.bottom);
+    const step = (width - m.left - m.right) / n, bw = Math.min(46, step * 0.62);
+    const axis = el("g", { class: "axis" }, svg);
+    ticks.forEach((t) => {
+      el("line", { class: t === 0 ? "baseline" : "gridline", x1: m.left, x2: width - m.right, y1: y(t), y2: y(t) }, axis);
+      text(axis, m.left - 8, y(t) + 4, fmt.eur(t), { "text-anchor": "end" });
+    });
+    const order = ASSET_TYPES.map((t) => t.key);
+    IP.months.forEach((ym, k) => {
+      const cx = m.left + step * (k + 0.5);
+      text(axis, cx, height - 6, monthLabel(ym), { "text-anchor": "middle" });
+      let base = 0;
+      const keys = order.filter((t) => groups[k][t] > 0);
+      keys.forEach((t, i) => {
+        const v = groups[k][t];
+        const y0 = y(base), y1 = y(base + v);
+        const last = i === keys.length - 1;
+        const h = Math.max(0.5, y0 - y1 - (last ? 0 : 2));
+        const r = last ? Math.min(4, h / 2) : 0;
+        const x0 = cx - bw / 2;
+        el("path", { d: `M${x0},${y0}V${y0 - h + r}Q${x0},${y0 - h} ${x0 + r},${y0 - h}H${x0 + bw - r}Q${x0 + bw},${y0 - h} ${x0 + bw},${y0 - h + r}V${y0}Z`, fill: typeColor(t) }, svg);
+        base += v;
+      });
+      const hit = el("rect", { class: "row-hit", x: cx - step / 2, y: m.top, width: step, height: height - m.top - m.bottom }, svg);
+      hit.addEventListener("pointermove", (ev) => {
+        const who = IP.assets.filter((a) => a.months[k] > 0).sort((a, b) => b.months[k] - a.months[k]);
+        showTip(tipHtml(monthLabel(ym), [{ label: "Total", value: fmt.eur(totals[k]) }].concat(
+          who.slice(0, 6).map((a) => ({ label: a.asset, value: fmt.eur(a.months[k]), color: typeColor(positions.find((p) => p.asset === a.asset).type) })),
+          who.length > 6 ? [{ label: `e mais ${who.length - 6}`, value: "" }] : [])), ev);
+      });
+      hit.addEventListener("pointerleave", hideTip);
+    });
+  }
+
+  // Maths in rebalance.js (projectIncome), tested with Node.
+  function incomeProjection() {
+    const contribution = Math.max(0, num($("inc-contribution").value) || 0);
+    const { rows, weighted } = projectIncome(IP.assets, IP.yield, {
+      years: 25, contribution, reinvest: incState.reinvest, useGrowth: incState.growth !== "zero",
+    });
+    return { rows, contribution, weighted };
+  }
+
+  function renderIncomeFuture() {
+    if (!IP) return;
+    const { rows, contribution, weighted } = incomeProjection();
+    const goal = Math.max(0, num($("inc-goal").value) || 0);
+    const host = $("chart-income-future");
+    const height = +host.dataset.height;
+    const { svg, width } = svgFor(host, height);
+    const m = { left: 64, right: 8, top: 10, bottom: 26 };
+    const monthly = rows.map((r) => r.total / 12);
+    const ticks = niceTicks(0, Math.max(...monthly, goal, 1), 4);
+    const top = ticks[ticks.length - 1];
+    const y = (v) => m.top + (1 - v / top) * (height - m.top - m.bottom);
+    const step = (width - m.left - m.right) / rows.length, bw = Math.max(3, step * 0.62);
+    const axis = el("g", { class: "axis" }, svg);
+    ticks.forEach((t) => {
+      el("line", { class: t === 0 ? "baseline" : "gridline", x1: m.left, x2: width - m.right, y1: y(t), y2: y(t) }, axis);
+      text(axis, m.left - 8, y(t) + 4, fmt.eur(t), { "text-anchor": "end" });
+    });
+    const c1 = cssVar("--s1"), c2 = cssVar("--s2");
+    rows.forEach((r, k) => {
+      const cx = m.left + step * (k + 0.5), x0 = cx - bw / 2;
+      if ((k + 1) % 5 === 0 || k === 0) text(axis, cx, height - 6, `${r.year}º ano`, { "text-anchor": "middle" });
+      const own = r.own / 12, extra = r.extra / 12;
+      el("rect", { x: x0, y: y(own), width: bw, height: Math.max(0.5, y(0) - y(own)), fill: c1 }, svg);
+      if (extra > 0) {
+        const h = Math.max(0.5, y(own) - y(own + extra) - 2);
+        el("path", { d: `M${x0},${y(own) - 2}V${y(own) - 2 - h + 3}Q${x0},${y(own) - 2 - h} ${x0 + 3},${y(own) - 2 - h}H${x0 + bw - 3}Q${x0 + bw},${y(own) - 2 - h} ${x0 + bw},${y(own) - 2 - h + 3}V${y(own) - 2}Z`, fill: c2 }, svg);
+      }
+      const hit = el("rect", { class: "row-hit", x: cx - step / 2, y: m.top, width: step, height: height - m.top - m.bottom }, svg);
+      hit.addEventListener("pointermove", (ev) => showTip(tipHtml(`${r.year}º ano`, [
+        { label: "Por mês", value: fmt.eur(r.total / 12) },
+        { label: "Dos ativos de hoje", value: fmt.eur(own), color: c1 },
+        { label: "Do dinheiro novo", value: fmt.eur(extra), color: c2 },
+      ]), ev));
+      hit.addEventListener("pointerleave", hideTip);
+    });
+    if (goal > 0) {
+      el("line", { x1: m.left, x2: width - m.right, y1: y(goal), y2: y(goal), stroke: cssVar("--ink"), "stroke-width": 1.5, "stroke-dasharray": "5 4" }, svg);
+      text(svg, width - m.right - 4, y(goal) - 6, `meta ${fmt.eur(goal)}/mês`, { class: "row-value", "text-anchor": "end" });
+    }
+    const at = (yr) => rows[yr - 1].total / 12;
+    const reach = goal > 0 ? rows.find((r) => r.total / 12 >= goal) : null;
+    $("income-future-lede").innerHTML =
+      `<span class="legend-inline"><span class="swatch" style="background:${c1}"></span>dos ativos de hoje <span class="swatch" style="background:${c2}"></span>do dinheiro novo</span> ` +
+      `Por mês: <strong>${fmt.eur(at(1))}</strong> hoje, <strong>${fmt.eur(at(10))}</strong> em 10 anos e <strong>${fmt.eur(at(20))}</strong> em 20 anos` +
+      (contribution > 0 ? `, aportando ${fmt.eur(contribution)} por mês` : "") + (incState.reinvest ? " e reinvestindo os proventos" : "") + ". " +
+      (goal > 0 ? (reach ? `A meta de ${fmt.eur(goal)} por mês chega no <strong>${reach.year}º ano</strong>. ` : `A meta de ${fmt.eur(goal)} por mês não chega em 25 anos com estes números. `) : "") +
+      (incState.growth === "zero" ? "Supõe proventos iguais aos de hoje" : `Supõe proventos mudando ${fmt.pct(weighted)} por ano nos primeiros 5 anos, como no passado, e esse ritmo sumindo até o 10º ano`) +
+      `, preços e câmbio de hoje, e o dinheiro novo rendendo ${fmt.share(IP.yield, 2)} ao ano, como a carteira atual.`;
+  }
+
+  $("page-renda").addEventListener("input", (ev) => { if (ev.target.closest("#inc-contribution, #inc-goal")) renderIncomeFuture(); });
+  $("inc-reinvest").addEventListener("click", (ev) => {
+    const b = ev.target.closest("button[data-reinvest]");
+    if (!b) return;
+    incState.reinvest = b.dataset.reinvest === "1";
+    document.querySelectorAll("#inc-reinvest button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    renderIncomeFuture();
+  });
+  $("inc-growth").addEventListener("click", (ev) => {
+    const b = ev.target.closest("button[data-growth]");
+    if (!b) return;
+    incState.growth = b.dataset.growth;
+    document.querySelectorAll("#inc-growth button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    renderIncomeFuture();
+  });
+
+  // ---------------------------------------------------------------- opportunities
+  const OPP = D.opportunities;
+  const OPP_ICONS = {
+    far: '<path d="M3 5l5 5 3-3 6 6"/><path d="M17 9v4h-4"/>',
+    yield: '<ellipse cx="10" cy="6" rx="6" ry="2.4"/><path d="M4 6v4c0 1.3 2.7 2.4 6 2.4s6-1.1 6-2.4V6"/><path d="M4 10v4c0 1.3 2.7 2.4 6 2.4s6-1.1 6-2.4v-4"/>',
+    diversify: '<circle cx="7" cy="10" r="4.5"/><circle cx="13" cy="10" r="4.5"/>',
+    target: '<circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3.5"/><circle cx="10" cy="10" r="0.6"/>',
+    concentration: '<circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 1 6.1 10.4L10 10z"/>',
+  };
+  const oppIcon = (k) => `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${OPP_ICONS[k]}</svg>`;
+
+  function underTarget() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(REB_KEY) || "null"); } catch { saved = null; }
+    if (!saved) return null;
+    return positions.filter((p) => typeof saved[p.asset] === "number" && saved[p.asset] - p.weight > 0.02)
+      .map((p) => ({ asset: p.asset, type: p.type, target: saved[p.asset], weight: p.weight }))
+      .sort((a, b) => (b.target - b.weight) - (a.target - a.weight));
+  }
+
+  function renderOpportunities() {
+    if (!OPP) { $("opportunities").hidden = true; return; }
+    const typeOfAsset = (a) => (positions.find((p) => p.asset === a) || { type: "acao" }).type;
+    const row = (asset, main, sub) => `<li><span class="asset-cell">${badge(typeOfAsset(asset))}<strong>${esc(asset)}</strong></span><span class="opp-main">${main}</span>${sub ? `<small>${sub}</small>` : ""}</li>`;
+    const under = underTarget();
+    const cards = [
+      {
+        key: "far", title: "Longe do topo de 12 meses",
+        rule: `Preço ${fmt.share(-OPP.rules.farFromHigh, 0)} ou mais abaixo do maior fechamento do último ano.`,
+        items: OPP.farFromHigh.map((r) => row(r.asset, fmt.pct(r.gap), `topo de ${fmt.num(r.high, 2)} ${esc(r.currency)} em ${dateLong(r.highDate)}`)),
+        check: "Pode ser uma pechincha ou uma empresa com problema. Leia as notícias (aba Esta semana) e veja se o motivo da queda é passageiro.",
+        empty: "Nenhum ativo caiu tanto do topo do último ano.",
+      },
+      {
+        key: "yield", title: "Proventos acima do normal",
+        rule: `Rendimento dos últimos 12 meses pelo menos ${fmt.share(OPP.rules.yieldPremium - 1, 0)} acima da mediana dos últimos 5 anos.`,
+        items: OPP.yieldHigh.map((r) => row(r.asset, `${fmt.share(r.current, 1)} ao ano`, `mediana de 5 anos: ${fmt.share(r.median, 1)}`)),
+        check: "Rendimento alto pode ser preço barato ou sinal de que o provento vai cair. Confira se o lucro da empresa ou do fundo sustenta o que paga.",
+        empty: "Nenhum ativo paga muito acima do próprio histórico agora.",
+      },
+      {
+        key: "diversify", title: "Índices que reduziriam o risco",
+        rule: "Volatilidade do último ano se 10% da carteira fosse para o índice (tirando proporcionalmente de todas as posições).",
+        items: OPP.diversifiers.map((d) => `<li><span class="asset-cell"><strong>${esc(d.name)}</strong></span><span class="opp-main">${fmt.share(d.volNow)} para ${fmt.share(d.volWith)}</span><small>correlação com a carteira: ${fmt.num(d.corr, 2)}</small></li>`),
+        check: "Diversificar muda também o retorno esperado. Um ETF que acompanhe o índice é o jeito mais simples de ter essa exposição.",
+        empty: "Nenhum dos índices de referência reduziria a volatilidade de forma relevante.",
+      },
+      {
+        key: "target", title: "Abaixo da sua meta",
+        rule: "Ativos mais de 2 p.p. abaixo das metas que você salvou na aba Rebalancear.",
+        items: under ? under.map((u) => row(u.asset, `${fmt.share(u.weight, 1)} de ${fmt.share(u.target, 1)}`, `faltam ${fmt.pp(u.target - u.weight)}`)) : [],
+        check: "Aportes novos nesses ativos aproximam a carteira da meta sem precisar vender nada.",
+        empty: under ? "Todos os ativos estão perto da meta." : "Defina metas na aba Rebalancear para ver este sinal.",
+      },
+      {
+        key: "concentration", title: "Concentração",
+        rule: `Um ativo com mais de ${fmt.share(OPP.rules.concentrationWeight, 0)} do valor ou mais de ${fmt.share(OPP.rules.concentrationRisk, 0)} das oscilações (último ano).`,
+        items: OPP.concentration.map((c) => row(c.asset, c.weight > OPP.rules.concentrationWeight ? `${fmt.share(c.weight, 0)} do valor` : `${fmt.share(c.risk, 0)} do risco`, c.risk !== null ? `${fmt.share(c.weight, 0)} do valor, ${fmt.share(c.risk, 0)} das oscilações` : "")),
+        check: "Se esse ativo cair muito, a carteira inteira sente. Veja se o tamanho foi uma escolha ou só aconteceu com o tempo.",
+        empty: "Nenhuma posição domina o valor ou o risco da carteira.",
+      },
+    ];
+    const total = cards.reduce((s, c) => s + c.items.length, 0);
+    setBadge("oportunidades", total);
+    $("opp-lede").innerHTML = total
+      ? `<strong>${total} ${total === 1 ? "sinal" : "sinais"}</strong> para investigar, encontrados por regras fixas. Cada cartão diz a regra e o que conferir antes de decidir.`
+      : "Nenhum sinal agora. As regras são verificadas a cada análise.";
+    $("opp-grid").innerHTML = cards.map((c) =>
+      `<article class="opp-card${c.items.length ? " has" : ""}"><header><span class="opp-icon">${oppIcon(c.key)}</span><div><h3>${esc(c.title)}</h3><p class="opp-rule">${esc(c.rule)}</p></div>` +
+      `<span class="opp-count">${c.items.length || ""}</span></header>` +
+      (c.items.length ? `<ul class="opp-list">${c.items.join("")}</ul><p class="opp-check"><strong>Antes de decidir:</strong> ${esc(c.check)}</p>` : `<p class="w-empty">${esc(c.empty)}</p>`) +
+      `</article>`).join("");
+  }
+
+  // ---------------------------------------------------------------- tabs
+  // One page at a time; the address keeps the open tab (#renda), so back and forward work.
+  const TAB_ICONS = {
+    resumo: '<rect x="3" y="3" width="6" height="6" rx="1.3"/><rect x="11" y="3" width="6" height="6" rx="1.3"/><rect x="3" y="11" width="6" height="6" rx="1.3"/><rect x="11" y="11" width="6" height="6" rx="1.3"/>',
+    semana: '<rect x="3" y="4.5" width="14" height="12.5" rx="1.8"/><path d="M3 8.5h14M7 3v3M13 3v3"/><path d="M6 13l2-2 2 1.5 3.5-3"/>',
+    risco: '<path d="M10 2.8 4 5.2v4.6c0 3.6 2.5 6.3 6 7.4 3.5-1.1 6-3.8 6-7.4V5.2z"/><path d="M10 7v3.6M10 13.2v.1"/>',
+    cenarios: '<path d="M3 15.5l4-5 3 2.5 6.5-8"/><path d="M12.5 5h4v4"/><path d="M3 17.5h14"/>',
+    renda: '<ellipse cx="9" cy="6" rx="5.5" ry="2.3"/><path d="M3.5 6v3.5c0 1.3 2.5 2.3 5.5 2.3s5.5-1 5.5-2.3V6"/><path d="M3.5 9.5V13c0 1.3 2.5 2.3 5.5 2.3 1 0 1.9-.1 2.7-.3"/><circle cx="14.5" cy="14" r="3"/>',
+    oportunidades: '<circle cx="8.5" cy="8.5" r="5"/><path d="M12.3 12.3 17 17"/><path d="M6.5 9.5l1.5-1.8 1.4 1.1 1.6-2"/>',
+    rebalancear: '<path d="M10 3v14M6 17h8"/><path d="M4 6.5h12"/><path d="M4 6.5 2 11.5h4zM16 6.5l-2 5h4z"/>',
+    metodo: '<path d="M4 4.5c2-1 4-1 6 .5v12c-2-1.5-4-1.5-6-.5z"/><path d="M16 4.5c-2-1-4-1-6 .5v12c2-1.5 4-1.5 6-.5z"/>',
+  };
+  const TABS = [...document.querySelectorAll("#tabs [data-tab]")].map((b) => b.dataset.tab);
+  document.querySelectorAll("#tabs .tab-icon").forEach((s) => {
+    s.innerHTML = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${TAB_ICONS[s.dataset.icon] || ""}</svg>`;
+  });
+  function showTab(name, push) {
+    const tab = TABS.includes(name) ? name : "resumo";
+    document.querySelectorAll(".tab-page").forEach((p) => { p.hidden = p.dataset.page !== tab; });
+    document.querySelectorAll("#tabs [data-tab]").forEach((b) => {
+      const on = b.dataset.tab === tab;
+      b.setAttribute("aria-selected", String(on));
+      b.tabIndex = on ? 0 : -1;
+      // On a phone the bar scrolls sideways: keep the open tab in sight.
+      if (on) { const bar = $("tabs"); bar.scrollLeft = b.offsetLeft - (bar.clientWidth - b.offsetWidth) / 2; }
+    });
+    // The period selector only changes the summary and risk pages.
+    $("periods").classList.toggle("muted-control", !["resumo", "risco"].includes(tab));
+    if (push && location.hash !== "#" + tab) history.pushState(null, "", "#" + tab);
+    hideTip();
+    renderCharts();
+  }
+  $("tabs").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-tab]");
+    if (!b) return;
+    showTab(b.dataset.tab, true);
+    window.scrollTo({ top: $("tabs").offsetTop - 8, behavior: "smooth" });
+  });
+  $("tabs").addEventListener("keydown", (ev) => {
+    if (ev.key !== "ArrowRight" && ev.key !== "ArrowLeft") return;
+    const i = TABS.indexOf(document.activeElement && document.activeElement.dataset.tab);
+    if (i < 0) return;
+    const next = TABS[(i + (ev.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length];
+    showTab(next, true);
+    document.getElementById("tab-" + next).focus();
+    ev.preventDefault();
+  });
+  window.addEventListener("popstate", () => showTab(location.hash.slice(1), false));
+  function setBadge(tab, count) {
+    const badge = $("badge-" + tab);
+    if (!badge) return;
+    badge.hidden = !count;
+    badge.textContent = count ? String(count) : "";
+  }
+
   // ---------------------------------------------------------------- orchestration
   function renderCharts() {
     renderPerformance(current);
@@ -1231,6 +1553,8 @@
     renderRisk(current);
     renderFactorChart();
     renderFutureChart();
+    renderIncomeMonths();
+    renderIncomeFuture();
     renderScenarioBars();
     renderBacktestChart();
     renderIntervalBars();
@@ -1249,6 +1573,10 @@
   renderFactors();
   renderWatch();
   renderFuture();
+  renderIncome();
+  renderOpportunities();
+  setBadge("semana", Object.values(MOVES).filter((m) => m.unusual).length);
+  showTab(location.hash.slice(1), false);
   renderRebalance();
   renderPeriod();
 

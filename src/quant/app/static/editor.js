@@ -8,6 +8,17 @@
   /** @type {{symbol:string,kind:string,name:string,exchange:string,currency:string,price:number|null,live:boolean,quantity:number|null,loading:boolean,error:string|null}[]} */
   let rows = [];
   let years = 2;
+  let typeFilter = "";
+  const TYPE_HINTS = {
+    "": "Ações, FIIs, ETFs, BDRs, fundos e criptomoedas de qualquer bolsa. Escolha um tipo acima para filtrar.",
+    acao: "Nome ou código da empresa: Petrobras, PETR4, ASML, Apple.",
+    fii: "Código do fundo imobiliário, como HGLG11, MXRF11 ou KNCR11.",
+    etf: "Nome ou código do ETF: BOVA11, IVVB11, IWDA, MSCI World.",
+    bdr: "Código do BDR na B3, como AAPL34 ou MSFT34.",
+    fundo: "Nome do fundo de investimento.",
+    cripto: "Nome da moeda: bitcoin, ethereum, solana.",
+  };
+  const typeOf = (x) => assetType({ symbol: x.symbol, kind: x.kind, detail: x.detail, name: x.name, cash: x.kind === "cash" });
 
   // ---------------------------------------------------------------- numbers
   // parseQuantity and formatQuantityInput come from quantity.js (tested with Node).
@@ -41,7 +52,7 @@
   const keyOf = (r) => (r.kind === "cash" ? `cash:${r.symbol}` : r.symbol);
   const CURRENCY_NAMES = { EUR: "euro", BRL: "real", USD: "dólar americano", GBP: "libra", CHF: "franco suíço", JPY: "iene", CAD: "dólar canadense", AUD: "dólar australiano", SEK: "coroa sueca", NOK: "coroa norueguesa", DKK: "coroa dinamarquesa", PLN: "zloty", CNY: "yuan", HKD: "dólar de Hong Kong", MXN: "peso mexicano" };
   function cashRow(currency, quantity) {
-    return { symbol: currency, kind: "cash", name: `Dinheiro em ${CURRENCY_NAMES[currency] || currency}`, exchange: "Caixa", currency, price: 1, live: false, quantity, loading: false, error: null };
+    return { symbol: currency, kind: "cash", type: "caixa", name: `Dinheiro em ${CURRENCY_NAMES[currency] || currency}`, exchange: "Caixa", currency, price: 1, live: false, quantity, loading: false, error: null };
   }
 
   async function loadQuote(row) {
@@ -51,6 +62,7 @@
     try {
       const q = await api(`/api/quote?symbol=${encodeURIComponent(row.symbol)}`);
       Object.assign(row, { name: q.name, exchange: q.exchange, currency: q.currency, price: q.price, live: q.in_progress });
+      row.type = typeOf({ symbol: row.symbol, kind: q.kind || row.qkind, detail: q.detail || row.detail, name: q.name });
     } catch (e) {
       row.error = e.message;
     }
@@ -63,7 +75,7 @@
     $("search").value = "";
     const existing = rows.find((r) => keyOf(r) === hit.symbol);
     if (existing) { focusQty(keyOf(existing)); return; }
-    const row = { symbol: hit.symbol, kind: "instrument", name: hit.name, exchange: hit.exchange, currency: "", price: null, live: false, quantity: null, loading: true, error: null };
+    const row = { symbol: hit.symbol, kind: "instrument", qkind: hit.kind, detail: hit.detail, type: hit.type || typeOf(hit), name: hit.name, exchange: hit.exchange, currency: "", price: null, live: false, quantity: null, loading: true, error: null };
     rows.push(row);
     render();
     focusQty(keyOf(row));
@@ -83,7 +95,7 @@
 
   function cells(r) {
     return {
-      asset: `${esc(r.kind === "cash" ? `Caixa ${r.symbol}` : r.symbol)}<span class="name">${esc(r.error || r.name || "")}</span>`,
+      asset: `<span class="asset-cell"><span class="type-badge t-${esc(r.type || "acao")}" title="${esc((ASSET_TYPES.find((t) => t.key === r.type) || {}).one || "")}">${assetIcon(r.type || "acao", 16)}</span><span>${esc(r.kind === "cash" ? `Caixa ${r.symbol}` : r.symbol)}<span class="name">${esc(r.error || r.name || "")}</span></span></span>`,
       exchange: esc(r.exchange || ""),
       currency: esc(r.currency || ""),
       price: r.kind === "cash" ? "—" : esc(r.loading ? "buscando…" : r.error ? "sem cotação" : fmtMoney(r.price, r.currency)) +
@@ -171,19 +183,21 @@
   }
   function showHits() {
     if (!hits.length) { showState("Nada encontrado. Tente o código, como PETR4 ou ASML."); return; }
-    shown = region ? hits.filter((h) => h.region === region) : hits;
+    const ofType = typeFilter ? hits.filter((h) => h.type === typeFilter) : hits;
+    shown = region ? ofType.filter((h) => h.region === region) : ofType;
     if (active >= shown.length) active = shown.length - 1;
     const counts = {};
-    hits.forEach((h) => { counts[h.region] = (counts[h.region] || 0) + 1; });
+    ofType.forEach((h) => { counts[h.region] = (counts[h.region] || 0) + 1; });
     const chips = REGIONS.filter(([key]) => !key || counts[key]).map(([key, label]) =>
-      `<button type="button" class="chip" data-region="${key}" aria-pressed="${key === region}">${label}<span>${key ? counts[key] : hits.length}</span></button>`
+      `<button type="button" class="chip" data-region="${key}" aria-pressed="${key === region}">${label}<span>${key ? counts[key] : ofType.length}</span></button>`
     ).join("");
     const rowsHtml = shown.map((h, i) =>
       `<li role="option" id="hit-${i}" data-i="${i}" aria-selected="${i === active}">` +
-      `<span class="sym">${esc(h.symbol)}</span><span class="nm">${esc(h.name)}${h.detail ? `<small>${esc(h.detail)}</small>` : ""}</span>` +
-      `<span class="ex">${esc(h.exchange)}<small>${esc(KINDS[h.kind] || h.kind)}</small></span></li>`
+      `<span class="sym"><span class="type-badge t-${h.type}" title="${esc((ASSET_TYPES.find((t) => t.key === h.type) || {}).one || "")}">${assetIcon(h.type, 16)}</span>${esc(h.symbol)}</span><span class="nm">${esc(h.name)}${h.detail ? `<small>${esc(h.detail)}</small>` : ""}</span>` +
+      `<span class="ex">${esc(h.exchange)}<small>${esc((ASSET_TYPES.find((t) => t.key === h.type) || {}).one || KINDS[h.kind] || h.kind)}</small></span></li>`
     ).join("");
-    const empty = shown.length ? "" : `<li class="state-row" aria-disabled="true">Nenhum resultado nesse mercado entre os carregados.</li>`;
+    const typeName = typeFilter ? (ASSET_TYPES.find((t) => t.key === typeFilter) || {}).label : "";
+    const empty = shown.length ? "" : `<li class="state-row" aria-disabled="true">${typeFilter && !ofType.length ? `Nenhum resultado do tipo ${esc(typeName)} entre os carregados. ${next !== null ? "Role para carregar mais ou " : ""}tente o código.` : "Nenhum resultado nesse mercado entre os carregados."}</li>`;
     const more = next === null ? "" :
       `<li class="more-row" role="option" aria-disabled="true"><button type="button" class="more" ${loadingMore ? "disabled" : ""}>${loadingMore ? "Carregando…" : "Mostrar mais resultados"}</button></li>`;
     list.innerHTML = `<li class="filter-row" role="presentation">${chips}</li>${rowsHtml}${empty}${more}`;
@@ -200,7 +214,7 @@
       const data = await api(`/api/search?q=${encodeURIComponent(query)}&start=${next}`);
       if (mine !== seq) return;
       const known = new Set(hits.map((h) => h.symbol));
-      hits = hits.concat(data.results.filter((h) => !known.has(h.symbol)));
+      hits = hits.concat(data.results.filter((h) => !known.has(h.symbol)).map((h) => Object.assign(h, { type: typeOf(h) })));
       next = data.next;
     } catch (e) {
       if (mine === seq) next = null;
@@ -220,7 +234,7 @@
       try {
         const data = await api(`/api/search?q=${encodeURIComponent(text)}`);
         if (mine !== seq) return;
-        query = text; hits = data.results; next = data.next; active = hits.length ? 0 : -1;
+        query = text; hits = data.results.map((h) => Object.assign(h, { type: typeOf(h) })); next = data.next; active = hits.length ? 0 : -1;
         showHits();
       } catch (e) {
         if (mine === seq) showState(e.message);
@@ -254,6 +268,31 @@
     if (!existing) { rows.push(cashRow(currency, null)); render(); saveDraft(); }
     focusQty(`cash:${currency}`);
   });
+
+  // ---------------------------------------------------------------- type picker
+  function renderTypePicker() {
+    const all = [{ key: "", label: "Todos" }].concat(ASSET_TYPES);
+    $("type-picker").innerHTML = all.map((t) =>
+      `<button type="button" class="type-option t-${t.key || "all"}" data-type="${t.key}" aria-pressed="${t.key === typeFilter}">` +
+      `<span class="type-badge t-${t.key || "all"}">${t.key ? assetIcon(t.key, 18) : '<svg class="asset-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="5.5" height="5.5" rx="1.2"/><rect x="11.5" y="3" width="5.5" height="5.5" rx="1.2"/><rect x="3" y="11.5" width="5.5" height="5.5" rx="1.2"/><rect x="11.5" y="11.5" width="5.5" height="5.5" rx="1.2"/></svg>'}</span>` +
+      `<span>${t.label}</span></button>`).join("");
+    const cash = typeFilter === "caixa";
+    $("search-area").hidden = cash;
+    $("cash-area").hidden = !cash;
+    $("search-hint").textContent = TYPE_HINTS[typeFilter] || TYPE_HINTS[""];
+    const one = (ASSET_TYPES.find((t) => t.key === typeFilter) || {}).one;
+    input.placeholder = typeFilter ? `Buscar ${one.toLowerCase()}` : "Nome ou código: Petrobras, HGLG11, IWDA, bitcoin";
+  }
+  $("type-picker").addEventListener("click", (ev) => {
+    const b = ev.target.closest("button[data-type]");
+    if (!b) return;
+    typeFilter = b.dataset.type;
+    renderTypePicker();
+    active = 0;
+    if (hits.length) showHits();
+    if (typeFilter !== "caixa") input.focus(); else $("cash-currency").focus();
+  });
+  renderTypePicker();
 
   // ---------------------------------------------------------------- analyse
   document.querySelectorAll("#years button").forEach((b) => b.addEventListener("click", () => {
@@ -296,7 +335,7 @@
       document.querySelectorAll("#years button").forEach((x) => x.setAttribute("aria-pressed", String(+x.dataset.years === years)));
     }
     rows = source.map((p) => p.kind === "cash" ? cashRow(p.currency, p.quantity)
-      : { symbol: p.symbol, kind: "instrument", name: "", exchange: "", currency: p.currency || "", price: null, live: false, quantity: p.quantity, loading: true, error: null });
+      : { symbol: p.symbol, kind: "instrument", type: typeOf({ symbol: p.symbol }), name: "", exchange: "", currency: p.currency || "", price: null, live: false, quantity: p.quantity, loading: true, error: null });
     render();
     await Promise.all(rows.map(loadQuote));
     const r = await fetch("/report", { redirect: "manual" });
