@@ -84,6 +84,7 @@ The report is a single self-contained HTML file:
 | Covariance for optimisation | Shrinkage to a scaled identity; matches scikit-learn | Ledoit and Wolf (2004) |
 | Risk parity | Gives inverse-volatility weights for independent assets, and equal risk contributions with correlation | Griveau-Billion, Richard and Roncalli (2013) |
 | Time- and money-weighted returns | Hand-built log with two contributions and one sale: TWR equals the price return, gains add up, the NPV is zero at the XIRR | GIPS; Bacon (2008) |
+| Rule backtests and their Sharpe | Probabilistic and deflated Sharpe ratio, allowing for skew, fat tails and the number of rules tried | Bailey and López de Prado (2012, 2014) |
 | Brinson attribution | Effects add up to the active return in every period; style analysis recovers a known regional mix | Brinson, Hood and Beebower (1986); Sharpe (1992) |
 | Portfolio value | Independent pandas recomputation on a live 12-asset, 6-currency portfolio | |
 

@@ -35,6 +35,7 @@ from quant.risk import (
     risk_contributions,
 )
 from quant.rules import RULES, RuleParams, backtest_rule
+from quant.sharpe import deflated_sharpe, probabilistic_sharpe
 from quant.signals import (
     CONCENTRATION_RISK,
     CONCENTRATION_WEIGHT,
@@ -1070,9 +1071,18 @@ def _rules(base_prices: pd.DataFrame, weights: pd.Series) -> dict[str, Any] | No
     params = RuleParams(cost=RULE_COST)
     dates = pd.DatetimeIndex(base_prices.index)
     items: list[dict[str, Any]] = []
+    moments: dict[str, tuple[float, int, float, float]] = {}  # daily Sharpe, n, skew, kurtosis
     for rule in RULES:
         r = backtest_rule(prices, targets, rule, params)
         stats = summary(pd.Series(r.value, index=dates))
+        daily = pd.Series(r.value).pct_change().dropna()
+        sd = float(daily.std(ddof=1))
+        moments[rule] = (
+            float(daily.mean()) / sd if sd > 0 else 0.0,
+            len(daily),
+            float(cast(float, daily.skew())),
+            float(cast(float, daily.kurt())) + 3.0,
+        )
         years = max(float(stats["years"] or 0.0), 1e-9)
         items.append(
             {
@@ -1087,9 +1097,15 @@ def _rules(base_prices: pd.DataFrame, weights: pd.Series) -> dict[str, Any] | No
                 "turnover": _num(r.turnover / years, 4),
                 "costs": _num(r.costs, 6),
                 "trades": r.trades,
+                "psr": _num(probabilistic_sharpe(*moments[rule]), 4),
             }
         )
+    # Deflate the best rule's Sharpe for having tried all of them (Bailey and Lopez de Prado).
+    best = max(moments, key=lambda k: moments[k][0])
+    trials = [m[0] for m in moments.values()]
     return {
+        "best": best,
+        "deflated": _num(deflated_sharpe(*moments[best], trials), 4),
         "dates": [_iso(d) for d in dates],
         "cost": RULE_COST,
         "every": params.every,

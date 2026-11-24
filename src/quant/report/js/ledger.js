@@ -119,13 +119,15 @@ function renderRules() {
   const hold = items.find((x) => x.key === "buy_and_hold");
   $("rules-lede").innerHTML = L(
     `Mesmos ativos e pesos de hoje, ${fmt.share(RULE_DATA.cost, 1)} de custo em cada operação. Melhor retorno por risco: <strong>${esc(RULE_NAMES[best.key]())}</strong>, Sharpe ${fmt.num(best.sharpe, 2)} contra ${fmt.num(hold.sharpe, 2)} de comprar e segurar.`,
-    `Today's assets and weights, ${fmt.share(RULE_DATA.cost, 1)} cost on every trade. Best return per unit of risk: <strong>${esc(RULE_NAMES[best.key]())}</strong>, Sharpe ${fmt.num(best.sharpe, 2)} against ${fmt.num(hold.sharpe, 2)} for buy and hold.`);
+    `Today's assets and weights, ${fmt.share(RULE_DATA.cost, 1)} cost on every trade. Best return per unit of risk: <strong>${esc(RULE_NAMES[best.key]())}</strong>, Sharpe ${fmt.num(best.sharpe, 2)} against ${fmt.num(hold.sharpe, 2)} for buy and hold.`) +
+    L(` Descontando ter testado ${items.length} regras (Sharpe deflacionado), a chance de a melhor ter retorno por risco acima do que a sorte daria é <strong>${fmt.share(RULE_DATA.deflated, 0)}</strong>.`,
+      ` Allowing for having tried ${items.length} rules (deflated Sharpe ratio), the probability that the best one beats what luck alone would show is <strong>${fmt.share(RULE_DATA.deflated, 0)}</strong>.`);
   const colors = RULE_COLORS();
   $("rules-legend").innerHTML = items.map((x) => `<span class="key"><span class="swatch" style="background:${colors[x.key]}"></span>${esc(RULE_NAMES[x.key]())}</span>`).join("");
-  const head = [L("Regra", "Rule"), L("Retorno ao ano", "CAGR"), L("Volatilidade", "Volatility"), "Sharpe", L("Pior queda", "Max drawdown"), L("Giro ao ano", "Turnover / year"), L("Custos", "Costs"), L("Operações", "Rebalances")];
+  const head = [L("Regra", "Rule"), L("Retorno ao ano", "CAGR"), L("Volatilidade", "Volatility"), "Sharpe", L("P(Sharpe > 0)", "P(Sharpe > 0)"), L("Pior queda", "Max drawdown"), L("Giro ao ano", "Turnover / year"), L("Custos", "Costs"), L("Operações", "Rebalances")];
   $("rules-table").innerHTML = `<thead><tr>${head.map((h, i) => `<th${i ? ' class="r"' : ""}>${h}</th>`).join("")}</tr></thead><tbody>` +
     items.map((x) => `<tr${x.key === best.key ? ' class="best"' : ""}><td><span class="swatch-inline" style="background:${colors[x.key]}"></span><strong>${esc(RULE_NAMES[x.key]())}</strong></td>` +
-      `<td class="r">${fmt.pct(x.cagr)}</td><td class="r">${fmt.share(x.volatility)}</td><td class="r">${x.sharpe === null ? "—" : fmt.num(x.sharpe, 2)}</td>` +
+      `<td class="r">${fmt.pct(x.cagr)}</td><td class="r">${fmt.share(x.volatility)}</td><td class="r">${x.sharpe === null ? "—" : fmt.num(x.sharpe, 2)}</td><td class="r">${fmt.share(x.psr, 0)}</td>` +
       `<td class="r down">${fmt.pct(x.maxDrawdown)}</td><td class="r">${fmt.share(x.turnover, 0)}</td><td class="r">${fmt.share(x.costs, 2)}</td><td class="r">${x.trades}</td></tr>`).join("") + "</tbody>";
 }
 

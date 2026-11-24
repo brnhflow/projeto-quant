@@ -25,7 +25,8 @@ $r_t = P_t / P_{t-1} - 1$ in euro unless stated otherwise; a year has 252 tradin
 17. [Three VaR models on the portfolio](#17-three-var-models-on-the-portfolio)
 18. [Volatility targeting](#18-volatility-targeting)
 19. [Rebalancing rules, backtested](#19-rebalancing-rules-backtested)
-20. [References](#references)
+20. [Is a Sharpe ratio real?](#20-is-a-sharpe-ratio-real)
+21. [References](#references)
 
 ## 1. Data and portfolio value
 
@@ -471,6 +472,27 @@ initial purchase; its cost is charged to every rule alike.
 hand, costs only ever lowering value, bands trading far less often than a daily calendar, the
 volatility target cutting volatility in a rough regime, no decision changing when future prices
 change, and the C++ engine matching the Python reference to 1e-12 for every rule.
+
+## 20. Is a Sharpe ratio real?
+
+`sharpe.py`
+
+Each rule's **probabilistic Sharpe ratio** (Bailey and López de Prado, 2012) is the probability
+that its true Sharpe exceeds zero, given the estimate $\widehat{SR}$ (per day), the number of
+returns $n$, skewness $\gamma_3$ and kurtosis $\gamma_4$:
+
+$$\text{PSR} = \Phi\!\left(\frac{\widehat{SR}\,\sqrt{n-1}}{\sqrt{1 - \gamma_3 \widehat{SR} + \frac{\gamma_4 - 1}{4}\widehat{SR}^2}}\right)$$
+
+The best rule's **deflated Sharpe ratio** (Bailey and López de Prado, 2014) uses as benchmark the
+Sharpe the best of $N$ trials would reach by luck,
+$SR_0 = \sqrt{V}\,\big((1-\gamma)\,\Phi^{-1}(1 - 1/N) + \gamma\,\Phi^{-1}(1 - 1/(Ne))\big)$, with $V$ the
+variance of the trials' Sharpe ratios and $\gamma$ the Euler-Mascheroni constant. The four rules
+hold the same assets, so their Sharpe ratios are close and the deflation is small; with many
+unrelated strategies it would be large.
+
+*Checks* (`tests/test_sharpe.py`): PSR is one half at the benchmark and matches the closed form for
+normal returns; more data and thinner tails raise it; the expected maximum grows with $N$ and is
+within 2% of the exact value for 20 normals (1.90 against 1.8675); more trials lower the DSR.
 
 ## References
 
