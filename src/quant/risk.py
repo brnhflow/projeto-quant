@@ -2,6 +2,7 @@
 
 import math
 
+import numpy as np
 import pandas as pd
 
 TRADING_DAYS = 252
@@ -197,3 +198,76 @@ def effective_number_of_positions(weights: pd.Series) -> float:
         raise ValueError("weights must be non-negative, not missing, and not all zero")
     w = weights / weights.sum()
     return float(1 / (w**2).sum())
+
+
+def ledoit_wolf(returns: pd.DataFrame) -> tuple[pd.DataFrame, float]:
+    """Covariance matrix shrunk towards a scaled identity (Ledoit and Wolf, 2004).
+
+    The sample covariance of many assets over few days is noisy: its extreme entries are
+    too extreme, and optimisers built on it (risk parity, minimum variance) chase that
+    noise. Ledoit-Wolf blends it with ``mu * I`` (``mu`` the average variance), choosing
+    the blend that minimises the expected squared error:
+
+    ``S* = d * mu * I + (1 - d) * S``, with ``d = min(b, a) / a``, where ``a`` is the
+    squared distance between ``S`` and the target and ``b`` estimates how much of that
+    distance is sampling noise. Both use the maximum-likelihood ``S`` (divided by n).
+
+    Parameters
+    ----------
+    returns : pd.DataFrame
+        Periodic returns, one column per asset, no missing values.
+
+    Returns
+    -------
+    covariance : pd.DataFrame
+        Shrunk covariance, same units as ``returns`` (per period, not annualised).
+    shrinkage : float
+        ``d`` between 0 (the sample matrix) and 1 (the target).
+
+    Raises
+    ------
+    ValueError
+        With missing values or fewer than two observations.
+
+    """
+    if returns.isna().to_numpy().any() or len(returns) < 2:
+        raise ValueError("need at least two rows without missing values")
+    x = returns.to_numpy(dtype=float)
+    x = x - x.mean(axis=0)
+    n, p = x.shape
+    sample = (x.T @ x) / n
+    mu = float(sample.trace()) / p
+    target = mu * np.eye(p)
+    distance = float(((sample - target) ** 2).sum()) / p
+    noise = sum(float(((np.outer(row, row) - sample) ** 2).sum()) for row in x) / (n * n * p)
+    shrinkage = 0.0 if distance <= 0 else min(noise, distance) / distance
+    shrunk = shrinkage * target + (1 - shrinkage) * sample
+    return pd.DataFrame(shrunk, index=returns.columns, columns=returns.columns), shrinkage
+
+
+def risk_adjusted_ratios(value: pd.Series) -> dict[str, float | None]:
+    """Sharpe, Sortino and Calmar ratios of a value series (no risk-free rate).
+
+    - Sharpe: mean daily return over its standard deviation, times sqrt(252).
+    - Sortino: the same mean over the downside deviation ``sqrt(mean(min(r, 0)^2))``,
+      so only falls count as risk.
+    - Calmar: compound annual return over the size of the worst drawdown.
+
+    A ratio is None when its denominator is zero (no variation, no fall).
+    """
+    returns = value.pct_change().dropna()
+    if len(returns) < 2:
+        return {"sharpe": None, "sortino": None, "calmar": None}
+    r = returns.to_numpy(dtype=float)
+    mean, sd = float(r.mean()), float(r.std(ddof=1))
+    downside = math.sqrt(float((np.minimum(r, 0.0) ** 2).mean()))
+    years = len(r) / TRADING_DAYS
+    growth = float(value.iloc[-1] / value.iloc[0])
+    annual = growth ** (1 / years) - 1 if growth > 0 else -1.0
+    worst = max_drawdown(value)
+    scale = math.sqrt(TRADING_DAYS)
+    return {
+        "sharpe": mean / sd * scale if sd > 1e-12 else None,
+        "sortino": mean / downside * scale if downside > 1e-12 else None,
+        "calmar": annual / -worst if worst < 0 else None,
+    }

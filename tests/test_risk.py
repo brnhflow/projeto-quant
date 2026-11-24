@@ -9,7 +9,9 @@ from quant.risk import (
     drawdown,
     effective_number_of_positions,
     historical_var_es,
+    ledoit_wolf,
     max_drawdown,
+    risk_adjusted_ratios,
     risk_contributions,
 )
 
@@ -228,3 +230,71 @@ def test_risk_contributions_rejects_zero_variance() -> None:
 def test_effective_number_rejects_bad_weights(weights: list[float]) -> None:
     with pytest.raises(ValueError):
         effective_number_of_positions(pd.Series(weights))
+
+
+# ---------------------------------------------------------------- Ledoit-Wolf
+
+
+def _correlated(n: int, p: int, seed: int = 0) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+    return pd.DataFrame(rng.normal(size=(n, p)) @ rng.normal(size=(p, p)) * 0.01)
+
+
+def test_ledoit_wolf_matches_scikit_learn() -> None:
+    # Reference: sklearn.covariance.LedoitWolf().fit(x).shrinkage_ on this same data
+    # (scikit-learn 1.x, checked on 2026-11-24).
+    cov, shrinkage = ledoit_wolf(_correlated(60, 8))
+
+    assert shrinkage == pytest.approx(0.15923760527622885, rel=1e-12)
+    assert cov.shape == (8, 8)
+
+
+def test_ledoit_wolf_keeps_the_average_variance_and_shrinks_the_rest() -> None:
+    returns = _correlated(60, 8)
+    x = returns - returns.mean()
+    sample = (x.T @ x) / len(x)
+
+    cov, shrinkage = ledoit_wolf(returns)
+
+    assert 0 < shrinkage < 1
+    assert float(cov.to_numpy().trace()) == pytest.approx(float(sample.to_numpy().trace()))
+    off = ~np.eye(8, dtype=bool)
+    assert np.abs(cov.to_numpy()[off]).sum() == pytest.approx(
+        (1 - shrinkage) * np.abs(sample.to_numpy()[off]).sum()
+    )
+    assert np.linalg.eigvalsh(cov.to_numpy()).min() > 0
+
+
+def test_ledoit_wolf_shrinks_less_with_more_data() -> None:
+    _, few = ledoit_wolf(_correlated(30, 8, seed=1))
+    _, many = ledoit_wolf(_correlated(3000, 8, seed=1))
+
+    assert many < few
+
+
+def test_ledoit_wolf_rejects_gaps() -> None:
+    with pytest.raises(ValueError):
+        ledoit_wolf(pd.DataFrame({"a": [0.01, None, 0.02]}))
+
+
+# ---------------------------------------------------------------- ratios
+
+
+def test_ratios_on_a_known_path() -> None:
+    value = pd.Series([100.0, 110.0, 99.0, 108.9])  # +10%, -10%, +10%
+
+    ratios = risk_adjusted_ratios(value)
+
+    r = np.array([0.1, -0.1, 0.1])
+    assert ratios["sharpe"] == pytest.approx(r.mean() / r.std(ddof=1) * np.sqrt(252))
+    assert ratios["sortino"] == pytest.approx(r.mean() / np.sqrt(0.01 / 3) * np.sqrt(252))
+    annual = (108.9 / 100) ** (252 / 3) - 1
+    assert ratios["calmar"] == pytest.approx(annual / 0.1)
+
+
+def test_ratios_without_falls_or_variation_are_undefined() -> None:
+    ratios = risk_adjusted_ratios(pd.Series([100.0, 101.0, 102.01]))
+
+    assert ratios["sortino"] is None
+    assert ratios["calmar"] is None
+    assert ratios["sharpe"] is None  # constant 1% a day: no variation

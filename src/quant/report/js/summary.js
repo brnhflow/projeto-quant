@@ -263,6 +263,12 @@ function mix(hexA, hexB, t) {
 }
 
 function renderRisk(p) {
+  const r = p.ratios || {};
+  const ratio = (label, v, note) => `<div class="reb-fig"><p class="label">${label}</p><p class="value">${v === null || v === undefined ? "—" : fmt.num(v, 2)}</p><p class="note">${note}</p></div>`;
+  $("ratios").innerHTML =
+    ratio("Sharpe", r.sharpe, "Retorno por unidade de oscilação.") +
+    ratio("Sortino", r.sortino, "Retorno por unidade de queda.") +
+    ratio("Calmar", r.calmar, "Retorno anual dividido pela pior queda.");
   const legend = $("risk-legend"), chart = $("chart-risk"), corr = $("corr"), scale = $("corr-scale");
   if (!p.risk) {
     const msg = `<div class="empty">Precisa de ${D.minDaysCovariance} dias de dados; este período tem ${p.days}.</div>`;

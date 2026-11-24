@@ -27,6 +27,8 @@ from quant.risk import (
     drawdown,
     effective_number_of_positions,
     historical_var_es,
+    ledoit_wolf,
+    risk_adjusted_ratios,
     risk_contributions,
 )
 from quant.signals import (
@@ -194,6 +196,9 @@ def _period_data(
         },
         "drawdown": [_num(float(x)) for x in dd],
         "var": var_block,
+        "ratios": {
+            k: None if v is None else _num(v, 3) for k, v in risk_adjusted_ratios(v).items()
+        },
         "attribution": [
             {
                 "asset": str(asset),
@@ -234,10 +239,12 @@ def _covariance(base_prices: pd.DataFrame, order: list[str]) -> dict[str, Any] |
     returns = simple_returns(base_prices[order]).iloc[-COVARIANCE_DAYS:]
     if len(returns) < MIN_DAYS_COVARIANCE:
         return None
-    matrix = (returns.cov() * 252).to_numpy(dtype=float)
+    shrunk, shrinkage = ledoit_wolf(returns)
+    matrix = (shrunk * 252).to_numpy(dtype=float)
     return {
         "assets": order,
         "days": len(returns),
+        "shrinkage": _num(shrinkage, 4),
         "matrix": [
             [_num(float(matrix[i, j]), 10) for j in range(len(order))] for i in range(len(order))
         ],

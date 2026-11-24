@@ -90,6 +90,7 @@
 <section class="block">
   <h2>Risco</h2>
   <p class="lede" id="risk-lede"></p>
+  <div class="reb-summary ratios" id="ratios"></div>
   <div class="two-col">
     <div>
       <h3 class="chart-title">Peso na carteira e parcela do risco</h3>
@@ -362,6 +363,15 @@
     abaixo de 1 quer dizer que a carteira caiu menos que o índice nos dias de queda. O MSCI
     ACWI vem de um ETF com dividendos; os outros índices não incluem dividendos, o que
     favorece a carteira em cerca de 2 a 4 pontos por ano.</dd>
+    <dt>Sharpe, Sortino e Calmar</dt>
+    <dd>Retorno por unidade de risco, sem descontar a taxa livre de risco. Sharpe usa a
+    volatilidade; Sortino, só as quedas; Calmar, o retorno anual dividido pela pior queda.
+    Acima de 1 é bom; acima de 2 é raro e merece desconfiança se o período for curto.</dd>
+    <dt>Covariância Ledoit-Wolf</dt>
+    <dd>Paridade de risco e rebalanceamento usam a covariância de Ledoit e Wolf (2004): a
+    covariância amostral misturada com uma matriz mais simples, na proporção que minimiza o
+    erro esperado. Com poucos dias e muitos ativos, a amostral exagera correlações e
+    variâncias extremas, e qualquer otimização em cima dela persegue esse ruído.</dd>
     <dt>Calendário e câmbio</dt>
     <dd>Dias úteis europeus. Num feriado de outra bolsa, o ativo vale o último fechamento (até
     5 dias); o fim de semana das criptomoedas entra na segunda-feira. Cada preço é convertido

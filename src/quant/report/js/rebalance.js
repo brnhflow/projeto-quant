@@ -111,7 +111,7 @@ function updateRebalance() {
     const v0 = portfolioVol(cov, positions.map((p) => p.weight)), v1 = portfolioVol(cov, after);
     const top = (w) => { const s = riskShares(cov, w); const k = s.indexOf(Math.max(...s)); return { asset: assets[k], share: s[k] }; };
     const t0 = top(positions.map((p) => p.weight)), t1 = top(after);
-    risk = `<div class="reb-fig"><p class="label">Volatilidade anual</p><p class="value">${fmt.share(v0)} <span class="arrow-word">para</span> ${fmt.share(v1)}</p><p class="note">${v1 < v0 - 0.0005 ? "A carteira fica mais estável." : v1 > v0 + 0.0005 ? "A carteira fica mais arriscada." : "Risco praticamente igual."} Covariâncias dos últimos ${C.days} dias.</p></div>` +
+    risk = `<div class="reb-fig"><p class="label">Volatilidade anual</p><p class="value">${fmt.share(v0)} <span class="arrow-word">para</span> ${fmt.share(v1)}</p><p class="note">${v1 < v0 - 0.0005 ? "A carteira fica mais estável." : v1 > v0 + 0.0005 ? "A carteira fica mais arriscada." : "Risco praticamente igual."} Covariância Ledoit-Wolf dos últimos ${C.days} dias.</p></div>` +
       `<div class="reb-fig"><p class="label">Maior fonte de risco</p><p class="value">${esc(t1.asset)} ${fmt.share(t1.share, 0)}</p><p class="note">Hoje: ${esc(t0.asset)} com ${fmt.share(t0.share, 0)} das oscilações.</p></div>`;
   }
   const turnover = (bought + sold) / Math.max(1, positions.reduce((a, p) => a + p.value, 0));
