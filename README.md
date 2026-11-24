@@ -115,3 +115,7 @@ made-up or public data. API keys go in `.env` (see `.env.example`), which is als
   and adjustment errors; each data source will document what it is known to get wrong.
 - I am learning as I build this (calculus, linear algebra, ODEs, C++). Expect the early
   modules to be simple, and the git history to show the learning.
+
+## License
+
+MIT. See `LICENSE`. Nothing here is financial advice.
