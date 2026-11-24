@@ -9,11 +9,13 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
 
+#include "quant/backtest.hpp"
 #include "quant/risk.hpp"
 
 namespace nb = nanobind;
 using Input = nb::ndarray<const double, nb::ndim<1>, nb::c_contig, nb::device::cpu>;
 using Output = nb::ndarray<nb::numpy, double>;
+using Matrix = nb::ndarray<const double, nb::ndim<2>, nb::c_contig, nb::device::cpu>;
 
 namespace {
 
@@ -80,4 +82,21 @@ NB_MODULE(quant_core, m) {
         },
         nb::arg("returns"), nb::arg("samples"), nb::arg("mean_block"), nb::arg("seed"),
         "Stationary bootstrap: samples x [annual return, volatility, Sharpe, VaR 95%].");
+
+    m.def(
+        "backtest_rule",
+        [](const Matrix& prices, const Input& targets, int rule, double cost, std::size_t every, double band,
+           double vol_target, double lam, std::size_t seed) {
+            quant::RuleParams p{static_cast<quant::Rule>(rule), cost, every, band, vol_target, lam, seed};
+            quant::RuleResult r;
+            {
+                nb::gil_scoped_release release;
+                r = quant::backtest_rule({prices.data(), prices.shape(0) * prices.shape(1)}, prices.shape(0),
+                                         prices.shape(1), view(targets), p);
+            }
+            return nb::make_tuple(to_numpy(std::move(r.value)), r.turnover, r.costs, r.trades);
+        },
+        nb::arg("prices"), nb::arg("targets"), nb::arg("rule"), nb::arg("cost"), nb::arg("every"), nb::arg("band"),
+        nb::arg("vol_target"), nb::arg("lam"), nb::arg("seed"),
+        "Walk-forward backtest of one allocation rule: (daily value, turnover, costs, rebalances).");
 }

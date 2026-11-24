@@ -6,6 +6,7 @@
 #include <random>
 #include <vector>
 
+#include "quant/backtest.hpp"
 #include "quant/risk.hpp"
 
 namespace {
@@ -90,9 +91,35 @@ void bootstrap_is_reproducible_from_its_seed() {
           "the result does not depend on the number of threads");
 }
 
+void buy_and_hold_never_trades_and_tracks_prices() {
+    // Two assets, 50/50: one doubles, one stays. Buy and hold ends at 1.5 minus the entry cost.
+    const std::vector<double> prices = {1, 1, 1.5, 1, 2, 1};
+    const std::vector<double> targets = {0.5, 0.5};
+    quant::RuleParams p;
+    p.cost = 0.0;
+    const auto r = quant::backtest_rule(prices, 3, 2, targets, p);
+    check(near(r.value[2], 1.5) && r.trades == 0, "buy and hold: 0.5 x 2 + 0.5 x 1");
+}
+
+void calendar_rebalance_pays_its_costs() {
+    const std::vector<double> prices = {1, 1, 2, 1, 2, 1};
+    const std::vector<double> targets = {0.5, 0.5};
+    quant::RuleParams p;
+    p.rule = quant::Rule::Calendar;
+    p.every = 1;
+    p.cost = 0.01;
+    const auto r = quant::backtest_rule(prices, 3, 2, targets, p);
+    // Day 0: buys 1.0 of assets, pays 0.01. Day 1: value 0.99 x 1.5; selling and buying
+    // 0.25 x 0.99 x ... moves 2 x 0.2475 = 0.495 and pays 0.00495.
+    check(near(r.value[1], 0.99 * 1.5 - 0.00495, 1e-12), "calendar: value after the day-1 rebalance");
+    check(r.trades == 2, "calendar every day: two rebalances after the purchase");
+}
+
 }  // namespace
 
 int main() {
+    buy_and_hold_never_trades_and_tracks_prices();
+    calendar_rebalance_pays_its_costs();
     quantile_index_matches_the_python_rule();
     historical_var_is_the_window_quantile();
     ewma_follows_the_recursion();

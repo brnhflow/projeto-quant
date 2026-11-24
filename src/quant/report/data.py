@@ -34,6 +34,7 @@ from quant.risk import (
     risk_adjusted_ratios,
     risk_contributions,
 )
+from quant.rules import RULES, RuleParams, backtest_rule
 from quant.signals import (
     CONCENTRATION_RISK,
     CONCENTRATION_WEIGHT,
@@ -1053,6 +1054,51 @@ def _result(
     }
 
 
+RULE_COST = 0.001  # 0.1% of each amount traded: commission and spread on liquid markets
+
+
+def _rules(base_prices: pd.DataFrame, weights: pd.Series) -> dict[str, Any] | None:
+    """Backtest four allocation rules on today's assets and weights, with trading costs.
+
+    Today's weights are the targets for the whole history, which is hindsight about the
+    composition (as everywhere in the report); the rules' decisions use only past prices.
+    """
+    if len(base_prices) < 120:
+        return None
+    prices = base_prices.to_numpy(dtype=float)
+    targets = weights.reindex(base_prices.columns).to_numpy(dtype=float)
+    params = RuleParams(cost=RULE_COST)
+    dates = pd.DatetimeIndex(base_prices.index)
+    items: list[dict[str, Any]] = []
+    for rule in RULES:
+        r = backtest_rule(prices, targets, rule, params)
+        stats = summary(pd.Series(r.value, index=dates))
+        years = max(float(stats["years"] or 0.0), 1e-9)
+        items.append(
+            {
+                "key": rule,
+                "values": [_num(float(x), 5) for x in r.value],
+                "cagr": _num(cast(float, stats["cagr"])),
+                "volatility": _num(cast(float, stats["volatility"])),
+                "sharpe": None
+                if stats["sharpe"] is None
+                else _num(cast(float, stats["sharpe"]), 4),
+                "maxDrawdown": _num(cast(float, stats["maxDrawdown"])),
+                "turnover": _num(r.turnover / years, 4),
+                "costs": _num(r.costs, 6),
+                "trades": r.trades,
+            }
+        )
+    return {
+        "dates": [_iso(d) for d in dates],
+        "cost": RULE_COST,
+        "every": params.every,
+        "band": params.band,
+        "volTarget": params.vol_target,
+        "items": items,
+    }
+
+
 def _ledger(
     transactions: pd.DataFrame | None,
     holdings: pd.DataFrame,
@@ -1468,6 +1514,7 @@ def build_report_data(
         "benchmarks": _benchmarks(value, proxy_prices, fx_rates, base),
         "tearsheet": _tearsheet(value, proxy_prices, fx_rates, base),
         "ledger": _ledger(transactions, holdings, base_prices, fx_rates, base),
+        "rules": _rules(base_prices, weights_now),
         "brinson": _brinson(
             holdings,
             local_prices,

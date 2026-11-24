@@ -95,3 +95,23 @@ def bootstrap_statistics(
     ordered.partition(k, axis=1)
     out[:, 3] = -ordered[:, k]
     return out
+
+
+def backtest_rule(
+    prices: Vector, targets: Vector, rule: int, params: Any
+) -> tuple[Vector, float, float, int] | None:
+    """C++ backtest of one allocation rule (see quant.rules), or None without the extension."""
+    if _core is None:
+        return None
+    value, turnover, costs, trades = _core.backtest_rule(
+        prices,
+        targets,
+        rule,
+        params.cost,
+        params.every,
+        params.band,
+        params.vol_target,
+        params.lam,
+        params.seed,
+    )
+    return np.asarray(value, dtype=np.float64), float(turnover), float(costs), int(trades)

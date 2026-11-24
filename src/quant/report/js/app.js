@@ -72,6 +72,7 @@ function renderCharts() {
   renderIntervalBars();
   renderTearsheetCharts();
   renderLedgerChart();
+  renderRulesChart();
 }
 function renderPeriod() {
   document.querySelectorAll("#periods button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.key === current.key)));
@@ -96,6 +97,7 @@ renderIncome();
 renderOpportunities();
 renderTearsheet();
 renderLedger();
+renderRules();
 renderSizing();
 setBadge("semana", Object.values(MOVES).filter((m) => m.unusual).length);
 showTab(location.hash.slice(1), false);

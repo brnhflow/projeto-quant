@@ -58,6 +58,6 @@ jobs:
       - name: C++ against the NumPy reference
         env:
           QUANT_REQUIRE_CORE: "1"
-        run: uv run --frozen --no-sync python -m pytest tests/test_core.py tests/test_var_models.py -q
+        run: uv run --frozen --no-sync python -m pytest tests/test_core.py tests/test_var_models.py tests/test_rules.py -q
       - name: Benchmark
         run: uv run --frozen --no-sync python research/benchmark.py
