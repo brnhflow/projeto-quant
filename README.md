@@ -8,12 +8,13 @@ rebalancing. Every model comes with the test that says whether to trust it.
 
 [![CI](https://github.com/brnhflow/projeto-quant/actions/workflows/ci.yml/badge.svg)](https://github.com/brnhflow/projeto-quant/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.14-3776AB)
+![C++](https://img.shields.io/badge/C%2B%2B-20-00599C)
 ![Tests](https://img.shields.io/badge/tests-380%2B-2f8f6b)
 ![Coverage](https://img.shields.io/badge/coverage-94%25-2f8f6b)
 ![Types](https://img.shields.io/badge/pyright-strict-7b5cc4)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-**[Live demo](https://brnhflow.github.io/projeto-quant/)** · [Methodology](docs/METHODOLOGY.md) · [Research note](docs/research/var-backtest.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
+**[Live demo](https://brnhflow.github.io/projeto-quant/)** · [Methodology](docs/METHODOLOGY.md) · [Research note](docs/research/var-backtest.md) · [Where this makes money](docs/APPLICATIONS.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
 
 ![Report summary](docs/images/overview.png)
 
@@ -102,6 +103,48 @@ and Bitcoin, tested with the same Kupiec, Christoffersen and Basel checks as the
 
 Reproduce with `uv run python research/var_backtest.py`.
 
+## C++ core
+
+The rolling risk models and the bootstrap run in a header-only C++20 library
+([cpp/include/quant/risk.hpp](cpp/include/quant/risk.hpp)), bound to Python with
+[nanobind](https://github.com/wjakob/nanobind):
+
+- **Rolling quantile in a sorted window.** Each day costs one binary search and one memmove,
+  instead of copying and partitioning 250 values.
+- **Zero-copy arrays.** Inputs are read straight from NumPy memory; results are moved into NumPy
+  arrays that own their buffer.
+- **Parallel, reproducible bootstrap.** Resamples run on every core. Each one is seeded from
+  `(seed, index)` through SplitMix64, so the output is identical for any thread count.
+- **Optional by design.** Without a compiler the package falls back to the NumPy reference.
+
+CI builds it on every push, runs the C++ unit tests (CTest), checks every kernel against NumPy
+(the historical VaR bit for bit, the EWMA-based ones to 1e-12) and times both:
+
+| Kernel (20,000 daily returns) | NumPy | C++ | Speed-up |
+|---|---|---|---|
+| Rolling historical VaR, 250-day window | 16.7 ms | 2.9 ms | 5.7× |
+| Filtered historical simulation VaR | 40.9 ms | 2.9 ms | 14× |
+| Stationary bootstrap, 2,000 resamples of 2,500 days | 184 ms | 26 ms | 7.1× |
+
+*Measured on a GitHub Actions runner (4 vCPU); see the "Benchmark" step of any CI run.*
+
+```bash
+uv pip install ./cpp                                    # build the extension (C++20 compiler)
+cmake -S cpp -B build/cpp && cmake --build build/cpp && ctest --test-dir build/cpp
+uv run python research/benchmark.py
+```
+
+## Where this makes money
+
+Firms build risk tools to make or keep money. [docs/APPLICATIONS.md](docs/APPLICATIONS.md) maps
+each part of the project to how it creates value:
+
+- **Not losing it.** Risk numbers that hold up in a crisis, and volatility-targeted sizing.
+- **Not wasting it.** Costs, taxes and currency drag, measured before any trade.
+- **Finding an edge.** Out of sample, after costs and against chance.
+
+It also covers who would pay for it as a product, and where the claims stop.
+
 ## Quick start
 
 Requires [uv](https://docs.astral.sh/uv/), which installs the right Python by itself. Node.js
@@ -163,12 +206,18 @@ src/quant/
 ├── ledger.py      transaction log: TWR, MWR, average-cost gains
 ├── tearsheet.py   monthly table, rolling ratios, drawdown periods, distribution
 ├── var_models.py  historical, EWMA and filtered historical VaR
+├── core.py        bridge to the C++ kernels, NumPy fallback
 ├── simulation.py  Monte Carlo and its calibration
 ├── income.py      dividend calendar and growth
 ├── signals.py     rule-based opportunity signals
 ├── pipeline.py    download, compute, render (shared by the CLI and the app)
 ├── report/        report data, template, CSS, page scripts (js/) and tested maths.js
 └── app/           local web app: stdlib HTTP server and the portfolio editor
+cpp/
+├── include/quant/risk.hpp   header-only C++20 kernels
+├── src/bindings.cpp         nanobind module quant_core
+└── tests/test_risk.cpp      C++ unit tests (CTest)
+research/                    research note script and benchmark
 ```
 
 ## Design decisions
