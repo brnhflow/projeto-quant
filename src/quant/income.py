@@ -7,7 +7,8 @@ Built only from what each asset actually paid:
   shows two. Summed over the year this is the average of the last two years' payments.
 - Growth: the median of the year-on-year changes in the amount paid per share over the
   last five full years. The median ignores a single special dividend; it is limited to
-  -30%..+30% a year, and left at zero with fewer than three years of payments.
+  -10%..+10% a year (a run of special dividends can make even the median look like
+  +30%), and left at zero with fewer than three years of payments.
 
 Everything is per unit held today, converted at today's exchange rate, before taxes. A
 company can cut or stop dividends at any time: this is a projection of the past.
@@ -21,7 +22,7 @@ import pandas as pd
 
 CALENDAR_YEARS = 2
 GROWTH_YEARS = 5
-GROWTH_LIMIT = 0.30
+GROWTH_LIMIT = 0.10
 MIN_GROWTH_YEARS = 3
 
 

@@ -40,28 +40,28 @@ def test_twice_a_year_payer_shows_its_two_months() -> None:
 
 
 def test_growth_is_the_median_yearly_change_and_ignores_one_special_dividend() -> None:
-    # 1.00, 1.10, 1.21, then a one-off 3.00, then 1.33: changes +10%, +10%, +148%, -56%.
+    # 1.00, 1.05, 1.1025, then a one-off 3.00, then 1.1576: changes +5%, +5%, +172%, -61%.
     paid = _paid(
         {
             "2021-06-01": 1.0,
-            "2022-06-01": 1.1,
-            "2023-06-01": 1.21,
+            "2022-06-01": 1.05,
+            "2023-06-01": 1.1025,
             "2024-06-01": 3.0,
-            "2025-06-01": 1.331,
+            "2025-06-01": 1.157625,
         }
     )
 
     result = outlook(paid, LAST)
 
     assert result.paid_years == 5
-    assert result.growth == pytest.approx(0.10)
+    assert result.growth == pytest.approx(0.05)
 
 
 def test_growth_is_limited_and_needs_steady_payments() -> None:
     fast = _paid({f"{y}-06-01": 2.0 ** (y - 2020) for y in range(2021, 2026)})
     gaps = _paid({"2021-06-01": 1.0, "2023-06-01": 1.0, "2025-06-01": 1.0})
 
-    assert outlook(fast, LAST).growth == pytest.approx(0.30)
+    assert outlook(fast, LAST).growth == pytest.approx(0.10)
     assert outlook(gaps, LAST).growth is None
     assert outlook(gaps, LAST).paid_years == 3
 
