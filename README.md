@@ -1,128 +1,186 @@
 # projeto-quant
 
+**A portfolio risk lab that checks its own numbers.** It pulls live market data for stocks,
+real-estate funds, ETFs, BDRs and crypto across B3, Europe and the US, and analyses the
+portfolio in euro: risk, crisis replays, factor exposures, Monte Carlo, dividend income and
+rebalancing. Every model comes with the test that says whether to trust it.
+
 [![CI](https://github.com/brnhflow/projeto-quant/actions/workflows/ci.yml/badge.svg)](https://github.com/brnhflow/projeto-quant/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.11%20%7C%203.14-3776AB)
+![Tests](https://img.shields.io/badge/tests-320%2B-2f8f6b)
+![Coverage](https://img.shields.io/badge/coverage-94%25-2f8f6b)
+![Types](https://img.shields.io/badge/pyright-strict-7b5cc4)
+[![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-> Working title. Working today: live market data (B3, European exchanges, crypto, ECB
-> exchange rates), returns, currency conversion, calendar alignment, risk measures, return
-> attribution and an HTML report.
+**[Live demo](https://brnhflow.github.io/projeto-quant/)** · [Methodology](docs/METHODOLOGY.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
 
-## The problem
+![Report summary](docs/images/overview.png)
 
-I hold a small investment portfolio and, until now, most of my decisions about it were made by
-feel: a position looks too big, a market drop feels scary, a rebalance seems like a good idea.
-I want to replace "feels" with numbers I can check:
+## Why
 
-- How much could this portfolio lose in a bad month, and which positions drive that loss?
-- What would have happened to it in 2008, 2020 or 2022?
-- If I make this trade, how do risk and concentration change?
+Most portfolio dashboards show numbers. Few say how far those numbers can be trusted. Some
+estimates look exactly as confident on screen as good ones but are not:
 
-This repository is where I build the tools to answer those questions, one piece at a time.
+- a 95% VaR that is breached on 9% of days;
+- a beta estimated from 40 weeks of a volatile stock;
+- a Monte Carlo fan that never contained what actually happened.
 
-## Approach
+This project treats every estimate as a claim to be tested:
 
-- **Decision support, not trading.** The code reads data and produces analysis. It never places
-  orders and never connects to a broker with trading permissions.
-- **Small, tested pieces.** Each function is written alone, with tests that compare it against
-  results known in advance (a hand calculation, a textbook example, a closed-form formula).
-- **No look-ahead.** Any calculation dated *t* uses only information available at *t*.
-  This is the easiest way to fool yourself in finance, so it is checked in tests, not just promised.
-- **Assumptions written down.** Every model states what it assumes (normal returns, constant
-  volatility, no transaction costs...) next to the code, in plain language.
-- **Python first, C++ where it pays.** Python for everything until profiling shows a hot path
-  (likely Monte Carlo); then that piece moves to C++ behind the same Python interface.
+- the VaR is replayed day by day and judged with the Kupiec, Christoffersen and Basel tests;
+- factor exposures are refitted walk-forward and scored out of sample;
+- the Monte Carlo ranges are checked month by month against what actually happened;
+- headline figures come with bootstrap confidence intervals.
 
-The order of the work, from most to least useful to me, is in [docs/ROADMAP.md](docs/ROADMAP.md).
+When a model fails its test, the report says so in plain language.
 
-## Running it
+## What it does
 
-Requires [uv](https://docs.astral.sh/uv/). It installs the right Python version by itself.
+| | |
+|---|---|
+| ![Portfolio editor](docs/images/editor.png) | **Build the portfolio.** Search any listed instrument by name or ticker; every match is returned, not just the top seven. Pick its type from drawn icons and type the quantity. Cash in 15 currencies counts too. |
+| ![This week](docs/images/week.png) | **This week.** Assets whose last day or week moved more than 2.5 standard deviations of their own history are flagged, next to the headlines that explain the move. |
+| ![Risk](docs/images/risk.png) | **Risk.** Volatility, drawdown, historical VaR and ES, Sharpe, Sortino and Calmar. How much each asset adds to total risk (Euler decomposition) and the correlation matrix. A factor model of what the portfolio really depends on, with error bands and an out-of-sample check. |
+| ![Scenarios](docs/images/scenarios.png) | **Scenarios.** Eight real crises applied to today's positions: 2008, euro debt, Brazil 2015, Brexit, Joesley Day, Covid, 2022 rates and FTX. Assets that did not exist yet are estimated from their closest index, with a Vasicek-shrunk beta. Sliders build any custom scenario, and a 2,000-path block-bootstrap fan shows 1 to 5 years ahead. |
+| ![Income](docs/images/income.png) | **Income.** Dividends expected month by month for the next year. Income over 25 years, with monthly contributions, reinvestment and a monthly goal. |
+| ![Opportunities](docs/images/opportunities.png) | **Opportunities.** Fixed, stated rules that flag things worth investigating: far below the 52-week high, yield above its own history, indices that would lower volatility, positions below target, concentration. These are signals, never advice. |
+| ![Rebalance](docs/images/rebalance.png) | **Rebalance.** Units to buy and sell to reach target weights: current, equal, risk parity or your own. Includes costs, tolerance bands, whole-unit rounding and an "only add new money" mode. Every plan pays for itself. |
+
+The report is a single self-contained HTML file:
+
+- no server and no network once written;
+- light and dark themes;
+- works on a phone;
+- prints to PDF.
+
+## How the numbers are checked
+
+| Estimate | Test | Reference |
+|---|---|---|
+| Value at Risk | Day-by-day backtest using only past data. Checks the breach frequency, whether breaches cluster, and the Basel traffic-light zone | Kupiec (1995), Christoffersen (1998), Basel Committee (1996) |
+| Return, volatility, Sharpe, VaR | 90% intervals from 2,000 stationary-bootstrap resamples | Politis and Romano (1994) |
+| Factor exposures | Walk-forward out-of-sample R² compared with in-sample R²; t-statistics | |
+| Monte Carlo ranges | Monthly check of the 90% range, with a two-sided binomial test | |
+| Proxy betas for missing history | Shrinkage towards 1 according to estimation error | Vasicek (1973) |
+| Covariance for optimisation | Shrinkage to a scaled identity; matches scikit-learn | Ledoit and Wolf (2004) |
+| Risk parity | Gives inverse-volatility weights for independent assets, and equal risk contributions with correlation | Griveau-Billion, Richard and Roncalli (2013) |
+| Portfolio value | Independent pandas recomputation on a live 12-asset, 6-currency portfolio | |
+
+Unit tests compare against answers known in advance:
+
+- chi-squared critical values;
+- Jorion's acceptance region for 255 days;
+- the Basel 250-day table;
+- the lognormal distribution;
+- hand calculations.
+
+The JavaScript maths in the page is tested with Node, and CI syntax-checks the assembled page
+script. Formulas and details are in [docs/METHODOLOGY.md](docs/METHODOLOGY.md).
+
+## Quick start
+
+Requires [uv](https://docs.astral.sh/uv/), which installs the right Python by itself. Node.js
+is optional; it is only needed for the JavaScript tests.
 
 ```bash
-uv sync                                  # create .venv with the project and dev tools
-uv run python -m pytest                  # tests
-uv run ruff check .                      # lint
-uv run ruff format .                     # format
-uv run python -m pyright                 # type check (strict)
-uv run python -m pre_commit install      # run all checks before each commit
-uv run python -m quant app               # open the portfolio editor in the browser
-uv run python -m quant report            # same analysis from the command line
-uv run python scripts/demo_report.py     # the report on synthetic data, no network
+git clone https://github.com/brnhflow/projeto-quant && cd projeto-quant
+uv sync
+uv run python -m quant app            # portfolio editor at http://127.0.0.1:8750
 ```
 
-## Using it
+Then:
 
-`python -m quant app` opens a page on this computer (http://127.0.0.1:8750). Search each
-asset by name or ticker ("petrobras", "ASML", "bitcoin"), type the quantity, and press
-**Analisar carteira**: prices and exchange rates are downloaded at that moment and the
-report opens. The portfolio is saved to `data/private/holdings.csv` and comes back filled in
-next time; **Editar carteira** on the report goes back to it.
+1. Search the assets and type the quantities.
+2. Press **Analisar carteira**. Prices, exchange rates, dividends and headlines are downloaded at that moment and the report opens.
 
-The server listens only on 127.0.0.1, rejects requests whose `Host` is not its own (DNS
-rebinding) and accepts only JSON posts (other websites cannot trigger it).
+The portfolio is saved to `data/private/holdings.csv`, which git ignores, and is filled in
+again next time.
 
-Tools are called as `python -m <tool>` because Windows Smart App Control blocks the
-unsigned `.exe` launchers that pip/uv generate. On Linux or macOS, `uv run pytest` works too.
+```bash
+uv run python -m quant report --holdings data/holdings.example.csv   # same from the CLI
+uv run python scripts/build_site.py                                  # rebuild the live demo
+uv run python -m pytest                                              # 320+ tests
+uv run python -m pyright && uv run ruff check .                      # strict types, lint
+```
 
-## The report
+## Architecture
 
-One self-contained HTML file (no server, no network once written), organised in tabs:
-Summary, This week, Risk, Scenarios, Income, Opportunities, Rebalance and Method. Every
-position carries an icon for its type (stock, real-estate fund, ETF, BDR, fund, crypto,
-cash), detected from the names the exchange publishes. Every number comes from tested
-Python functions; the page only draws them. Sections:
+```mermaid
+flowchart LR
+    A[Editor<br/>local web app] -->|holdings| P[pipeline]
+    C[CLI] -->|holdings CSV| P
+    P --> D[data<br/>Yahoo · Kraken · ECB · Google News<br/>parallel, cached, retried]
+    D --> R[report.data<br/>returns · FX · alignment]
+    R --> M1[risk · validation]
+    R --> M2[stress · factors · benchmark]
+    R --> M3[simulation · income · signals]
+    M1 & M2 & M3 --> J[JSON]
+    J --> H[Self-contained HTML<br/>tabs · SVG charts · maths.js]
+```
 
-| Section | What it answers | How it is checked |
-|---|---|---|
-| Performance | Value and drawdown over 1M, 3M, 6M, YTD, 12M or all | Matches an independent pandas recomputation |
-| This week | Which assets moved beyond 2.5x their usual daily or weekly size, with the latest headlines (Google News) and dividends received in 12 months | z-score against the year before the move; feed parsing tested on saved responses |
-| Composition, attribution, risk | Weights by asset and currency, return split into price and FX, share of risk, correlations | Attribution sums exactly to the total; risk shares sum to 1 |
-| Factors | How much the portfolio moves with each market and currency (betas with error bands), and how its variance splits | Walk-forward out-of-sample R² next to the in-sample R²; alpha t-stat |
-| Crises | Eight real crises (2008, euro debt, Brazil 2015, Brexit, Joesley Day, Covid, 2022 rates, FTX) replayed on today's positions, plus sliders to build a scenario | Assets that did not exist yet use their best index proxy and a Vasicek-shrunk beta; coverage is shown per crisis |
-| The future | A fan of 2000 block-bootstrapped paths for 1, 3 or 5 years, with and without the past trend, and the chance of a 10/20/30% fall | Month-by-month calibration: how often reality landed inside the 90% range, with a binomial test |
-| How far to trust the numbers | Day-by-day VaR backtest; 90% bootstrap ranges for return, volatility, Sharpe and VaR | Kupiec, Christoffersen and the Basel traffic light, with textbook answers in the tests |
-| Income | Dividends expected month by month for the next 12 months, by asset type, and income over 25 years with contributions, reinvestment and a monthly goal | Calendar from the last two years; growth is the median yearly change over five years (ignores one-off specials), fading out after year 5; tested on known paths |
-| Opportunities | Rule-based signals to investigate: 20%+ below the 52-week high, dividend yield 25%+ above its 5-year median, indices that would lower volatility, positions below your targets, concentration | Each rule is fixed and stated on the card, with what to check before acting. Signals, not advice |
-| Rebalance | What to buy and sell to reach target weights (or only with new money), costs, cash left, risk before and after; current, equal or risk-parity targets | Plans always pay for themselves; risk parity equals inverse volatility for independent assets |
+```
+src/quant/
+├── data/          market data: sources, HTTP with retries, cache with fallback, news
+├── returns.py     returns and buy-and-hold portfolio value
+├── fx.py          currency conversion
+├── align.py       calendar alignment without look-ahead
+├── risk.py        volatility, drawdown, VaR/ES, risk contributions, Ledoit-Wolf, ratios
+├── validation.py  VaR backtests, stationary bootstrap
+├── stress.py      historical crises, proxy betas
+├── factors.py     factor regression, walk-forward test
+├── benchmark.py   beta, alpha, tracking error, information ratio, capture
+├── simulation.py  Monte Carlo and its calibration
+├── income.py      dividend calendar and growth
+├── signals.py     rule-based opportunity signals
+├── pipeline.py    download, compute, render (shared by the CLI and the app)
+├── report/        report data, template, CSS, page scripts (js/) and tested maths.js
+└── app/           local web app: stdlib HTTP server and the portfolio editor
+```
 
-Plus a sortable positions table, plain-language definitions of every method, light and dark
-mode, and print to PDF.
+## Design decisions
 
-## Market data
+- **Analysis only, no trading.** It reads public data and produces analysis. There is no broker
+  connection and no order is ever placed.
+- **No look-ahead.** Anything dated *t* uses only data up to *t*. Tests change future data and
+  assert that past results do not move.
+- **Adjusted prices are re-downloaded in full.** Dividend adjustments rewrite past prices, so
+  appending new data would mix old and new adjustments. Downloads run four at a time and fall
+  back to a local cache when a source fails; the report flags any series that came from the
+  cache.
+- **Few dependencies.** Only pandas and numpy. HTTP, the web server and the RSS parser come from
+  the standard library, charts are hand-written SVG, and the page loads nothing from the
+  network.
+- **The local app is hardened like a public one.** It:
+  - binds to 127.0.0.1;
+  - checks the `Host` header against DNS rebinding;
+  - requires a custom header on every API call, so other websites cannot call it;
+  - accepts JSON only;
+  - validates every input and escapes every external string.
+- **Cautious defaults.**
+  - The Monte Carlo removes the past trend by default.
+  - Projected dividend growth fades out over time.
+  - Benchmark price indices are labelled "without dividends".
 
-Every analysis re-downloads the full history of every holding since 2007, four series at a time
-(adjusted prices change after dividends, so appending would mix adjustments), keeps a copy
-in `data/cache/`, and falls back to that copy if a source is down. The report says, per
-series, where it came from, the date of the last price, whether that price is from a
-session still trading, and whether it is a stale cached copy.
+## Data sources
 
 | Data | Source | Notes |
 |---|---|---|
-| Stocks, ETFs (B3 `PETR4.SA`, Euronext `ASML.AS`, London `VOD.L`...) | Yahoo Finance chart API | Unofficial and undocumented: can rate-limit or change. Prices adjusted for splits and dividends. Pence converted to pounds. |
-| Crypto | Kraken public API (or Yahoo, e.g. `BTC-USD`) | Official, no key. Kraken returns at most 720 days. |
-| Exchange rates | ECB euro reference rates, via [Frankfurter](https://frankfurter.dev) | One rate per TARGET business day, set around 16:00 CET. |
-| Search | Yahoo search and lookup APIs | Search ranks well but returns 7 results; lookup lists every match, paged. |
-| Market indices for crises and factors | Yahoo chart API (`^BVSP`, `^GSPC`, `^STOXX50E`, `^FTSE`, `^SSMI`, `BTC-USD`) | Price indices, no dividends. From 2007. |
-| Dividends | Yahoo chart API events | Gross amounts per share; Brazilian JCP included as reported. |
-| Headlines | Google News RSS | No key. B3 stocks by ticker in Portuguese, others by company name in English. |
+| Prices, dividends, indices | Yahoo Finance chart API | Unofficial API; adjusted for splits and dividends; pence converted to pounds |
+| Search | Yahoo search and lookup APIs | Lookup lists every match, paged |
+| Crypto (alternative) | Kraken public API | Official, no key, at most 720 days |
+| Exchange rates | ECB reference rates via [Frankfurter](https://frankfurter.dev) | One rate per TARGET business day |
+| Headlines | Google News RSS | B3 stocks searched by ticker in Portuguese, others by name in English |
 
-Each holding names its source and ticker in the holdings CSV (see
-`data/holdings.example.csv`). The currency in the file must match what the source reports,
-or the update stops with an error instead of mixing currencies.
-
-## Data and privacy
-
-My real holdings live in `data/private/`, which is git-ignored. Anything committed here uses
-made-up or public data. API keys go in `.env` (see `.env.example`), which is also git-ignored.
+The interface is in Portuguese; code, tests and documentation are in English.
 
 ## Limitations
 
-- Nothing here is financial advice, including for me: models are simplifications and past
-  data does not repeat on schedule.
-- Results are only as good as the input data. Free market data has gaps, survivorship bias
-  and adjustment errors; each data source will document what it is known to get wrong.
-- I am learning as I build this (calculus, linear algebra, ODEs, C++). Expect the early
-  modules to be simple, and the git history to show the learning.
+- Holdings are treated as held for the whole history, because there is no transaction log yet.
+  Past figures describe today's portfolio, not past decisions.
+- Free data has gaps, survivorship bias and occasional adjustment errors. Yahoo's API is
+  unofficial and may change.
+- Models are simplifications. Nothing here is financial advice.
 
 ## License
 
-MIT. See `LICENSE`. Nothing here is financial advice.
+MIT. See [LICENSE](LICENSE).

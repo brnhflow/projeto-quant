@@ -1,101 +1,50 @@
 # Roadmap
 
-Ordered by how useful each step is for managing my own portfolio, not by how impressive it
-sounds. Each step ships only when its "done when" holds, with tests that check known answers.
+Ordered by how useful each step is for managing a real portfolio. A step ships only when its
+"done when" holds, with tests against answers known in advance.
 
-## 0. Tooling (done)
+## Done
 
-uv, ruff, mypy (strict), pytest, pre-commit, GitHub Actions CI.
+| Step | What | Done when (met) |
+|---|---|---|
+| 0 | Tooling: uv, ruff, pyright strict, pytest, pre-commit, CI on 3.11 and 3.14 | CI green on both versions |
+| 1 | Holdings in, clean euro returns out; live data with cache and fallback | Value matches an independent recomputation on a live 12-asset portfolio |
+| 2 | Descriptive risk: volatility, drawdown, correlation, concentration | Closed-form and hand-computed examples |
+| 3 | VaR, ES and risk contributions, then VaR backtesting | Kupiec, Christoffersen and Basel answers from the literature |
+| 4 | Historical crises and custom scenarios | One-asset portfolios reproduce the asset's own crisis move |
+| 5 | Rebalancing with costs, bands and risk parity | Plans pay for themselves (fuzzed); risk parity matches inverse volatility |
+| 6 | Monte Carlo with calibration | Lognormal answer on i.i.d. data; a regime break fails the calibration |
+| — | Factor exposures, benchmark comparison, Ledoit-Wolf, income, signals | See [METHODOLOGY.md](METHODOLOGY.md) |
 
-## 1. Portfolio and prices in, returns out (done)
+## Next
 
-Load my holdings from a CSV I export by hand; fetch daily prices for them; compute simple and
-log returns, in a single base currency (positions in other currencies converted with the FX
-rate of the same day).
+### 7. Transaction log
+Record buys, sells and contributions instead of today's quantities only. This enables:
 
-- *Useful because:* everything else depends on clean returns.
-- *Done when:* returns match a hand-computed spreadsheet for 3 assets over 10 days, including
-  one FX conversion and one missing price day handled explicitly.
-- *Decided (2026-11-23):* base currency EUR. Assets: B3 stocks (BRL), European stocks
-  (EUR, possibly GBP/CHF), crypto (usually quoted in USD). Broker not chosen yet, so the
-  holdings CSV is a simple hand-made template.
-- *Done so far:* `simple_returns`, `portfolio_value`, `portfolio_returns` (fixed
-  quantities, weights drift), `to_base_currency` (same-date rate, gaps stay NaN),
-  `align_to_dates` (last value at or before each date, max 5 days old), `load_holdings`,
-  and `scripts/demo_report.py` (HTML report on synthetic data).
-- *Data sources (2026-11-23):* Yahoo Finance chart API for stocks/ETFs, Kraken for crypto,
-  ECB reference rates via Frankfurter; local cache with fallback; `python -m quant report`.
-  Stooq (now behind a browser check) and brapi (free tier limited to test tickers) were
-  tested and rejected. The direct ECB API was down during testing.
+- time-weighted and money-weighted returns;
+- the average cost per position;
+- realised versus unrealised gains;
+- taxes (Brazil, Italy).
 
-- *Portfolio entry (2026-11-23):* `python -m quant app`, a local page to search assets
-  (Yahoo search), type quantities and run the analysis with fresh data; the portfolio is
-  saved locally. Chosen over scheduled updates: data is fetched when the tool is used.
+*Done when:* TWR and MWR match a hand-built example with two contributions and one sale.
 
-Steps 2 and 3 below were built early (2026-11-23) because the report needed them:
-`annualized_volatility`, `drawdown`/`max_drawdown`, `historical_var_es`,
-`risk_contributions`, `effective_number_of_positions`, `return_attribution`, and the
-`quant.report` package (period selector, attribution, risk and correlation views). Candidate for FX: ECB
-  euro reference rates (official, free; quoted as foreign units per 1 EUR, so invert).
+### 8. Allocation with constraints
+Minimum variance and a mean-variance frontier on the Ledoit-Wolf covariance, long only, with
+per-asset limits. The report must show how much the weights move when the inputs change
+slightly, because they usually move a lot.
 
-## 2. Descriptive risk (done)
+*Done when:* the unconstrained solution matches the closed form, and the constrained one matches
+a reference QP solver.
 
-Annualised volatility, maximum drawdown, correlation matrix, concentration (largest weights,
-Herfindahl index).
+### 9. Backtesting allocation rules
+Walk-forward tests of simple rules (calendar rebalancing, bands, risk parity) with costs and
+point-in-time data. It comes late on purpose: this is where overfitting and look-ahead hide
+best.
 
-- *Useful because:* answers "how bumpy is this, and is it really diversified?"
-- *Done when:* each metric matches a closed-form or textbook example (e.g. volatility of a
-  constant-return series is 0; drawdown of a known path equals the value worked out by hand).
+### 10. C++ core where profiling says so
+Move the measured hot path (the bootstrap and Monte Carlo) to C++ behind the same Python
+interface (CMake, scikit-build-core, nanobind). Results must match Python to a stated
+tolerance, and the speed-up must be measured, not assumed.
 
-## 3. Loss estimates and who causes them (done)
-
-Historical Value at Risk and Expected Shortfall; each position's contribution to total risk.
-
-- *Useful because:* "in a bad month I could lose about X, and half of that comes from Y."
-- *Done when:* parametric VaR matches the normal-distribution formula; contributions sum to
-  the total; rolling estimates use only past data (look-ahead test).
-
-## 4. Scenarios and stress tests (done)
-
-Replay historical crises (2008, March 2020, 2022) on today's weights; apply hand-made shocks
-("equities -30%, rates +2pp, EUR -10%").
-
-- *Useful because:* concrete stories are easier to act on than a single number.
-- *Done when:* a one-asset portfolio reproduces that asset's actual crisis drawdown.
-
-## 5. What-if trades and rebalancing (done)
-
-Current vs. target weights, drift, and the effect of a proposed trade on every metric above,
-including transaction costs.
-
-- *Useful because:* this is the moment of decision.
-- *Done when:* a report shows before/after for a proposed trade; costs reduce the result by
-  exactly the stated amount.
-
-## 6. Monte Carlo (done; goals with contributions still open)
-
-Simulate future portfolio paths to answer "what is the chance of reaching X by year Y?",
-with the return model and its assumptions stated next to the result.
-
-- *Done when:* with zero volatility the simulation equals compound growth; with normal returns
-  the simulated mean and variance converge to the analytical values.
-
-Also done beyond the plan: VaR backtesting (Kupiec, Christoffersen, Basel), bootstrap
-intervals, factor exposures with a walk-forward test, unusual-move alerts with headlines,
-dividend income, and risk-parity targets in the rebalancer.
-
-## 7. Backtesting rules (later on purpose)
-
-Walk-forward testing of simple allocation rules, with costs and strict point-in-time data.
-Placed late because it is where overfitting and look-ahead mistakes hide best.
-
-## 8. Allocation methods
-
-Mean-variance, minimum variance, risk parity, with a sensitivity check showing how much the
-weights move when inputs change slightly (they usually move a lot; the report should say so).
-
-## 9. C++ core where profiling says so
-
-Move the measured hot path (likely the Monte Carlo engine) to C++ (CMake, scikit-build-core,
-pybind11 or nanobind), keeping the Python interface and the same tests. Python and C++ results
-must agree to a stated tolerance.
+### 11. English interface
+A language switch for the report and the editor. Code and documentation are already in English.

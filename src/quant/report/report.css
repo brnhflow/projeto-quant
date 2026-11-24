@@ -182,7 +182,7 @@ h2 .num {
 .legend-inline .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-left: 4px; }
 
 /* ---------------------------------------------------------------- opportunities */
-.opp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.opp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .opp-card { border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px 18px; min-width: 0; }
 .opp-card.has { border-color: color-mix(in srgb, var(--s1) 45%, var(--rule)); }
 .opp-card header { display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: start; }
