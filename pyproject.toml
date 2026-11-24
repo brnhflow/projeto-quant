@@ -6,7 +6,7 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
-authors = [{ name = "Bernardo" }]
+authors = [{ name = "Bernardo Bordignon" }]
 keywords = ["quantitative-finance", "portfolio", "risk-management", "value-at-risk", "monte-carlo", "backtesting", "factor-model"]
 classifiers = [
     "Development Status :: 3 - Alpha",

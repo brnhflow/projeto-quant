@@ -218,6 +218,14 @@ browser); code, tests and documentation are in English.
   unofficial and may change.
 - Models are simplifications. Nothing here is financial advice.
 
+## Author
+
+**Bernardo Bordignon** — Computer Science at the University of Trento, working towards quantitative
+research and trading. I designed and built this project end to end: the data pipeline, the
+statistics and their tests, the C++ core, the research note and the interface.
+
+[LinkedIn](https://www.linkedin.com/in/bernardobordignon/) · [GitHub](https://github.com/brnhflow)
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

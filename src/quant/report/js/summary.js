@@ -179,8 +179,8 @@ function renderPerformance(p) {
   const values = D.value.slice(p.start), dates = D.dates.slice(p.start);
   const up = p.totalReturn >= 0;
   $("perf-lede").innerHTML = L(
-    `O valor ${up ? "subiu" : "caiu"} <strong>${fmt.share(Math.abs(p.totalReturn))}</strong> ${PHRASE[p.key]}, de ${fmt.eur(values[0])} para ${fmt.eur(values[values.length - 1])}. Passe o mouse ou o dedo sobre o gráfico para ver cada dia.`,
-    `The value ${up ? "rose" : "fell"} <strong>${fmt.share(Math.abs(p.totalReturn))}</strong> ${PHRASE[p.key]}, from ${fmt.eur(values[0])} to ${fmt.eur(values[values.length - 1])}. Hover over the chart to see each day.`);
+    `O valor ${up ? "subiu" : "caiu"} <strong>${fmt.share(Math.abs(p.totalReturn))}</strong> ${PHRASE[p.key]}, de ${fmt.eur(values[0])} para ${fmt.eur(values[values.length - 1])}.`,
+    `The value ${up ? "rose" : "fell"} <strong>${fmt.share(Math.abs(p.totalReturn))}</strong> ${PHRASE[p.key]}, from ${fmt.eur(values[0])} to ${fmt.eur(values[values.length - 1])}.`);
   valueGroup.reset();
   timeChart($("chart-value"), {
     dates, left: 72, tick: (t) => fmt.eur(t),

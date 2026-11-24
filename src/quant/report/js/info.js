@@ -1,0 +1,92 @@
+// Explanations behind an "i" next to section and chart titles, and the author's credit.
+// Part of the report script: the files run in order, inside one function (see
+// quant.report.render_html), so they share the names defined before them.
+
+// ---------------------------------------------------------------- info icons
+// Keyed by the English title; each entry is [Portuguese, English].
+const INFO = {
+  "Performance": ["Valor diário da carteira em euro, com as quantidades de hoje durante todo o período. Passe o mouse para ver cada dia; escolha um índice para comparar.",
+    "Daily portfolio value in euro, holding today's quantities through the period. Hover to read each day; pick an index to compare against."],
+  "Drawdown from the previous peak": ["Quanto a carteira estava abaixo do maior valor que já tinha atingido, a cada dia.",
+    "How far the portfolio was below its highest value so far, each day."],
+  "Holdings today": ["Valor e peso de cada posição pelos preços e câmbio do último dia. Posições equivalentes é o inverso do índice de Herfindahl.",
+    "Value and weight of each position at the last day's prices and exchange rates. Equivalent positions is the inverse Herfindahl index."],
+  "Positions": ["Clique no nome de uma coluna para ordenar. Retornos do período escolhido no topo.",
+    "Click a column name to sort. Returns are for the period chosen at the top."],
+  "Your result": ["Calculado pelo registro de operações (ou pelo preço médio e data de compra). Valores em euro, no câmbio de cada data.",
+    "From the transaction log (or the average cost and purchase date). Amounts in euro at each date's exchange rate."],
+  "Return on your money, from the transaction log": ["Retorno ponderado pelo tempo (TWR): encadeia os retornos diários e ignora quando o dinheiro entrou; é o número que fundos divulgam. TIR: a taxa anual do seu dinheiro, contando o momento de cada aporte. Ganho realizado pelo custo médio.",
+    "Time-weighted return (TWR): chains daily returns and ignores when money went in; it is the figure funds report. XIRR: the annual rate on your own money, timing included. Realised gains by average cost."],
+  "Return attribution": ["Cada ativo contribui com peso x retorno. A parte do preço usa o câmbio do início; a do câmbio é o efeito da moeda sobre a posição final. As partes somam exatamente o total.",
+    "Each asset contributes weight x return. The price part uses the starting exchange rate; the currency part is the FX effect on the final position. The parts add up exactly to the total."],
+  "Allocation and selection against the benchmark": ["Brinson-Fachler: alocação = peso a mais num mercado x quanto ele bateu o índice; seleção = seus ativos contra o índice do próprio mercado; interação = os dois juntos. Somam a diferença para o índice.",
+    "Brinson-Fachler: allocation = overweight in a market x how much it beat the index; selection = your assets against their own market's index; interaction = both at once. They add up to the active return."],
+  "Tearsheet": ["O resumo de uma página que fundos publicam, sobre todo o histórico, contra o MSCI ACWI nos dias em que ele negociou.",
+    "The one-page summary funds publish, over the whole history, against MSCI ACWI on the days it traded."],
+  "Monthly returns": ["Retorno de cada mês, do último fechamento do mês anterior ao deste. A coluna do ano compõe os meses; o hit rate conta os meses em que a carteira bateu o índice.",
+    "Each month's return from the previous month's last close. The year column compounds the months; the hit rate counts months the portfolio beat the index."],
+  "Worst drawdowns": ["Cada queda contada uma vez, do pico ao primeiro dia de volta ao pico. Uma queda ainda aberta não tem data de recuperação.",
+    "Each drawdown counted once, from its peak to the first day back at that peak. An open drawdown has no recovery date yet."],
+  "Distribution of daily returns": ["Barras: dias da carteira. Linha: o que uma normal com a mesma média e volatilidade daria. Curtose em excesso acima de 0 = caudas mais grossas que a normal.",
+    "Bars: the portfolio's days. Line: what a normal with the same mean and volatility would give. Excess kurtosis above 0 means fatter tails than a normal."],
+  "Risk": ["Volatilidade, Sharpe, Sortino e Calmar sem taxa livre de risco. Parcela do risco pela decomposição de Euler: quanto da variância vem de cada ativo.",
+    "Volatility, Sharpe, Sortino and Calmar without a risk-free rate. Risk contribution by Euler decomposition: how much of the variance comes from each asset."],
+  "What the portfolio really depends on": ["Regressão (OLS) dos retornos semanais contra índices e moedas. A linha fina é a margem de ±2 erros-padrão; o teste fora da amostra refaz o ajuste semana a semana só com o passado.",
+    "OLS of weekly returns on indices and currencies. The thin line is ±2 standard errors; the out-of-sample test refits week by week on past data only."],
+  "How far to trust these numbers": ["O VaR de cada dia é recalculado só com o ano anterior e comparado com o que aconteceu (Kupiec, Christoffersen, Basileia). As faixas vêm de 2.000 reamostragens por bootstrap estacionário.",
+    "Each day's VaR is re-estimated from the previous year only and checked against what happened (Kupiec, Christoffersen, Basel). Intervals come from 2,000 stationary-bootstrap resamples."],
+  "If a crisis happened today": ["Cada crise vai do fechamento antes do choque ao fundo, aplicada às quantidades de hoje em euro. Ativo que não existia usa o índice mais parecido (maior R²) vezes o seu beta. Ordem de grandeza, não previsão.",
+    "Each crisis runs from the close before the shock to the trough, applied to today's quantities in euro. An asset that did not exist uses its closest index (highest R²) times its beta. An order of magnitude, not a forecast."],
+  "Build your own scenario": ["Mova os índices: cada ativo segue o seu índice na proporção do beta. Comece de uma crise real ou do zero.",
+    "Move the indices: each asset follows its index scaled by its beta. Start from a historical crisis or from zero."],
+  "From here on": ["2.000 caminhos de 5 anos por bootstrap em blocos da história da carteira. \"Sem tendência\" tira o retorno médio do passado. O teste mês a mês verifica se as faixas de 90% acertaram.",
+    "2,000 five-year paths by block bootstrap of the portfolio's history. \"Zero drift\" removes the past mean return. The monthly test checks whether the 90% bands were right."],
+  "Portfolio income": ["Proventos brutos, antes de impostos, pelo que cada ativo pagou nos dois últimos anos, com as quantidades e o câmbio de hoje.",
+    "Gross dividends, before tax, from what each asset paid over the last two years, at today's quantities and exchange rates."],
+  "Future income": ["Crescimento de cada ativo = mediana das variações anuais de 5 anos, limitada a ±10% e sumindo até o 10º ano. Dinheiro novo rende como a carteira de hoje.",
+    "Each asset's growth = median year-on-year change over 5 years, capped at ±10% and fading by year 10. New money yields like today's portfolio."],
+  "Signals worth investigating": ["Regras fixas sobre dados públicos. São pontos para investigar, não recomendação de compra ou venda.",
+    "Fixed rules on public data. Starting points for research, not buy or sell advice."],
+  "Rebalance": ["\"Comprar e vender\" leva à meta o que está fora da tolerância; \"Só aportar\" usa só dinheiro novo. Custos estimados; imposto não incluído. Metas salvas neste navegador.",
+    "\"Buy and sell\" brings anything outside its band back to target; \"New money only\" uses fresh cash only. Estimated costs; tax not included. Targets are saved in this browser."],
+  "This week": ["Destaca o ativo cujo último dia ou semana passou de 2,5 vezes o tamanho típico do seu movimento no último ano, com as manchetes dos últimos 14 dias.",
+    "Flags an asset whose last day or week exceeded 2.5 times its typical move over the past year, with headlines from the last 14 days."],
+};
+const INFO_ICON = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v4.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="4.8" r="0.95" fill="currentColor"/></svg>`;
+
+function addInfoIcons() {
+  document.querySelectorAll("h2, h3.chart-title").forEach((title) => {
+    const en = title.querySelector('[data-l="en"]');
+    const entry = en && INFO[en.textContent.trim()];
+    if (!entry || title.querySelector(".info")) return;
+    const text = L(entry[0], entry[1]);
+    title.insertAdjacentHTML("beforeend", `<button type="button" class="info" aria-label="${esc(text)}" data-info="${esc(text)}">${INFO_ICON}</button>`);
+  });
+}
+// Hover on a computer, tap on a phone; the text is also the button's accessible name.
+document.addEventListener("pointerover", (ev) => {
+  const icon = ev.target.closest && ev.target.closest(".info");
+  if (icon) showTip(`<div class="t-info">${esc(icon.dataset.info)}</div>`, ev);
+});
+document.addEventListener("pointerout", (ev) => { if (ev.target.closest && ev.target.closest(".info")) hideTip(); });
+document.addEventListener("click", (ev) => {
+  const icon = ev.target.closest(".info");
+  if (!icon) return;
+  const r = icon.getBoundingClientRect();
+  showTip(`<div class="t-info">${esc(icon.dataset.info)}</div>`, { clientX: r.right, clientY: r.bottom });
+});
+
+// ---------------------------------------------------------------- author
+const AUTHOR = {
+  name: "Bernardo Bordignon",
+  linkedin: "https://www.linkedin.com/in/bernardobordignon/",
+  github: "https://github.com/brnhflow/projeto-quant",
+};
+function renderCredit() {
+  $("credit").innerHTML =
+    `<span class="avatar" aria-hidden="true">BB</span>` +
+    `<span class="credit-text"><span class="credit-label">${L("Projeto e código", "Designed and built by")}</span>` +
+    `<strong>${AUTHOR.name}</strong></span>` +
+    `<a class="credit-link" href="${AUTHOR.linkedin}" target="_blank" rel="noopener">LinkedIn</a>` +
+    `<a class="credit-link" href="${AUTHOR.github}" target="_blank" rel="noopener">GitHub</a>`;
+}

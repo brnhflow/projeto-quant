@@ -25,8 +25,8 @@ function renderTrust() {
     ? `${abs(years, 1)} ${rnd(years, 1) === 1 ? L("ano", "year") : L("anos", "years")}`
     : `${V.days} ${L("dias", "days")}`;
   $("trust-lede").innerHTML = L(
-    `Um número de risco só serve se acertar. Esta seção testa o modelo contra o que aconteceu de fato, com ${span} de histórico, e mostra quanto cada número poderia ser diferente por puro acaso.`,
-    `A risk number is only useful if it is right. This section backtests the model against what actually happened over ${span} of history, and shows how different each number could be by chance alone.`);
+    `O modelo de risco testado contra o que aconteceu de fato em ${span} de histórico, e a margem de erro de cada número.`,
+    `The risk model backtested against what actually happened over ${span} of history, and the error margin of each number.`);
 
   $("backtest-block").hidden = !bt;
   if (bt) {

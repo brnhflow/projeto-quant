@@ -44,10 +44,8 @@ function renderStress() {
       `<div class="sc-body"><p>${esc(T(s.description))}${idx ? L(` Índices em euro no período: ${idx}.`, ` Indices in euro over the period: ${idx}.`) : ""}</p>` +
       `<div class="table-wrap"><table class="positions compact"><thead><tr><th>${L("Ativo", "Asset")}</th><th class="r">${L("Variação em €", "Change in €")}</th><th class="r">${L("Resultado", "P&amp;L")}</th><th>${L("Como foi calculado", "Method")}</th></tr></thead><tbody>${rows}</tbody></table></div></div></details>`;
   }).join("");
-  $("stress-caption").innerHTML = L(`Barras para a esquerda são perdas. Ativos que ainda não existiam numa crise têm o efeito estimado pelo índice com que mais se parecem; ` +
-    `quando nem o índice existia (cripto antes de 2014), a parte aparece como "sem dado" e fica fora da conta. Índices atualizados até ${dateLong(S.indicesUntil)}.`,
-  `Bars to the left are losses. Assets that did not exist yet in a crisis are mapped to the index they resemble most; ` +
-    `when even the index did not exist (crypto before 2014), that part shows as "no data" and is left out. Indices up to ${dateLong(S.indicesUntil)}.`);
+  $("stress-caption").innerHTML = L(`Barras para a esquerda são perdas. "Sem dado": nem o índice existia na época (cripto antes de 2014). Índices até ${dateLong(S.indicesUntil)}.`,
+    `Bars to the left are losses. "No data": not even the index existed then (crypto before 2014). Indices up to ${dateLong(S.indicesUntil)}.`);
   renderBuilder();
 }
 
@@ -91,8 +89,7 @@ function builderImpact() {
 }
 function renderBuilder() {
   const factors = factorList();
-  $("builder-lede").innerHTML = L(`Mova os índices e veja o efeito. Cada ativo acompanha o índice com que mais se parece, na proporção medida pelo seu beta (veja a tabela ao lado). Comece de uma crise real ou do zero.`,
-    `Move the indices and see the effect. Each asset follows the index it resembles most, scaled by its beta (see the table beside). Start from a historical crisis or from zero.`);
+  $("builder-lede").innerHTML = "";
   $("presets").innerHTML = `<button type="button" class="chip" data-preset="">${L("Zerar", "Reset")}</button>` +
     S.scenarios.filter((s) => Object.keys(s.indices).length).map((s) => `<button type="button" class="chip" data-preset="${s.key}">${esc(T(s.name))}</button>`).join("");
   $("sliders").innerHTML = factors.map((f) =>

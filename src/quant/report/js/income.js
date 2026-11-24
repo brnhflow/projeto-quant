@@ -39,8 +39,7 @@ function renderIncome() {
 
   const types = [...new Set(payers.map((a) => positions.find((p) => p.asset === a.asset).type))];
   $("income-legend").innerHTML = types.map((t) => `<span class="key"><span class="swatch" style="background:${typeColor(t)}"></span>${esc(typeInfo(t).label)}</span>`).join("");
-  $("income-months-lede").textContent = L("Cada barra soma o que os ativos pagaram naquele mês do ano, em média, nos dois últimos anos. Passe o mouse para ver quem paga.",
-    "Each bar adds up what the assets paid in that calendar month, on average over the last two years. Hover to see who pays.");
+  $("income-months-lede").textContent = "";
 
   $("income-assets").innerHTML = `<thead><tr><th>${L("Ativo", "Asset")}</th><th class="r">${L("Próximos 12 meses", "Next 12 months")}</th><th class="r">${L("Por mês", "Per month")}</th><th class="r">${L("Rendimento", "Yield")}</th><th class="r">${L("Crescimento por ano", "Annual growth")}</th><th class="r">${L("Anos pagando", "Years paying")}</th><th class="r">${L("Último pagamento", "Last payment")}</th></tr></thead><tbody>` +
     IP.assets.map((a) => {

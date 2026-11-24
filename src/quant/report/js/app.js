@@ -84,6 +84,8 @@ function renderPeriod() {
 }
 
 renderHeader();
+renderCredit();
+addInfoIcons();
 renderMix();
 renderTrust();
 renderStress();

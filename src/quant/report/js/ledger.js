@@ -31,12 +31,10 @@ function renderLedger() {
   const timing = g.mwr !== null && g.twrAnnual !== null && !g.beforeHistory ? g.mwr - g.twrAnnual : null;
   const gapText = timing === null ? "" : fmt.pp(Math.abs(timing)).replace(/^\+/, "");
   $("ledger-lede").innerHTML = L(
-    "O retorno ponderado pelo tempo mede os investimentos, sem o efeito de quando o dinheiro entrou: é o número que os fundos divulgam. A TIR mede o seu dinheiro. " +
-      (timing === null ? "" : Math.abs(timing) < 0.005 ? "Aqui os dois ficaram próximos: o momento dos aportes quase não pesou."
+    (timing === null ? "" : Math.abs(timing) < 0.005 ? "Aqui os dois ficaram próximos: o momento dos aportes quase não pesou."
         : timing > 0 ? `A TIR ficou ${gapText} por ano acima: os aportes entraram antes de bons períodos.` : `A TIR ficou ${gapText} por ano abaixo: os aportes entraram antes de períodos fracos.`) +
       (g.beforeHistory ? ` O registro começa antes do histórico analisado: o retorno ponderado pelo tempo cobre só desde ${dateLong(g.dates[0])} e a TIR, desde ${dateLong(g.first)}, então os dois não se comparam. Escolha um histórico mais longo no editor para cobrir o registro inteiro.` : ""),
-    "The time-weighted return measures the investments, free of when money went in: it is the figure funds report. The XIRR measures your money. " +
-      (timing === null ? "" : Math.abs(timing) < 0.005 ? "Here the two are close: the timing of contributions barely mattered."
+    (timing === null ? "" : Math.abs(timing) < 0.005 ? "Here the two are close: the timing of contributions barely mattered."
         : timing > 0 ? `The XIRR is ${gapText} a year higher: contributions came before good periods.` : `The XIRR is ${gapText} a year lower: contributions came before weak periods.`) +
       (g.beforeHistory ? ` The log starts before the analysed history: the time-weighted return covers only ${dateLong(g.dates[0])} onwards and the XIRR ${dateLong(g.first)} onwards, so the two do not compare. Choose a longer history in the editor to cover the whole log.` : ""));
   $("ledger-legend").innerHTML =
