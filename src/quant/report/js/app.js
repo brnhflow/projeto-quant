@@ -73,6 +73,7 @@ function renderCharts() {
 function renderPeriod() {
   document.querySelectorAll("#periods button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.key === current.key)));
   renderFigures(current);
+  renderBenchmark(current);
   renderCharts();
   renderTable(current);
 }

@@ -201,6 +201,16 @@ h2 .num {
 .opp-check strong { color: var(--ink); }
 .opp-disclaimer { margin-top: 18px; }
 
+/* ---------------------------------------------------------------- benchmark */
+.bench-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: -6px 0 12px; }
+.bench-bar .field-label { margin: 0; }
+.bench-bar[hidden] { display: none; }
+.legend .tick-key.dashed { width: 18px; height: 0; border-top: 2px dashed var(--ink-3); background: none; }
+.bench-stats { margin: 8px 0 26px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.bench-stats .value { font-size: 19px; }
+@media (max-width: 960px) { .bench-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.bench-stats[hidden] { display: none; }
+
 /* ---------------------------------------------------------------- tabs */
 .tabs {
   position: sticky; top: 0; z-index: 4; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none;

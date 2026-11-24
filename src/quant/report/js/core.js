@@ -155,7 +155,7 @@ function timeChart(host, cfg, group) {
   cfg.series.forEach((s) => {
     const pts = s.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
     if (s.area) el("path", { class: "area", d: `M${x(0)},${y(0)}L${pts.join("L")}L${x(n - 1)},${y(0)}Z`, fill: s.area }, svg);
-    el("path", { class: "line", d: "M" + pts.join("L"), stroke: s.color }, svg);
+    el("path", Object.assign({ class: "line", d: "M" + pts.join("L"), stroke: s.color }, s.dash ? { "stroke-dasharray": "6 4", "stroke-width": 1.6 } : {}), svg);
   });
 
   if (cfg.annotate) {

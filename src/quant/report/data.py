@@ -14,6 +14,7 @@ import pandas as pd
 
 from quant.align import align_to_dates
 from quant.attribution import return_attribution
+from quant.benchmark import compare
 from quant.data.market import SeriesStatus
 from quant.data.news import Headline
 from quant.data.sources import Quote
@@ -725,6 +726,69 @@ def _opportunities(
     }
 
 
+BENCHMARKS = (
+    ("ACWI", True),  # (symbol, includes dividends)
+    ("^GSPC", False),
+    ("^STOXX50E", False),
+    ("^BVSP", False),
+)
+
+
+def _benchmarks(
+    value: pd.Series, proxy_prices: pd.DataFrame | None, fx_rates: pd.DataFrame, base: str
+) -> dict[str, Any] | None:
+    """Benchmark series on the report's dates and, per period, how the portfolio compares."""
+    if proxy_prices is None:
+        return None
+    calendar = pd.DatetimeIndex(value.index)
+    chosen = [(b, total) for b, total in BENCHMARKS if b in proxy_prices.columns]
+    currencies = pd.Series({b: PROXIES[b][1] for b, _ in chosen})
+    if not chosen or not set(currencies) - {base} <= set(fx_rates.columns):
+        return None
+    indices = to_base_currency(
+        align_to_dates(proxy_prices[[b for b, _ in chosen]], calendar),
+        currencies,
+        align_to_dates(fx_rates, calendar),
+        base=base,
+    )
+    items: list[dict[str, Any]] = []
+    for b, total in chosen:
+        series = indices[b]
+        stats: dict[str, Any] = {}
+        for period in PERIODS:
+            start = period_start(calendar, period)
+            if start is None:
+                continue
+            try:
+                s = compare(value.iloc[start:], series.iloc[start:])
+            except ValueError:
+                continue
+            stats[period.key] = {
+                "portfolio": _num(s.portfolio_return),
+                "benchmark": _num(s.benchmark_return),
+                "beta": _num(s.beta, 4),
+                "alpha": _num(s.alpha),
+                "correlation": _num(s.correlation, 4),
+                "trackingError": _num(s.tracking_error),
+                "informationRatio": None
+                if s.information_ratio is None
+                else _num(s.information_ratio, 3),
+                "upCapture": None if s.up_capture is None else _num(s.up_capture, 3),
+                "downCapture": None if s.down_capture is None else _num(s.down_capture, 3),
+            }
+        if stats:
+            items.append(
+                {
+                    "key": b,
+                    "name": PROXIES[b][0],
+                    "dividends": total,
+                    "values": [None if math.isnan(float(x)) else _num(float(x), 4) for x in series],
+                    "periods": stats,
+                }
+            )
+    return {"items": items} if items else None
+
+
 def _news(news: dict[str, list[Headline] | None]) -> dict[str, Any]:
     return {
         asset: None
@@ -956,6 +1020,7 @@ def build_report_data(
         ],
         "validation": _validation(value),
         "stress": stress,
+        "benchmarks": _benchmarks(value, proxy_prices, fx_rates, base),
         "moves": unusual_moves(local),
         "simulation": _simulation(value),
         "income": None

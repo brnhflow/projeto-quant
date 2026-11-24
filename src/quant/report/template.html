@@ -41,7 +41,13 @@
 <section class="block">
   <h2>Desempenho</h2>
   <p class="lede" id="perf-lede"></p>
+  <div class="bench-bar" id="bench-bar" hidden>
+    <p class="field-label" id="bench-label">Comparar com</p>
+    <div class="segmented" id="bench-picker" role="group" aria-labelledby="bench-label"></div>
+  </div>
+  <div class="legend" id="perf-legend"></div>
   <div class="chart" id="chart-value" data-height="300"></div>
+  <div class="reb-summary bench-stats" id="bench-stats" hidden></div>
   <h3 class="chart-title">Queda desde o pico anterior</h3>
   <div class="chart" id="chart-drawdown" data-height="130"></div>
 </section>
@@ -348,6 +354,14 @@
     <dd>Mês a mês, só com os dados de antes daquele mês, a simulação diz onde o mês deve
     terminar com 90% de chance. Se o resultado real cai dentro da faixa em cerca de 90% dos
     meses, as faixas são honestas; bem menos que isso significa risco subestimado.</dd>
+    <dt>Comparação com o mercado</dt>
+    <dd>A carteira contra um índice, em euro e nos mesmos dias. Beta: quanto a carteira se
+    move quando o índice se move 1%. Alfa: retorno por ano que o índice não explica.
+    Tracking error: quanto a carteira se afasta do índice. Information ratio: alfa por unidade
+    de tracking error (acima de 0,5 é bom até para gestores profissionais). Captura na baixa
+    abaixo de 1 quer dizer que a carteira caiu menos que o índice nos dias de queda. O MSCI
+    ACWI vem de um ETF com dividendos; os outros índices não incluem dividendos, o que
+    favorece a carteira em cerca de 2 a 4 pontos por ano.</dd>
     <dt>Calendário e câmbio</dt>
     <dd>Dias úteis europeus. Num feriado de outra bolsa, o ativo vale o último fechamento (até
     5 dias); o fim de semana das criptomoedas entra na segunda-feira. Cada preço é convertido

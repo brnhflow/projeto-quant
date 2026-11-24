@@ -97,6 +97,9 @@ PROXIES = {
     "^FTSE": ("FTSE 100", "GBP"),
     "^SSMI": ("SMI (Suíça)", "CHF"),
     "BTC-USD": ("Bitcoin", "USD"),
+    # Global stocks through the iShares MSCI ACWI ETF (since March 2008): with dividends
+    # reinvested, so it is also the fairest benchmark for a diversified portfolio.
+    "ACWI": ("Ações globais (MSCI ACWI)", "USD"),
 }
 HISTORY_START = pd.Timestamp("2007-06-01")
 MIN_WEEKS = 52

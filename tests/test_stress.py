@@ -235,6 +235,14 @@ def test_report_stress_block_adds_up() -> None:
     assert new3["beta"] == pytest.approx(1.0, abs=0.01)  # it is the index itself
     assert next(p for p in stress["positions"] if p["asset"] == "Caixa EUR")["cash"]
     assert stress["total"] == pytest.approx(sum(p["value"] for p in data["positions"]), abs=0.05)
+    bench = {b["key"]: b for b in data["benchmarks"]["items"]}
+    assert set(bench) == {"^GSPC", "^BVSP"}
+    assert len(bench["^GSPC"]["values"]) == len(data["dates"])
+    whole = bench["^GSPC"]["periods"]["ALL"]
+    assert whole["portfolio"] == pytest.approx(
+        next(p for p in data["periods"] if p["key"] == "ALL")["totalReturn"], abs=1e-6
+    )
+    assert 0 < whole["beta"] < 2
     opp = data["opportunities"]
     assert set(opp) == {"farFromHigh", "yieldHigh", "diversifiers", "concentration", "rules"}
     assert all(r["gap"] <= -0.20 for r in opp["farFromHigh"])

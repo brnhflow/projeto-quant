@@ -102,13 +102,60 @@ function renderFigures(p) {
     varFig;
 }
 
+// ---------------------------------------------------------------- benchmark
+const BENCH = D.benchmarks ? D.benchmarks.items : [];
+let benchKey = BENCH.length ? BENCH[0].key : "";
+// The benchmark over the period, scaled to start at the portfolio's value that day.
+function benchLine(p) {
+  const item = BENCH.find((b) => b.key === benchKey);
+  if (!item) return null;
+  const raw = item.values.slice(p.start);
+  let last = raw.find((x) => x !== null);
+  if (last === undefined) return null;
+  const filled = raw.map((x) => (x === null ? last : (last = x)));
+  const v0 = D.value[p.start], b0 = filled[0];
+  return { item, values: filled.map((x) => (v0 * x) / b0) };
+}
+function renderBenchmark(p) {
+  const bar = $("bench-bar"), box = $("bench-stats");
+  bar.hidden = !BENCH.length;
+  if (!BENCH.length) { box.hidden = true; $("perf-legend").innerHTML = ""; return; }
+  $("bench-picker").innerHTML = BENCH.map((b) => `<button type="button" data-bench="${esc(b.key)}" aria-pressed="${b.key === benchKey}">${esc(b.name)}</button>`).join("") +
+    `<button type="button" data-bench="" aria-pressed="${!benchKey}">Nenhum</button>`;
+  const item = BENCH.find((b) => b.key === benchKey);
+  const s = item && item.periods[p.key];
+  $("perf-legend").innerHTML = item
+    ? `<span class="key"><span class="swatch" style="background:${cssVar("--s1")}"></span>Carteira</span><span class="key"><span class="tick-key dashed"></span>${esc(item.name)}${item.dividends ? "" : " (sem dividendos)"}</span>`
+    : "";
+  box.hidden = !s;
+  if (!s) return;
+  const diff = s.portfolio - s.benchmark;
+  const fig = (label, value, note) => `<div class="reb-fig"><p class="label">${label}</p><p class="value">${value}</p><p class="note">${note}</p></div>`;
+  box.innerHTML =
+    fig("Carteira contra o índice", fmt.pp(diff), `${fmt.pct(s.portfolio)} contra ${fmt.pct(s.benchmark)} ${PHRASE[p.key]}.`) +
+    fig("Beta", fmt.num(s.beta, 2), s.beta > 1.05 ? "Oscila mais que o índice." : s.beta < 0.95 ? "Oscila menos que o índice." : "Oscila como o índice.") +
+    fig("Alfa por ano", fmt.pct(s.alpha), "Retorno que a exposição ao índice não explica.") +
+    fig("Tracking error", fmt.share(s.trackingError), s.informationRatio === null ? "Igual ao índice." : `Information ratio ${fmt.num(s.informationRatio, 2)}.`) +
+    (s.downCapture !== null && s.upCapture !== null
+      ? fig("Captura alta / baixa", `${fmt.share(s.upCapture, 0)} / ${fmt.share(s.downCapture, 0)}`, s.downCapture < s.upCapture ? "Cai menos do que sobe junto com o índice." : "Cai junto com o índice mais do que sobe.")
+      : "");
+}
+$("bench-picker").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button[data-bench]");
+  if (!b) return;
+  benchKey = b.dataset.bench;
+  renderBenchmark(current);
+  renderPerformance(current);
+});
+
 const valueGroup = timeGroup((i) => {
   const p = current, v = D.value.slice(p.start), base = v[0];
+  const bl = benchLine(p);
   return tipHtml(dateLong(D.dates[p.start + i]), [
     { label: "Valor", value: fmt.eur(v[i]), color: cssVar("--s1") },
     { label: "Desde o início do período", value: fmt.pct(v[i] / base - 1) },
-    { label: "Queda desde o pico", value: fmt.pct(p.drawdown[i]) },
-  ]);
+  ].concat(bl ? [{ label: bl.item.name, value: fmt.pct(bl.values[i] / bl.values[0] - 1), color: cssVar("--ink-3") }] : [],
+    [{ label: "Queda desde o pico", value: fmt.pct(p.drawdown[i]) }]));
 });
 
 function renderPerformance(p) {
@@ -119,7 +166,8 @@ function renderPerformance(p) {
   valueGroup.reset();
   timeChart($("chart-value"), {
     dates, left: 72, tick: (t) => fmt.eur(t),
-    series: [{ name: "Valor", values, color: cssVar("--s1") }],
+    series: [{ name: "Valor", values, color: cssVar("--s1") }].concat(
+      benchLine(p) ? [{ name: "Índice", values: benchLine(p).values, color: cssVar("--ink-3"), dash: true }] : []),
   }, valueGroup);
   const trough = p.drawdown.indexOf(Math.min(...p.drawdown));
   timeChart($("chart-drawdown"), {
