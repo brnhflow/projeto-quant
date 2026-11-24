@@ -247,6 +247,7 @@
     <button type="button" class="chip" data-target="current">Pesos atuais</button>
     <button type="button" class="chip" data-target="equal">Pesos iguais</button>
     <button type="button" class="chip" data-target="parity">Paridade de risco</button>
+    <button type="button" class="chip" data-target="minvar">Mínima variância</button>
     <button type="button" class="chip" data-target="saved" hidden>Minhas metas salvas</button>
   </div>
   <div class="table-wrap"><table class="positions reb-table" id="reb-table"></table></div>
@@ -363,6 +364,11 @@
     abaixo de 1 quer dizer que a carteira caiu menos que o índice nos dias de queda. O MSCI
     ACWI vem de um ETF com dividendos; os outros índices não incluem dividendos, o que
     favorece a carteira em cerca de 2 a 4 pontos por ano.</dd>
+    <dt>Mínima variância</dt>
+    <dd>Os pesos, sem vender a descoberto, que deixam a carteira com a menor oscilação possível
+    segundo a covariância Ledoit-Wolf do último ano. Ignora o retorno esperado de propósito:
+    estimar retorno é muito mais difícil que estimar risco. Costuma concentrar nos ativos mais
+    calmos; caixa fica fora da conta.</dd>
     <dt>Sharpe, Sortino e Calmar</dt>
     <dd>Retorno por unidade de risco, sem descontar a taxa livre de risco. Sharpe usa a
     volatilidade; Sortino, só as quedas; Calmar, o retorno anual dividido pela pior queda.

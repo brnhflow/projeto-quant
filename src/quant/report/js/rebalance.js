@@ -35,12 +35,12 @@ function presetTargets(kind) {
   if (kind === "current") return Object.fromEntries(positions.map((p) => [p.asset, p.weight]));
   if (kind === "equal") return Object.fromEntries(assets.map((a) => [a, 1 / assets.length]));
   if (kind === "saved") return savedTargets();
-  // Risk parity on the non-cash positions; cash keeps today's weight.
+  // Risk parity or minimum variance on the non-cash positions; cash keeps today's weight.
   const risky = positions.filter((p) => p.kind !== "cash");
   const cov = covFor(risky.map((p) => p.asset));
   if (!cov) return null;
   const cashWeight = positions.filter((p) => p.kind === "cash").reduce((a, p) => a + p.weight, 0);
-  const w = riskParity(cov);
+  const w = kind === "minvar" ? minVariance(cov) : riskParity(cov);
   const out = Object.fromEntries(positions.filter((p) => p.kind === "cash").map((p) => [p.asset, p.weight]));
   risky.forEach((p, i) => { out[p.asset] = w[i] * (1 - cashWeight); });
   return out;
@@ -50,6 +50,7 @@ function renderRebalance() {
   const saved = savedTargets();
   document.querySelector('#reb-presets [data-target="saved"]').hidden = !saved;
   document.querySelector('#reb-presets [data-target="parity"]').hidden = !C;
+  document.querySelector('#reb-presets [data-target="minvar"]').hidden = !C;
   rebState.targets = saved || presetTargets("current");
   const table = $("reb-table");
   table.innerHTML = `<thead><tr><th>Ativo</th><th class="r">Peso hoje</th><th class="r">Meta</th><th class="r">Diferença</th><th>Operação</th><th class="r">Valor</th><th class="r">Custo</th></tr></thead><tbody>` +

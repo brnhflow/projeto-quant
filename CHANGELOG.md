@@ -3,6 +3,12 @@
 All notable changes, newest first. Versions follow [Semantic Versioning](https://semver.org);
 before 1.0 the interface may still change.
 
+## Unreleased
+
+### Added
+- Long-only minimum-variance targets in the rebalancing planner (projected gradient on the
+  simplex, Ledoit-Wolf covariance), tested against the closed form.
+
 ## 0.4.0 — 2026-11-24
 
 ### Added

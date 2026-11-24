@@ -251,3 +251,43 @@ def test_assembled_report_script_is_valid_javascript(tmp_path: Path) -> None:
     check = subprocess.run([NODE, "--check", str(script)], capture_output=True, text=True)
 
     assert check.returncode == 0, check.stderr
+
+
+# ---------------------------------------------------------------- minimum variance
+
+
+def test_simplex_projection_known_cases() -> None:
+    assert _call("projectSimplex", [0.2, 0.3, 0.5]) == pytest.approx([0.2, 0.3, 0.5])
+    assert _call("projectSimplex", [2.0, 0.0]) == pytest.approx([1.0, 0.0])
+    assert _call("projectSimplex", [1.0, 1.0]) == pytest.approx([0.5, 0.5])
+
+
+def test_min_variance_matches_the_closed_form_when_no_weight_is_negative() -> None:
+    cov = np.array([[0.04, 0.006, 0.002], [0.006, 0.09, 0.01], [0.002, 0.01, 0.16]])
+    ones = np.ones(3)
+    inv = np.linalg.solve(cov, ones)
+    expected = inv / inv.sum()  # w = S^-1 1 / 1' S^-1 1, all positive here
+
+    weights = _call("minVariance", cov.tolist())
+
+    assert weights == pytest.approx(expected.tolist(), abs=1e-6)
+
+
+def test_min_variance_with_independent_assets_is_inverse_variance() -> None:
+    vols = np.array([0.1, 0.2, 0.4])
+    expected = (1 / vols**2) / (1 / vols**2).sum()
+
+    assert _call("minVariance", (np.eye(3) * vols**2).tolist()) == pytest.approx(
+        expected.tolist(), abs=1e-6
+    )
+
+
+def test_min_variance_never_goes_short() -> None:
+    # A highly correlated, riskier asset would get a negative weight without the constraint.
+    cov = np.array([[0.04, 0.054], [0.054, 0.09]])
+    unconstrained = np.linalg.solve(cov, np.ones(2))
+    assert (unconstrained / unconstrained.sum()).min() < 0
+
+    weights = _call("minVariance", cov.tolist())
+
+    assert weights == pytest.approx([1.0, 0.0], abs=1e-6)

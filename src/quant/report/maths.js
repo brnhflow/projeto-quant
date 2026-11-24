@@ -39,6 +39,35 @@ function riskParity(cov, budgets, maxIter = 500, tol = 1e-12) {
   return y.map((v) => (sum > 0 ? v / sum : 0));
 }
 
+// Euclidean projection onto { w : w >= 0, sum(w) = 1 } (Duchi et al., 2008).
+function projectSimplex(v) {
+  const u = v.slice().sort((a, b) => b - a);
+  let cum = 0, theta = 0;
+  for (let k = 0; k < u.length; k++) {
+    cum += u[k];
+    const t = (cum - 1) / (k + 1);
+    if (u[k] - t > 0) theta = t;
+  }
+  return v.map((x) => Math.max(0, x - theta));
+}
+
+// Long-only minimum-variance weights: min w' cov w with w >= 0 and sum(w) = 1, by projected
+// gradient descent with step 1/L, L = 2 * trace(cov) (an upper bound of the largest
+// eigenvalue of the gradient's matrix). Converges for any positive semi-definite cov.
+function minVariance(cov, maxIter = 20000, tol = 1e-13) {
+  const n = cov.length;
+  const L = 2 * cov.reduce((s, row, i) => s + row[i], 0) || 1;
+  let w = new Array(n).fill(1 / n);
+  for (let it = 0; it < maxIter; it++) {
+    const grad = w.map((_, i) => 2 * cov[i].reduce((s, c, j) => s + c * w[j], 0));
+    const next = projectSimplex(w.map((x, i) => x - grad[i] / L));
+    const change = next.reduce((s, x, i) => Math.max(s, Math.abs(x - w[i])), 0);
+    w = next;
+    if (change < tol) break;
+  }
+  return w;
+}
+
 // Trades that move today's positions towards target weights.
 //   positions: [{ asset, value (EUR), priceBase (EUR per unit), kind: "security"|"crypto"|"cash" }]
 //   targets:   { asset: weight }, weights summing to 1
@@ -128,4 +157,4 @@ function projectIncome(assets, portfolioYield, o) {
   return { rows: out, weighted };
 }
 
-if (typeof module !== "undefined") module.exports = { portfolioVol, riskShares, riskParity, planTrades, projectIncome };
+if (typeof module !== "undefined") module.exports = { portfolioVol, riskShares, riskParity, minVariance, projectSimplex, planTrades, projectIncome };

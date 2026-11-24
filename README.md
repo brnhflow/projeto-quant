@@ -44,7 +44,7 @@ When a model fails its test, the report says so in plain language.
 | ![Scenarios](docs/images/scenarios.png) | **Scenarios.** Eight real crises applied to today's positions: 2008, euro debt, Brazil 2015, Brexit, Joesley Day, Covid, 2022 rates and FTX. Assets that did not exist yet are estimated from their closest index, with a Vasicek-shrunk beta. Sliders build any custom scenario, and a 2,000-path block-bootstrap fan shows 1 to 5 years ahead. |
 | ![Income](docs/images/income.png) | **Income.** Dividends expected month by month for the next year. Income over 25 years, with monthly contributions, reinvestment and a monthly goal. |
 | ![Opportunities](docs/images/opportunities.png) | **Opportunities.** Fixed, stated rules that flag things worth investigating: far below the 52-week high, yield above its own history, indices that would lower volatility, positions below target, concentration. These are signals, never advice. |
-| ![Rebalance](docs/images/rebalance.png) | **Rebalance.** Units to buy and sell to reach target weights: current, equal, risk parity or your own. Includes costs, tolerance bands, whole-unit rounding and an "only add new money" mode. Every plan pays for itself. |
+| ![Rebalance](docs/images/rebalance.png) | **Rebalance.** Units to buy and sell to reach target weights: current, equal, risk parity, long-only minimum variance or your own. Includes costs, tolerance bands, whole-unit rounding and an "only add new money" mode. Every plan pays for itself. |
 
 The report is a single self-contained HTML file:
 
