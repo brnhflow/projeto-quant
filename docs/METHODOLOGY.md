@@ -22,7 +22,10 @@ $r_t = P_t / P_{t-1} - 1$ in euro unless stated otherwise; a year has 252 tradin
 14. [Transaction log: time- and money-weighted returns](#14-transaction-log-time--and-money-weighted-returns)
 15. [Brinson attribution](#15-brinson-attribution)
 16. [Tearsheet](#16-tearsheet)
-17. [References](#references)
+17. [Three VaR models on the portfolio](#17-three-var-models-on-the-portfolio)
+18. [Volatility targeting](#18-volatility-targeting)
+19. [Rebalancing rules, backtested](#19-rebalancing-rules-backtested)
+20. [References](#references)
 
 ## 1. Data and portfolio value
 
@@ -421,6 +424,54 @@ number of days, and statistics on a series with a known CAGR, maximum drawdown a
 report, the tearsheet's maximum drawdown and VaR equal the summary's, and its months compound to
 the whole-history return.
 
+## 17. Three VaR models on the portfolio
+
+`var_models.py`, `_var_models` in `report/data.py`
+
+The research note's comparison runs on the user's portfolio: historical simulation, EWMA with
+normal tails and filtered historical simulation, at 95% with the backtest window of section 3,
+all tested on the same days with Kupiec, Christoffersen and the Basel zone. Each model's VaR for
+the next day is computed by appending a placeholder day that no forecast can see, because every
+model uses only the returns before the day it forecasts. The model with the highest conditional
+coverage p-value is highlighted.
+
+*Checks:* the three models are tested on identical days, and every forecast is positive; the
+models themselves are covered in `tests/test_var_models.py` (no look-ahead, scaling, coverage on
+normal returns, reaction to a volatility jump).
+
+## 18. Volatility targeting
+
+`insights.js`
+
+Weight invested $= \min(1, \sigma^* / \hat\sigma)$, with $\sigma^*$ the target annual volatility and
+$\hat\sigma = \text{VaR}^{\text{EWMA}}_{95\%} / 1.645 \cdot \sqrt{252}$ the EWMA forecast; the rest
+is cash and there is no leverage. Redone at every rebalance, it holds risk roughly constant and
+cuts exposure when volatility rises (Moreira and Muir, 2017).
+
+## 19. Rebalancing rules, backtested
+
+`rules.py` (reference), `cpp/include/quant/backtest.hpp` (engine)
+
+Four rules on today's assets and weights, walk-forward over the report's history, paying 0.1%
+on every amount traded:
+
+| Rule | Trades when |
+|---|---|
+| Buy and hold | Never, after the initial purchase |
+| Monthly | Every 21 trading days, back to the targets |
+| Bands | Any weight is more than 5 points away from its target |
+| Volatility target | Every 21 days, setting the share invested by section 18 from the EWMA of the strategy's own returns |
+
+Each close: positions drift with prices, the rule decides on prices up to that close, and the
+trade pays its cost. Using today's weights as targets is hindsight about the composition, as
+everywhere else in the report; the decisions themselves never look ahead. Turnover excludes the
+initial purchase; its cost is charged to every rule alike.
+
+*Checks* (`tests/test_rules.py`, `cpp/tests/test_risk.cpp`): a rebalance with costs computed by
+hand, costs only ever lowering value, bands trading far less often than a daily calendar, the
+volatility target cutting volatility in a rough regime, no decision changing when future prices
+change, and the C++ engine matching the Python reference to 1e-12 for every rule.
+
 ## References
 
 - Bacon, C. (2008). *Practical Portfolio Performance Measurement and Attribution*, 2nd ed. Wiley.
@@ -432,6 +483,7 @@ the whole-history return.
 - Jorion, P. (2007). *Value at Risk: The New Benchmark for Managing Financial Risk*, 3rd ed. McGraw-Hill.
 - Kupiec, P. (1995). Techniques for verifying the accuracy of risk measurement models. *Journal of Derivatives*, 3(2), 73–84.
 - Ledoit, O., Wolf, M. (2004). A well-conditioned estimator for large-dimensional covariance matrices. *Journal of Multivariate Analysis*, 88(2), 365–411.
+- Moreira, A., Muir, T. (2017). Volatility-managed portfolios. *Journal of Finance*, 72(4), 1611–1644.
 - Politis, D., Romano, J. (1994). The stationary bootstrap. *Journal of the American Statistical Association*, 89(428), 1303–1313.
 - Sharpe, W. F. (1992). Asset allocation: management style and performance measurement. *Journal of Portfolio Management*, 18(2), 7–19.
 - Vasicek, O. (1973). A note on using cross-sectional information in Bayesian estimation of security betas. *Journal of Finance*, 28(5), 1233–1239.
