@@ -206,3 +206,15 @@ def test_two_dividends_on_the_same_date_both_count() -> None:
 
     assert quote.dividends is not None
     assert quote.dividends.loc["2025-06-05"] == pytest.approx(0.029542)
+
+
+def test_raw_closes_are_kept_beside_adjusted_prices() -> None:
+    payload = json.loads((FIXTURES / "yahoo_vod_dividends.json").read_text(encoding="utf-8"))
+
+    quote = parse_yahoo_chart(payload, NOW)
+
+    assert quote.close is not None
+    first = quote.prices.index[0]
+    # Adjusted prices are lowered by every later dividend; quoted closes are not.
+    assert quote.close.loc[first] > quote.prices.loc[first]
+    assert quote.close.iloc[-1] == pytest.approx(quote.prices.iloc[-1], rel=1e-3)

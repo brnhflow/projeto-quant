@@ -19,8 +19,8 @@ def test_next_months_start_after_the_current_month() -> None:
 
 
 def test_monthly_payer_shows_every_month_at_its_average() -> None:
-    days = pd.date_range("2024-12-01", "2026-11-01", freq="MS") + pd.Timedelta(days=14)
-    monthly = pd.Series(0.10, index=days)  # 24 monthly payments of 0.10
+    days = pd.date_range("2024-11-01", "2026-11-01", freq="MS") + pd.Timedelta(days=14)
+    monthly = pd.Series(0.10, index=days)  # 25 monthly payments of 0.10
 
     result = outlook(monthly, LAST)
 
@@ -29,7 +29,7 @@ def test_monthly_payer_shows_every_month_at_its_average() -> None:
 
 
 def test_twice_a_year_payer_shows_its_two_months() -> None:
-    paid = _paid({"2025-05-10": 1.0, "2025-11-10": 2.0, "2026-05-10": 1.2, "2026-11-10": 2.2})
+    paid = _paid({"2024-11-10": 2.0, "2025-05-10": 1.0, "2025-11-10": 2.2, "2026-05-10": 1.2})
 
     result = outlook(paid, LAST)
 
@@ -66,6 +66,22 @@ def test_growth_is_limited_and_needs_steady_payments() -> None:
     assert outlook(gaps, LAST).paid_years == 3
 
 
+def test_calendar_counts_each_month_exactly_twice() -> None:
+    # A yearly payment late in the month: the window must not catch three Novembers.
+    paid = _paid({"2024-11-20": 1.0, "2025-11-20": 1.0, "2026-11-10": 1.0})
+
+    result = outlook(paid, pd.Timestamp("2026-11-15"))
+
+    assert sum(result.per_unit) == pytest.approx(1.0)
+
+
+def test_time_zone_aware_dates_are_accepted() -> None:
+    paid = _paid({"2025-06-01": 1.0, "2026-06-01": 1.0})
+    paid.index = pd.DatetimeIndex(paid.index).tz_localize("UTC")
+
+    assert sum(outlook(paid, LAST).per_unit) == pytest.approx(1.0)
+
+
 def test_payments_after_the_analysis_date_are_ignored() -> None:
     paid = _paid({"2026-06-01": 1.0, "2026-12-01": 50.0})
 
@@ -87,7 +103,7 @@ def test_income_plan_converts_to_euro_and_adds_up() -> None:
     from quant.data.sources import Quote
     from quant.report.data import income_plan
 
-    paid = _paid({"2025-05-10": 1.0, "2025-11-10": 2.0, "2026-05-10": 1.0, "2026-11-10": 2.0})
+    paid = _paid({"2024-11-10": 2.0, "2025-05-10": 1.0, "2025-11-10": 2.0, "2026-05-10": 1.0})
     empty = pd.Series(dtype=float)
     details = {
         "A": Quote(empty, "BRL", False, pd.Timestamp(0, tz="UTC"), dividends=paid),

@@ -60,6 +60,7 @@ class Quote:
     name: str = ""
     kind: str = ""  # the source's instrument type, e.g. EQUITY, ETF, CRYPTOCURRENCY
     detail: str = ""  # exchange short name, e.g. "FII HGLG PAXCI"
+    close: pd.Series | None = None  # unadjusted closes, as quoted on each day
     dividends: pd.Series | None = None  # cash paid per unit, by payment date, in currency
 
 
@@ -110,6 +111,16 @@ def yahoo_url(symbol: str, start: pd.Timestamp) -> str:
         }
     )
     return f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol)}?{query}"
+
+
+def _raw_close(result: Any, dates: pd.DatetimeIndex, divisor: float) -> pd.Series | None:
+    """Read the closes as quoted on each day (not adjusted for later dividends)."""
+    raw: list[Any] = _field(result, "indicators", "quote", 0, "close") or []
+    if len(raw) != len(dates):
+        return None
+    values = [float("nan") if v is None else float(v) / divisor for v in raw]
+    close = pd.Series(values, index=dates, dtype=float).dropna()
+    return close[~close.index.duplicated(keep="last")].sort_index()
 
 
 @_tolerant
@@ -208,6 +219,7 @@ def parse_yahoo_chart(payload: dict[str, Any], now: pd.Timestamp) -> Quote:
         name=_clean(meta.get("longName") or meta.get("shortName") or ""),
         kind=str(meta.get("instrumentType") or ""),
         detail=_clean(meta.get("shortName") or ""),
+        close=_raw_close(result, dates, divisor),
         dividends=dividends,
     )
 

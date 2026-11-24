@@ -9,6 +9,13 @@ before 1.0 the interface may still change.
 - Long-only minimum-variance targets in the rebalancing planner (projected gradient on the
   simplex, Ledoit-Wolf covariance), tested against the closed form.
 
+### Fixed
+- The income calendar counts exactly 24 whole months, so a month is never counted three times.
+- Dividend yield history uses quoted closes; adjusted prices overstated past yields.
+- Benchmark statistics use only days the index traded, and the alpha note says when a price
+  index flatters the portfolio.
+- Cash is never flagged as concentration; "below target" reads only complete saved targets.
+
 ## 0.4.0 — 2026-11-24
 
 ### Added

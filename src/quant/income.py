@@ -56,15 +56,20 @@ def outlook(dividends: pd.Series, last: pd.Timestamp) -> IncomeOutlook:
     """
     if dividends.empty:
         dividends = pd.Series(dtype=float, index=pd.DatetimeIndex([]))
+    index = pd.DatetimeIndex(dividends.index)
+    if index.tz is not None:
+        dividends = dividends.set_axis(index.tz_localize(None))
     paid = dividends[dividends.index <= last].sort_index()
     dates = pd.DatetimeIndex(paid.index)
     payments = [(pd.Timestamp(d), float(v)) for d, v in zip(dates, paid.to_numpy(), strict=True)]
     months = next_months(last)
 
-    since = last - pd.DateOffset(years=CALENDAR_YEARS)
+    # Exactly 24 whole months before the current one, so each calendar month counts twice.
+    this_month = last.normalize().replace(day=1)
+    since = this_month - pd.DateOffset(years=CALENDAR_YEARS)
     by_month: dict[int, float] = {}
     for date, amount in payments:
-        if date > since:
+        if since <= date < this_month:
             by_month[date.month] = by_month.get(date.month, 0.0) + amount / CALENDAR_YEARS
     per_unit = [by_month.get(m.month, 0.0) for m in months]
 

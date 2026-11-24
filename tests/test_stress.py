@@ -246,6 +246,7 @@ def test_report_stress_block_adds_up() -> None:
     opp = data["opportunities"]
     assert set(opp) == {"farFromHigh", "yieldHigh", "diversifiers", "concentration", "rules"}
     assert all(r["gap"] <= -0.20 for r in opp["farFromHigh"])
+    assert "Caixa EUR" not in {c["asset"] for c in opp["concentration"]}
     factors = data["factors"]
     keys = {i["key"] for i in factors["items"]}
     assert keys == {"^GSPC", "^BVSP"}  # constant exchange rates are dropped as factors

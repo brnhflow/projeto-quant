@@ -606,6 +606,8 @@ def income_plan(
         rate = 1.0 if currency == base else float(rates.get(currency, float("nan")))
         if not math.isfinite(rate):
             continue
+        if float(position_value[asset]) <= 0:
+            continue
         per_month = [v * float(quantities[asset]) * rate for v in view.per_unit]
         annual = sum(per_month)
         if annual <= 0 and view.last is None:
@@ -671,7 +673,10 @@ def _opportunities(
             )
         quote = (details or {}).get(name)
         if quote is not None and quote.dividends is not None and not quote.dividends.empty:
-            check = yield_vs_history(local_prices[name], quote.dividends)
+            # Adjusted prices are lowered by later dividends, which would overstate past
+            # yields: the ratio needs the prices actually quoted at the time.
+            raw = quote.close if quote.close is not None else None
+            check = None if raw is None else yield_vs_history(raw, quote.dividends)
             if (
                 check is not None
                 and check.median > 0
@@ -719,6 +724,8 @@ def _opportunities(
         except ValueError:
             shares = None
     for asset in holdings.index:
+        if str(asset) in cash:
+            continue
         weight = float(weights_now[asset])
         risk = float(shares[asset]) if shares is not None else float("nan")
         if weight > CONCENTRATION_WEIGHT or (math.isfinite(risk) and risk > CONCENTRATION_RISK):
@@ -765,13 +772,17 @@ def _benchmarks(
     items: list[dict[str, Any]] = []
     for b, total in chosen:
         series = indices[b]
+        # Statistics only on days the index itself traded: a holiday carried forward would
+        # be a 0% day and bias beta, correlation and capture towards zero.
+        traded = proxy_prices[b].dropna().index
+        exact = series.where(series.index.isin(traded))
         stats: dict[str, Any] = {}
         for period in PERIODS:
             start = period_start(calendar, period)
             if start is None:
                 continue
             try:
-                s = compare(value.iloc[start:], series.iloc[start:])
+                s = compare(value.iloc[start:], exact.iloc[start:])
             except ValueError:
                 continue
             stats[period.key] = {

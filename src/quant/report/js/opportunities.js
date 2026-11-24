@@ -14,8 +14,7 @@ const OPP_ICONS = {
 const oppIcon = (k) => `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${OPP_ICONS[k]}</svg>`;
 
 function underTarget() {
-  let saved = null;
-  try { saved = JSON.parse(localStorage.getItem(REB_KEY) || "null"); } catch { saved = null; }
+  const saved = savedTargets();  // complete and summing to 100%, or null
   if (!saved) return null;
   return positions.filter((p) => typeof saved[p.asset] === "number" && saved[p.asset] - p.weight > 0.02)
     .map((p) => ({ asset: p.asset, type: p.type, target: saved[p.asset], weight: p.weight }))

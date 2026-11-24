@@ -136,10 +136,10 @@ function renderBenchmark(p) {
   box.innerHTML =
     fig("Carteira contra o índice", fmt.pp(diff), `${fmt.pct(s.portfolio)} contra ${fmt.pct(s.benchmark)} ${PHRASE[p.key]}.`) +
     fig("Beta", fmt.num(s.beta, 2), s.beta > 1.05 ? "Oscila mais que o índice." : s.beta < 0.95 ? "Oscila menos que o índice." : "Oscila como o índice.") +
-    fig("Alfa por ano", fmt.pct(s.alpha), "Retorno que a exposição ao índice não explica.") +
+    fig("Alfa por ano", fmt.pct(s.alpha), item.dividends ? "Retorno que a exposição ao índice não explica." : "Inflado pelos dividendos, que este índice não inclui e a carteira sim.") +
     fig("Tracking error", fmt.share(s.trackingError), s.informationRatio === null ? "Igual ao índice." : `Information ratio ${fmt.num(s.informationRatio, 2)}.`) +
     (s.downCapture !== null && s.upCapture !== null
-      ? fig("Captura alta / baixa", `${fmt.share(s.upCapture, 0)} / ${fmt.share(s.downCapture, 0)}`, s.downCapture < s.upCapture ? "Cai menos do que sobe junto com o índice." : "Cai junto com o índice mais do que sobe.")
+      ? fig("Captura alta / baixa", `${fmt.share(s.upCapture, 0)} / ${fmt.share(s.downCapture, 0)}`, s.downCapture < 1 ? "Nos dias de queda do índice, caiu menos que ele." : "Nos dias de queda do índice, caiu mais que ele.")
       : "");
 }
 $("bench-picker").addEventListener("click", (ev) => {
