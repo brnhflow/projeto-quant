@@ -27,6 +27,13 @@ picks the lots with the lowest tax.
 
 *Done when:* the tax matches hand-computed cases from each country's rules.
 
+### 7c. Filtered historical VaR in the report
+The [research note](research/var-backtest.md) shows historical simulation clustering its
+breaches on every market tested, and filtered historical simulation holding up best. Show the
+FHS VaR beside the historical one as today's conditional figure, with the same backtest.
+
+*Done when:* the report's FHS backtest matches `research/var_backtest.py` on the same series.
+
 ### 8. Allocation with constraints
 Minimum variance and a mean-variance frontier on the Ledoit-Wolf covariance, long only, with
 per-asset limits. The report must show how much the weights move when the inputs change

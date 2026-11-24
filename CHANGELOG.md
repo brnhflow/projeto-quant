@@ -16,6 +16,8 @@ before 1.0 the interface may still change.
   cost, and value against net money invested. The log must end with the holdings' quantities.
 - **Brinson-Fachler attribution** against MSCI ACWI by market, with the index's regional mix
   estimated by returns-based style analysis.
+- Research note comparing historical, EWMA and filtered historical VaR on seven markets since
+  2008, with a script that reproduces every number (`research/var_backtest.py`).
 - Long-only minimum-variance targets in the rebalancing planner (projected gradient on the
   simplex, Ledoit-Wolf covariance), tested against the closed form.
 - Optional average cost and purchase date per position: the summary shows the money invested
@@ -23,6 +25,8 @@ before 1.0 the interface may still change.
   return (XIRR); the positions table shows each position's cost and gain.
 
 ### Fixed
+- Parallel downloads could corrupt the exchange-rate cache, and a damaged cache file stopped the
+  next analysis instead of being downloaded again.
 - The total row of the positions table sat one column off.
 - The income calendar counts exactly 24 whole months, so a month is never counted three times.
 - Dividend yield history uses quoted closes; adjusted prices overstated past yields.

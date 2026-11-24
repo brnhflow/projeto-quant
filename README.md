@@ -13,7 +13,7 @@ rebalancing. Every model comes with the test that says whether to trust it.
 ![Types](https://img.shields.io/badge/pyright-strict-7b5cc4)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-**[Live demo](https://brnhflow.github.io/projeto-quant/)** · [Methodology](docs/METHODOLOGY.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
+**[Live demo](https://brnhflow.github.io/projeto-quant/)** · [Methodology](docs/METHODOLOGY.md) · [Research note](docs/research/var-backtest.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
 
 ![Report summary](docs/images/overview.png)
 
@@ -82,6 +82,26 @@ Unit tests compare against answers known in advance:
 The JavaScript maths in the page is tested with Node, and CI syntax-checks the assembled page
 script. Formulas and details are in [docs/METHODOLOGY.md](docs/METHODOLOGY.md).
 
+## Research
+
+**[Does a 95% VaR hold up? Three models on seven markets, 2008 to 2026](docs/research/var-backtest.md)**
+
+Historical simulation, EWMA with normal tails and filtered historical simulation, each
+forecasting from past data only, on Ibovespa, S&P 500, Euro Stoxx 50, FTSE 100, SMI, MSCI ACWI
+and Bitcoin, tested with the same Kupiec, Christoffersen and Basel checks as the report.
+
+- Historical simulation gets the number of breaches right (coverage holds on 7 of 7 series at
+  95%) but not their timing: independence is rejected on all seven. In March 2020 the S&P 500
+  broke its 99% historical VaR 8 times in 29 trading days.
+- EWMA with normal tails reacts in days but is breached about twice as often as promised at
+  99%, on every series.
+- Filtered historical simulation keeps the coverage, passes both tests on the most series, and
+  is the only model with no rolling year in the Basel red zone.
+
+![S&P 500 in early 2020: daily returns and each model's 99% VaR](docs/research/var-covid.svg)
+
+Reproduce with `uv run python research/var_backtest.py`.
+
 ## Quick start
 
 Requires [uv](https://docs.astral.sh/uv/), which installs the right Python by itself. Node.js
@@ -142,6 +162,7 @@ src/quant/
 ├── brinson.py     Brinson-Fachler attribution, returns-based style analysis
 ├── ledger.py      transaction log: TWR, MWR, average-cost gains
 ├── tearsheet.py   monthly table, rolling ratios, drawdown periods, distribution
+├── var_models.py  historical, EWMA and filtered historical VaR
 ├── simulation.py  Monte Carlo and its calibration
 ├── income.py      dividend calendar and growth
 ├── signals.py     rule-based opportunity signals

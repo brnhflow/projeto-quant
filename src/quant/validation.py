@@ -209,7 +209,23 @@ def backtest_var(returns: pd.Series, level: float = 0.95, window: int = 250) -> 
 
     The conditional-coverage p-value combines both statistics (chi-squared, 2 degrees).
     """
-    table = rolling_var(returns, window, level)
+    return evaluate_var(rolling_var(returns, window, level), level, window)
+
+
+def evaluate_var(table: pd.DataFrame, level: float, window: int) -> VarBacktest:
+    """Run the Kupiec, Christoffersen and Basel checks on any model's forecasts.
+
+    Parameters
+    ----------
+    table : pd.DataFrame
+        One row per tested day with a boolean ``breach`` column, in date order (as
+        :func:`rolling_var` and the models in :mod:`quant.var_models` return).
+    level : float
+        The VaR's confidence level.
+    window : int
+        Days of history behind each forecast, for the record.
+
+    """
     p = 1 - level
     n = len(table)
     x = int(table["breach"].sum())
