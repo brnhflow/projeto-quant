@@ -73,7 +73,7 @@ def ols(y: pd.Series, x: pd.DataFrame) -> Regression:
     fitted: Matrix = design @ coef
     resid: Matrix = target - fitted
     sigma2 = float(resid @ resid) / (n - k)
-    inverse: Matrix = np.linalg.inv(gram)
+    inverse: Matrix = np.asarray(np.linalg.inv(gram), dtype=np.float64)
     se: Matrix = np.sqrt(np.maximum(sigma2 * inverse.diagonal(), 0.0))
     total = float(((target - target.mean()) ** 2).sum())
     r2 = 1 - float(resid @ resid) / total if total > 0 else 0.0
