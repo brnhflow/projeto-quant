@@ -1,5 +1,5 @@
-// Rebalancing maths for the report. Kept apart from report.js and free of the DOM so it
-// can be tested with Node (tests/test_rebalance_js.py).
+// Pure maths behind the report pages: rebalancing, risk parity and income projection.
+// Free of the DOM so it can be tested with Node (tests/test_rebalance_js.py).
 
 // Annualized volatility of weights w under covariance matrix cov: sqrt(w' cov w).
 function portfolioVol(cov, w) {

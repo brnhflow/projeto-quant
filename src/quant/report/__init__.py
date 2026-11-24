@@ -14,7 +14,31 @@ from quant.data.news import Headline
 from quant.data.sources import Quote
 from quant.report.data import PERIODS, Period, build_report_data, period_start
 
-__all__ = ["PERIODS", "Period", "build_report", "build_report_data", "period_start", "render_html"]
+__all__ = [
+    "PERIODS",
+    "Period",
+    "build_report",
+    "build_report_data",
+    "period_start",
+    "render_html",
+    "report_script",
+]
+
+
+def report_script() -> str:
+    """Assemble the page script: shared libraries, then the page parts in ``js/ORDER``.
+
+    The libraries (tested with Node) define global functions; the page parts run inside
+    one function, so the names they share stay out of the global scope.
+    """
+    assets = resources.files("quant.report")
+    static = resources.files("quant.app") / "static"
+    libraries = [static / "quantity.js", static / "assets.js", assets / "maths.js"]
+    parts = (assets / "js" / "ORDER").read_text(encoding="utf-8").split()
+    page = "\n".join((assets / "js" / name).read_text(encoding="utf-8") for name in parts)
+    js = "\n".join(f.read_text(encoding="utf-8") for f in libraries)
+    js += "\n(() => {\n" + page + "\n})();\n"
+    return js
 
 
 def render_html(data: dict[str, Any]) -> str:
@@ -34,17 +58,7 @@ def render_html(data: dict[str, Any]) -> str:
     assets = resources.files("quant.report")
     template = (assets / "template.html").read_text(encoding="utf-8")
     css = (assets / "report.css").read_text(encoding="utf-8")
-    # Pure functions tested with Node, then the page script that calls them.
-    static = resources.files("quant.app") / "static"
-    js = "\n".join(
-        f.read_text(encoding="utf-8")
-        for f in (
-            static / "quantity.js",
-            static / "assets.js",
-            assets / "rebalance.js",
-            assets / "report.js",
-        )
-    )
+    js = report_script()
     # "</" inside the JSON would close the <script> tag early.
     payload = (
         json.dumps(data, ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\u0021--")

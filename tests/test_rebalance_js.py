@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-SCRIPT = Path(__file__).parents[1] / "src" / "quant" / "report" / "rebalance.js"
+SCRIPT = Path(__file__).parents[1] / "src" / "quant" / "report" / "maths.js"
 NODE = shutil.which("node")
 pytestmark = pytest.mark.skipif(NODE is None, reason="Node.js not installed")
 
@@ -239,3 +239,15 @@ def test_reinvested_income_and_contributions_compound_at_the_portfolio_yield() -
     assert rows[1]["total"] == pytest.approx(122)
     # Year 3: 22 + (122 + 120) * 10% = 46.2 of extra income.
     assert rows[2]["extra"] == pytest.approx(46.2)
+
+
+def test_assembled_report_script_is_valid_javascript(tmp_path: Path) -> None:
+    from quant.report import report_script
+
+    assert NODE is not None
+    script = tmp_path / "report.js"
+    script.write_text(report_script(), encoding="utf-8")
+
+    check = subprocess.run([NODE, "--check", str(script)], capture_output=True, text=True)
+
+    assert check.returncode == 0, check.stderr
