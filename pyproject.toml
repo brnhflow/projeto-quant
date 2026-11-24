@@ -1,15 +1,30 @@
 [project]
-# Provisional name. The import package (src/quant) is deliberately neutral so a
-# rename only touches this line, the README title and the folder name.
 name = "projeto-quant"
-version = "0.0.1"
-description = "Personal research toolkit for analysing my own portfolio: risk, scenarios, decision support."
+version = "0.4.0"
+description = "Portfolio risk lab: live market data, VaR backtesting, crisis replays, factor exposures, Monte Carlo, income projection and rebalancing, with every number validated."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{ name = "Bernardo" }]
+keywords = ["quantitative-finance", "portfolio", "risk-management", "value-at-risk", "monte-carlo", "backtesting", "factor-model"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Typing :: Typed",
+]
 dependencies = [
+    "numpy>=2.0",
     "pandas>=3.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/brnhflow/projeto-quant"
+Demo = "https://brnhflow.github.io/projeto-quant/"
+Methodology = "https://github.com/brnhflow/projeto-quant/blob/main/docs/METHODOLOGY.md"
 
 [dependency-groups]
 dev = [
@@ -54,7 +69,6 @@ convention = "numpy"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D"]
-".claude/**" = ["D"]
 "scripts/**" = ["E501"]  # HTML/SVG templates
 
 # ---------------------------------------------------------------- pyright

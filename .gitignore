@@ -44,9 +44,11 @@ cmake-build-*/
 .DS_Store
 Thumbs.db
 
-# Claude Code personal files
-.claude/settings.local.json
+# Personal editor and assistant configuration, kept local
+.claude/
+CLAUDE.md
 CLAUDE.local.md
+SETUP_LOG.md
 
 # Generated reports
 reports/

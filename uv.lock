@@ -502,9 +502,11 @@ wheels = [
 
 [[package]]
 name = "projeto-quant"
-version = "0.0.1"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pandas" },
 ]
 
@@ -519,7 +521,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pandas", specifier = ">=3.0" }]
+requires-dist = [
+    { name = "numpy", specifier = ">=2.0" },
+    { name = "pandas", specifier = ">=3.0" },
+]
 
 [package.metadata.requires-dev]
 dev = [
