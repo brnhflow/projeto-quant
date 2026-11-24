@@ -619,3 +619,22 @@ h3.chart-title .info { width: 18px; height: 18px; margin-left: 6px; }
 #models-table tr.best td { background: var(--s1-soft); }
 .zone-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
 .zone-dot.z-green { background: var(--pos); } .zone-dot.z-yellow { background: var(--warn); } .zone-dot.z-red { background: var(--neg); }
+
+/* ---------------------------------------------------------------- key findings */
+.insights-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 10px; }
+.insight {
+  all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 6px;
+  padding: 16px 16px 14px; border-radius: 12px; border: 1px solid var(--card-rule); background: var(--paper);
+  border-top: 3px solid var(--ink-3); transition: transform .12s ease, border-color .12s ease;
+}
+.insight:hover, .insight:focus-visible { transform: translateY(-2px); border-color: var(--s1); }
+.insight.warn { border-top-color: var(--warn); } .insight.good { border-top-color: var(--pos); } .insight.neutral { border-top-color: var(--s1); }
+.ins-value { font: 600 26px/1.1 var(--sans); letter-spacing: -0.01em; color: var(--ink); }
+.ins-title { font-weight: 600; font-size: 14px; color: var(--ink); }
+.ins-text { font-size: 13px; line-height: 1.45; color: var(--ink-2); flex: 1; }
+.ins-go { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--s1); margin-top: 4px; }
+
+/* ---------------------------------------------------------------- sizing */
+.sizing-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+.sizing-result { border-left: 1px solid var(--rule); padding-left: 24px; }
+@media (max-width: 960px) { .sizing-row { grid-template-columns: 1fr; } .sizing-result { border-left: 0; padding-left: 0; } }

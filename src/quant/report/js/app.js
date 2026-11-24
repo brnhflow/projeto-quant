@@ -96,8 +96,10 @@ renderIncome();
 renderOpportunities();
 renderTearsheet();
 renderLedger();
+renderSizing();
 setBadge("semana", Object.values(MOVES).filter((m) => m.unusual).length);
 showTab(location.hash.slice(1), false);
+renderInsights();
 renderRebalance();
 renderPeriod();
 

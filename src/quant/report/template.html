@@ -40,6 +40,11 @@
 <div class="tab-page" id="page-resumo" data-page="resumo" role="tabpanel" aria-labelledby="tab-resumo">
 <section class="figures" id="figures" aria-label="Key figures" data-pt-aria-label="Números principais"></section>
 
+<section class="block insights" id="insights-section" hidden>
+  <h2><span data-l="en">Key findings</span><span data-l="pt">Principais achados</span></h2>
+  <div class="insights-grid" id="insights"></div>
+</section>
+
 <section class="block">
   <h2><span data-l="en">Performance</span><span data-l="pt">Desempenho</span></h2>
   <p class="lede" id="perf-lede"></p>
@@ -149,6 +154,14 @@
   <h2><span data-l="en">Risk</span><span data-l="pt">Risco</span></h2>
   <p class="lede" id="risk-lede"></p>
   <div class="reb-summary ratios" id="ratios"></div>
+  <div class="sizing" id="sizing" hidden>
+    <h3 class="chart-title"><span data-l="en">Volatility targeting</span><span data-l="pt">Volatilidade-alvo</span></h3>
+    <div class="sizing-row">
+      <label class="slider sizing-slider"><span class="sl-head"><span><span data-l="en">Target annual volatility</span><span data-l="pt">Volatilidade anual desejada</span></span><output id="sizing-out">10%</output></span>
+        <input type="range" id="sizing-target" min="4" max="30" step="1" value="10"></label>
+      <div class="sizing-result" id="sizing-result" aria-live="polite"></div>
+    </div>
+  </div>
   <div class="two-col">
     <div>
       <h3 class="chart-title"><span data-l="en">Weight and share of risk</span><span data-l="pt">Peso na carteira e parcela do risco</span></h3>
