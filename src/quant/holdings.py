@@ -37,6 +37,8 @@ def load_holdings(path: str | Path) -> pd.DataFrame:
     Assumptions
     -----------
     - One row per asset; a position bought several times is entered as its total.
+    - Optional ``cost`` (average price paid per unit, in ``currency``) and ``since`` (date of
+      the first purchase, YYYY-MM-DD) give the gain on the money invested; blank is allowed.
     - Fractional quantities are allowed (crypto, fractional shares).
 
     """
@@ -76,7 +78,7 @@ def load_holdings(path: str | Path) -> pd.DataFrame:
     if (symbol[cash] != currency[cash]).any():
         raise ValueError("a cash row needs its currency as symbol, e.g. symbol BRL, currency BRL")
 
-    return pd.DataFrame(
+    holdings = pd.DataFrame(
         {
             "quantity": quantity.astype(float).to_numpy(),
             "currency": currency.to_numpy(),
@@ -85,6 +87,20 @@ def load_holdings(path: str | Path) -> pd.DataFrame:
         },
         index=pd.Index(asset.to_numpy(), name="asset"),
     )
+    if "cost" in raw.columns:
+        text = raw["cost"].fillna("").str.strip()
+        cost = pd.to_numeric(text.replace("", "nan"), errors="coerce")
+        bad = (text != "") & (cost.isna() | ~np.isfinite(cost) | (cost <= 0))
+        if bad.any():
+            raise ValueError("every cost must be a positive price per unit, or left blank")
+        holdings["cost"] = cost.astype(float).to_numpy()
+    if "since" in raw.columns:
+        text = raw["since"].fillna("").str.strip()
+        since = pd.to_datetime(text.replace("", None), format="%Y-%m-%d", errors="coerce")
+        if ((text != "") & since.isna()).any():
+            raise ValueError("every since date must be YYYY-MM-DD, or left blank")
+        holdings["since"] = since.to_numpy()
+    return holdings
 
 
 def save_holdings(holdings: pd.DataFrame, path: str | Path) -> None:
@@ -101,7 +117,11 @@ def save_holdings(holdings: pd.DataFrame, path: str | Path) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     columns = ["quantity", "currency", "source", "symbol"]
-    holdings[columns].to_csv(target, index_label="asset", lineterminator="\n")
+    columns += [c for c in ("cost", "since") if c in holdings.columns]
+    out = holdings[columns].copy()
+    if "since" in out.columns:
+        out["since"] = pd.to_datetime(out["since"]).dt.strftime("%Y-%m-%d")
+    out.to_csv(target, index_label="asset", lineterminator="\n")
 
 
 def asset_labels(symbols: list[str]) -> list[str]:

@@ -38,7 +38,7 @@ When a model fails its test, the report says so in plain language.
 
 | | |
 |---|---|
-| ![Portfolio editor](docs/images/editor.png) | **Build the portfolio.** Search any listed instrument by name or ticker; every match is returned, not just the top seven. Pick its type from drawn icons and type the quantity. Cash in 15 currencies counts too. |
+| ![Portfolio editor](docs/images/editor.png) | **Build the portfolio.** Search any listed instrument by name or ticker; every match is returned, not just the top seven. Pick its type from drawn icons and type the quantity. Optionally add the average price paid and the first purchase date, and the report shows the gain on the money actually invested and its annual money-weighted return (XIRR). Cash in 15 currencies counts too. |
 | ![This week](docs/images/week.png) | **This week.** Assets whose last day or week moved more than 2.5 standard deviations of their own history are flagged, next to the headlines that explain the move. |
 | ![Risk](docs/images/risk.png) | **Risk.** Volatility, drawdown, historical VaR and ES, Sharpe, Sortino and Calmar. How much each asset adds to total risk (Euler decomposition) and the correlation matrix. A factor model of what the portfolio really depends on, with error bands and an out-of-sample check. |
 | ![Scenarios](docs/images/scenarios.png) | **Scenarios.** Eight real crises applied to today's positions: 2008, euro debt, Brazil 2015, Brexit, Joesley Day, Covid, 2022 rates and FTX. Assets that did not exist yet are estimated from their closest index, with a Vasicek-shrunk beta. Sliders build any custom scenario, and a 2,000-path block-bootstrap fan shows 1 to 5 years ahead. |
@@ -175,8 +175,9 @@ The interface is in Portuguese; code, tests and documentation are in English.
 
 ## Limitations
 
-- Holdings are treated as held for the whole history, because there is no transaction log yet.
-  Past figures describe today's portfolio, not past decisions.
+- Apart from the gain on money invested, holdings are treated as held for the whole history,
+  because there is no full transaction log yet. Past figures describe today's portfolio, not
+  past decisions.
 - Free data has gaps, survivorship bias and occasional adjustment errors. Yahoo's API is
   unofficial and may change.
 - Models are simplifications. Nothing here is financial advice.

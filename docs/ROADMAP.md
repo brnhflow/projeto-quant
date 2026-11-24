@@ -19,7 +19,9 @@ Ordered by how useful each step is for managing a real portfolio. A step ships o
 ## Next
 
 ### 7. Transaction log
-Record buys, sells and contributions instead of today's quantities only. This enables:
+*Partly done:* the average cost and first purchase date per position give the gain on money
+invested and its XIRR. Still to do: record each buy, sell and contribution, instead of
+today's quantities only. This enables:
 
 - time-weighted and money-weighted returns;
 - the average cost per position;

@@ -336,6 +336,23 @@ function renderRisk(p) {
 }
 
 // ---------------------------------------------------------------- positions table
+const RESULT = D.result;
+const RESULT_BY = RESULT ? Object.fromEntries(RESULT.positions.map((r) => [r.asset, r])) : {};
+function renderResult() {
+  $("result-section").hidden = !RESULT;
+  if (!RESULT) return;
+  const up = RESULT.gain >= 0;
+  const partial = RESULT.covered < 0.995;
+  $("result-lede").innerHTML = `Pelo preço médio que você informou, ${partial ? `os ativos com custo (${fmt.share(RESULT.covered, 0)} da carteira) ` : "a carteira "}` +
+    `${up ? "rendeu" : "perdeu"} <strong>${fmt.eur(Math.abs(RESULT.gain))}</strong> sobre ${fmt.eur(RESULT.invested)} investidos, em euro e com o câmbio de cada data de compra.`;
+  const fig = (label, value, note, cls) => `<div class="reb-fig"><p class="label">${label}</p><p class="value ${cls || ""}">${value}</p><p class="note">${note}</p></div>`;
+  $("result-figures").innerHTML =
+    fig("Investido", fmt.eur(RESULT.invested), RESULT.first ? `Primeira compra em ${dateLong(RESULT.first)}.` : "Datas de compra não informadas.") +
+    fig("Valor hoje", fmt.eur(RESULT.value), "Dos mesmos ativos.") +
+    fig("Ganho", `${fmt.eurSigned(RESULT.gain)}`, `${fmt.pct(RESULT.gainPct)} sobre o investido.`, up ? "up" : "down") +
+    fig("TIR por ano", RESULT.xirr === null ? "—" : fmt.pct(RESULT.xirr), RESULT.xirr === null ? "Informe a data de compra de cada ativo com custo." : "Taxa anual que considera quando o dinheiro entrou.");
+}
+
 const COLUMNS = [
   { key: "asset", label: "Ativo", cls: "asset", get: (a) => a.asset, show: (a) => `<span class="asset-cell">${badge(a.type)}${esc(a.asset)}</span>` },
   { key: "type", label: "Tipo", get: (a) => typeInfo(a.type).one, show: (a) => esc(typeInfo(a.type).one) },
@@ -347,7 +364,11 @@ const COLUMNS = [
   { key: "weight", label: "Peso", r: true, get: (a) => a.weight, show: (a) => fmt.share(a.weight) },
   { key: "retBase", label: "Retorno em €", r: true, get: (a, p) => p.assetReturns[a.asset].base, show: (a, p) => fmt.pct(p.assetReturns[a.asset].base) },
   { key: "retLocal", label: "Retorno local", r: true, get: (a, p) => p.assetReturns[a.asset].local, show: (a, p) => fmt.pct(p.assetReturns[a.asset].local) },
-];
+].concat(RESULT ? [
+  { key: "cost", label: "Preço médio", r: true, get: (a) => (RESULT_BY[a.asset] || {}).cost ?? -Infinity, show: (a) => (RESULT_BY[a.asset] ? fmt.num(RESULT_BY[a.asset].cost, 2) : "—") },
+  { key: "gain", label: "Seu ganho em €", r: true, get: (a) => (RESULT_BY[a.asset] || {}).gainBase ?? -Infinity, show: (a) => (RESULT_BY[a.asset] ? fmt.pct(RESULT_BY[a.asset].gainBase) : "—") },
+] : []).concat([
+]);
 let sort = { key: "value", dir: -1 };
 const ARROW = `<svg class="arrow" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 2.5 4 6 7 2.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`;
 

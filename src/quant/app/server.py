@@ -89,6 +89,33 @@ def _labels(symbols: list[str], sources: list[str]) -> list[str]:
     ]
 
 
+def _cost(raw: Any, symbol: str) -> float:
+    """Average price paid per unit, or NaN when not given."""
+    if raw is None or raw == "":
+        return math.nan
+    if isinstance(raw, bool) or not isinstance(raw, int | float):
+        raise BadRequestError(f"Preço médio de {symbol} precisa ser um número.")
+    value = float(raw)
+    if not math.isfinite(value) or not 0 < value <= MAX_QUANTITY:
+        raise BadRequestError(f"Preço médio de {symbol} precisa ser maior que zero.")
+    return value
+
+
+def _since(raw: Any, symbol: str) -> pd.Timestamp | None:
+    """Date of the first purchase (YYYY-MM-DD), not in the future, or None."""
+    if raw is None or raw == "":
+        return None
+    try:
+        date = pd.Timestamp(str(raw))
+    except ValueError as error:
+        raise BadRequestError(f"Data de compra de {symbol} inválida.") from error
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(raw)) or not (
+        pd.Timestamp("1990-01-01") <= date <= pd.Timestamp.now().normalize()
+    ):
+        raise BadRequestError(f"Data de compra de {symbol} inválida.")
+    return date
+
+
 def parse_positions(body: Any) -> tuple[pd.DataFrame, int]:
     """Validate the analysis request and turn it into holdings plus years of history.
 
@@ -128,6 +155,8 @@ def parse_positions(body: Any) -> tuple[pd.DataFrame, int]:
     currencies: list[str] = []
     sources: list[str] = []
     seen: set[tuple[bool, str]] = set()
+    costs: list[float] = []
+    dates: list[pd.Timestamp | None] = []
     for raw_item in positions:
         item = cast(dict[str, Any], raw_item) if isinstance(raw_item, dict) else {}
         symbol = str(item.get("symbol", ""))
@@ -158,6 +187,8 @@ def parse_positions(body: Any) -> tuple[pd.DataFrame, int]:
         quantities.append(float(quantity))
         currencies.append(currency)
         sources.append(CASH if cash else YAHOO)
+        costs.append(_cost(item.get("cost"), symbol))
+        dates.append(_since(item.get("since"), symbol))
 
     if all(src == CASH for src in sources):
         raise BadRequestError("Adicione pelo menos um ativo além do caixa.")
@@ -170,6 +201,9 @@ def parse_positions(body: Any) -> tuple[pd.DataFrame, int]:
         },
         index=pd.Index(_labels(symbols, sources), name="asset"),
     )
+    if any(math.isfinite(c) for c in costs):
+        holdings["cost"] = costs
+        holdings["since"] = pd.to_datetime(pd.Series(dates, index=holdings.index, dtype=object))
     return holdings, int(years)
 
 
@@ -240,6 +274,10 @@ def saved_positions(config: AppConfig) -> list[dict[str, Any]]:
             "quantity": float(row["quantity"]),
             "currency": str(row["currency"]),
             "kind": "cash" if row["source"] == CASH else "instrument",
+            "cost": float(row["cost"]) if "cost" in row and pd.notna(row["cost"]) else None,
+            "since": f"{row['since']:%Y-%m-%d}"
+            if "since" in row and pd.notna(row["since"])
+            else None,
         }
         for _, row in holdings.iterrows()
         if row["source"] in (YAHOO, CASH)

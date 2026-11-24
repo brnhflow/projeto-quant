@@ -212,6 +212,8 @@ def test_analysis_saves_portfolio_and_serves_report(app: tuple[AppConfig, int]) 
         "quantity": 2.5,
         "currency": "EUR",
         "kind": "instrument",
+        "cost": None,
+        "since": None,
     }
 
 
@@ -235,7 +237,53 @@ def test_cash_is_analysed_saved_and_restored(app: tuple[AppConfig, int]) -> None
         "quantity": 5000.0,
         "currency": "BRL",
         "kind": "cash",
+        "cost": None,
+        "since": None,
     }
+
+
+def test_cost_and_purchase_date_are_saved_and_give_a_result(app: tuple[AppConfig, int]) -> None:
+    config, port = app
+    positions = [
+        {
+            "symbol": "PETR4.SA",
+            "quantity": 100,
+            "currency": "BRL",
+            "cost": 30.0,
+            "since": "2025-01-10",
+        },
+        {"symbol": "ASML.AS", "quantity": 2.5, "currency": "EUR"},
+    ]
+
+    status, _, body = _request(port, "POST", "/api/report", {"years": 1, "positions": positions})
+
+    assert status == 200, body
+    saved = load_holdings(config.holdings_path)
+    assert saved.loc["PETR4", "cost"] == 30.0
+    assert saved.loc["PETR4", "since"] == pd.Timestamp("2025-01-10")
+    assert saved["cost"].isna().tolist() == [False, True]
+    _, _, page = _request(port, "GET", "/report")
+    assert '"result": {' in page.decode()
+    _, _, holdings = _request(port, "GET", "/api/holdings")
+    first = json.loads(holdings)["positions"][0]
+    assert first["cost"] == 30.0
+    assert first["since"] == "2025-01-10"
+
+
+@pytest.mark.parametrize(
+    ("extra", "message"),
+    [
+        ({"cost": -1}, "Preço médio"),
+        ({"cost": "abc"}, "Preço médio"),
+        ({"since": "2099-01-01"}, "Data de compra"),
+        ({"since": "10/01/2025"}, "Data de compra"),
+    ],
+)
+def test_bad_cost_or_date_is_refused(extra: dict[str, Any], message: str) -> None:
+    item = {"symbol": "PETR4.SA", "quantity": 1, "currency": "BRL", **extra}
+
+    with pytest.raises(BadRequestError, match=message):
+        parse_positions({"positions": [item]})
 
 
 def test_cash_and_a_ticker_with_the_same_code_can_coexist() -> None:

@@ -21,6 +21,7 @@ from quant.data.sources import Quote
 from quant.factors import factor_exposure
 from quant.fx import to_base_currency
 from quant.income import outlook
+from quant.performance import xirr
 from quant.returns import portfolio_value, simple_returns
 from quant.risk import (
     annualized_volatility,
@@ -811,6 +812,83 @@ def _benchmarks(
     return {"items": items} if items else None
 
 
+def _result(
+    holdings: pd.DataFrame,
+    local: pd.DataFrame,
+    fx_rates: pd.DataFrame,
+    position_value: pd.Series,
+    base: str,
+    last: pd.Timestamp,
+) -> dict[str, Any] | None:
+    """Gain on the money invested, from each position's average cost and purchase date.
+
+    The cost is converted at the exchange rate of the purchase date (the last rate at or
+    before it); without a date, at today's rate, and the position is flagged. The annual
+    money-weighted return (XIRR) needs a date for every position with a cost.
+    """
+    if "cost" not in holdings.columns:
+        return None
+    since = holdings["since"] if "since" in holdings.columns else pd.Series(pd.NaT, holdings.index)
+    rows: list[dict[str, Any]] = []
+    flows: list[tuple[pd.Timestamp, float]] = []
+    dated = True
+    names = [str(a) for a in holdings.index]
+    costs = dict(zip(names, holdings["cost"].astype(float).tolist(), strict=True))
+    units = dict(zip(names, holdings["quantity"].astype(float).tolist(), strict=True))
+    money = dict(zip(names, holdings["currency"].astype(str).tolist(), strict=True))
+    kinds = dict(zip(names, holdings["source"].astype(str).tolist(), strict=True))
+    for asset in holdings.index:
+        name = str(asset)
+        cost = costs[name]
+        if not math.isfinite(cost) or kinds[name] == "cash":
+            continue
+        currency = money[name]
+        bought = since[asset]
+        has_date = isinstance(bought, pd.Timestamp) and not pd.isna(bought)
+        rate = 1.0
+        if currency != base:
+            history = fx_rates[currency].dropna() if currency in fx_rates.columns else pd.Series()
+            if history.empty:
+                continue
+            before = history[history.index <= bought] if has_date else history
+            # A purchase older than the rate history uses its first rate.
+            rate = float(before.iloc[-1]) if not before.empty else float(history.iloc[0])
+        quantity = units[name]
+        invested = cost * quantity * rate
+        value = float(position_value[asset])
+        price_now = float(local[name].iloc[-1])
+        rows.append(
+            {
+                "asset": str(asset),
+                "cost": _num(cost, 4),
+                "since": _iso(bought) if has_date else None,
+                "invested": _num(invested, 2),
+                "value": _num(value, 2),
+                "gainLocal": _num(price_now / cost - 1),
+                "gainBase": _num(value / invested - 1),
+            }
+        )
+        if has_date:
+            flows.append((pd.Timestamp(bought), -invested))
+        else:
+            dated = False
+    if not rows:
+        return None
+    invested = sum(float(r["invested"]) for r in rows)
+    value = sum(float(r["value"]) for r in rows)
+    rate = xirr([*flows, (last, value)]) if dated and flows else None
+    return {
+        "positions": rows,
+        "invested": _num(invested, 2),
+        "value": _num(value, 2),
+        "gain": _num(value - invested, 2),
+        "gainPct": _num(value / invested - 1),
+        "xirr": None if rate is None else _num(rate),
+        "first": min((r["since"] for r in rows if r["since"]), default=None),
+        "covered": _num(value / float(position_value.sum())),
+    }
+
+
 def _news(news: dict[str, list[Headline] | None]) -> dict[str, Any]:
     return {
         asset: None
@@ -1047,6 +1125,9 @@ def build_report_data(
         "stress": stress,
         "benchmarks": _benchmarks(value, proxy_prices, fx_rates, base),
         "moves": unusual_moves(local),
+        "result": _result(
+            holdings, local, fx_rates, position_value, base, pd.Timestamp(value.index[-1])
+        ),
         "simulation": _simulation(value),
         "income": None
         if not details

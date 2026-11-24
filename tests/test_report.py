@@ -175,7 +175,7 @@ def test_build_report_returns_a_full_page() -> None:
 
     assert page.startswith("<!DOCTYPE html>")
     assert '"synthetic": true' in page
-    assert page.count("<section") == 15
+    assert page.count("<section") == 16
 
 
 def test_late_starting_asset_is_named_as_the_history_limit() -> None:
@@ -236,3 +236,40 @@ def test_short_history_has_intervals_but_no_backtest() -> None:
 
     assert validation["backtest"] is None
     assert validation["intervals"] is not None
+
+
+# ---------------------------------------------------------------- result on money invested
+
+
+def test_result_uses_cost_at_the_purchase_date_rate_and_xirr() -> None:
+    holdings, prices, fx, calendar = _market(300)
+    first = calendar[0]
+    holdings = holdings.assign(source="yahoo", cost=[40.0, 25.0], since=[first, first])
+
+    data = build_report_data(holdings, prices, fx, calendar, title="T")
+
+    result = data["result"]
+    invested = 10 * 40.0 + 30 * 25.0 * float(fx["BRL"].iloc[0])
+    value = sum(p["value"] for p in data["positions"])
+    assert result["invested"] == pytest.approx(invested, abs=0.01)
+    assert result["gainPct"] == pytest.approx(value / invested - 1, abs=1e-5)
+    days = (calendar[-1] - first).days
+    assert result["xirr"] == pytest.approx((value / invested) ** (365 / days) - 1, abs=1e-5)
+    a = next(p for p in result["positions"] if p["asset"] == "A")
+    assert a["gainLocal"] == pytest.approx(float(prices["A"].iloc[-1]) / 40 - 1, abs=1e-6)
+
+
+def test_no_result_without_costs() -> None:
+    holdings, prices, fx, calendar = _market(100)
+
+    assert build_report_data(holdings, prices, fx, calendar, title="T")["result"] is None
+
+
+def test_result_without_dates_has_no_xirr() -> None:
+    holdings, prices, fx, calendar = _market(100)
+    holdings = holdings.assign(source="yahoo", cost=[40.0, float("nan")])
+
+    result = build_report_data(holdings, prices, fx, calendar, title="T")["result"]
+
+    assert [p["asset"] for p in result["positions"]] == ["A"]
+    assert result["xirr"] is None

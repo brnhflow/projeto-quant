@@ -8,6 +8,9 @@ before 1.0 the interface may still change.
 ### Added
 - Long-only minimum-variance targets in the rebalancing planner (projected gradient on the
   simplex, Ledoit-Wolf covariance), tested against the closed form.
+- Optional average cost and purchase date per position: the summary shows the money invested
+  (at the exchange rate of each purchase date), the gain, and the annual money-weighted
+  return (XIRR); the positions table shows each position's cost and gain.
 
 ### Fixed
 - The income calendar counts exactly 24 whole months, so a month is never counted three times.

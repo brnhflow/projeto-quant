@@ -18,6 +18,7 @@ $r_t = P_t / P_{t-1} - 1$ in euro unless stated otherwise; a year has 252 tradin
 10. [Rebalancing](#10-rebalancing)
 11. [Dividend income](#11-dividend-income)
 12. [Signals](#12-signals)
+13. [Gain on money invested](#13-gain-on-money-invested)
 13. [References](#references)
 
 ## 1. Data and portfolio value
@@ -277,6 +278,31 @@ Fixed rules, shown with what to check before acting:
 | Yield above its history | Trailing-12-month yield ≥ 1.25 × its median at the month-ends of the last five years (at least 36 month-ends) |
 | Diversifier | The index whose 10% allocation (taken proportionally from every position) lowers last year's volatility the most, by at least 0.3 points |
 | Concentration | A position above 25% of value or above 35% of risk |
+
+## 13. Gain on money invested
+
+`performance.py`, `_result` in `report/data.py`
+
+With an average cost $c_i$ and first purchase date $d_i$ per position, the money invested is
+$c_i q_i X_{c(i), d_i}$: the cost converted at the last exchange rate at or before the
+purchase. Its gain is today's value over that amount. The annual money-weighted return is the
+XIRR of the flows $(d_i, -\text{invested}_i)$ and $(\text{today}, +\sum \text{value}_i)$: the rate
+$r$ that solves
+
+$$\sum_k \frac{F_k}{(1+r)^{(t_k - t_0)/365}} = 0$$
+
+It is found by bisection on $(-99.99\%, 10^6\%)$.
+
+Unlike the time-weighted return, it rewards or penalises when the money went in. A position
+bought several times enters at its first purchase date, which understates the rate.
+
+*Checks:*
+
+- 10% for a 1,100 return on 1,000 after 365 days, and after two years with 1,210.
+- −20% for a loss.
+- The NPV is zero at the solution for irregular flows.
+- A later contribution before a gain raises the rate.
+- With one purchase date for the whole portfolio, it equals the compound annual growth rate.
 
 ## References
 

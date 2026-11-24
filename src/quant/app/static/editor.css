@@ -97,6 +97,13 @@
   font-variant-numeric: tabular-nums; color: var(--ink); background: var(--paper);
   border: 1px solid var(--rule); border-radius: 6px;
 }
+.cost { width: 110px; }
+.since {
+  height: 36px; padding: 0 8px; font: 14px var(--sans); color: var(--ink); background: var(--paper);
+  border: 1px solid var(--rule); border-radius: 6px; color-scheme: light dark;
+}
+.since:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px var(--s1-soft); }
+.opt { display: block; font-size: 10px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--ink-3, var(--ink-2)); }
 .qty:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px var(--s1-soft); }
 .qty[aria-invalid="true"] { border-color: var(--neg); }
 .remove {
@@ -137,7 +144,7 @@
   .holdings thead { display: none; }
   .holdings tr {
     display: grid; grid-template-columns: 1fr auto 1fr; grid-template-areas:
-      "asset asset remove" "price qty value"; align-items: center; gap: 6px 12px;
+      "asset asset remove" "price qty value" "cost since since"; align-items: center; gap: 6px 12px;
     padding: 12px 0; border-bottom: 1px solid var(--rule);
   }
   .holdings td { display: block; padding: 0; border: 0; white-space: normal; }
@@ -146,7 +153,17 @@
   .holdings td[data-cell="price"] { grid-area: price; text-align: left; }
   .holdings td:has(.qty) { grid-area: qty; }
   .holdings td[data-cell="value"] { grid-area: value; }
+  .holdings td[data-cell="cost"] { grid-area: cost; text-align: left; }
+  .holdings td[data-cell="since"] { grid-area: since; }
+  .holdings td[data-cell="cost"]:empty, .holdings td[data-cell="since"]:empty { display: none; }
   .holdings td:has(.remove) { grid-area: remove; }
   .holdings .name { max-width: none; }
   .qty { width: 104px; }
 }
+
+/* The currency already shows in the price ("R$ 41,30"); the column makes room for cost and date. */
+.holdings th:nth-child(3), .holdings td[data-cell="currency"] { display: none; }
+.holdings .qty { width: 96px; }
+.holdings .cost { width: 92px; }
+.holdings .since { width: 138px; }
+.holdings th, .holdings td { padding-left: 8px; padding-right: 8px; }

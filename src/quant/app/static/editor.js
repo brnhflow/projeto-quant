@@ -44,13 +44,21 @@
 
   // ---------------------------------------------------------------- state
   function saveDraft() {
-    const data = rows.map((r) => ({ symbol: r.symbol, quantity: r.quantity, currency: r.currency, kind: r.kind }));
+    const data = rows.map(payload);
     localStorage.setItem(DRAFT, JSON.stringify({ rows: data, years }));
   }
 
   // Cash and a ticker can share a code (the ETF "USD" and dollars), so rows have a key.
   const keyOf = (r) => (r.kind === "cash" ? `cash:${r.symbol}` : r.symbol);
   const CURRENCY_NAMES = { EUR: "euro", BRL: "real", USD: "dólar americano", GBP: "libra", CHF: "franco suíço", JPY: "iene", CAD: "dólar canadense", AUD: "dólar australiano", SEK: "coroa sueca", NOK: "coroa norueguesa", DKK: "coroa dinamarquesa", PLN: "zloty", CNY: "yuan", HKD: "dólar de Hong Kong", MXN: "peso mexicano" };
+  // What is sent and saved for a row; cost and purchase date are optional.
+  function payload(r) {
+    const out = { symbol: r.symbol, quantity: r.quantity, currency: r.currency, kind: r.kind };
+    if (r.kind !== "cash" && r.cost > 0) out.cost = r.cost;
+    if (r.kind !== "cash" && r.since) out.since = r.since;
+    return out;
+  }
+
   function cashRow(currency, quantity) {
     return { symbol: currency, kind: "cash", type: "caixa", name: `Dinheiro em ${CURRENCY_NAMES[currency] || currency}`, exchange: "Caixa", currency, price: 1, live: false, quantity, loading: false, error: null };
   }
@@ -118,6 +126,10 @@
         <td class="r" data-cell="price">${c.price}</td>
         <td class="r"><input class="qty" data-key="${esc(keyOf(r))}" inputmode="decimal" value="${esc(qtyText)}"
           aria-label="Quantidade de ${esc(r.symbol)}" placeholder="0"></td>
+        <td class="r" data-cell="cost">${r.kind === "cash" ? "" : `<input class="qty cost" data-key="${esc(keyOf(r))}" inputmode="decimal" value="${esc(r.cost > 0 ? fmtQty(r.cost) : "")}"
+          aria-label="Preço médio pago por ${esc(r.symbol)}" placeholder="${esc(r.currency || "")}">`}</td>
+        <td data-cell="since">${r.kind === "cash" ? "" : `<input class="since" type="date" data-key="${esc(keyOf(r))}" value="${esc(r.since || "")}" max="${new Date().toISOString().slice(0, 10)}" min="1990-01-01"
+          aria-label="Data da primeira compra de ${esc(r.symbol)}">`}</td>
         <td class="r" data-cell="value">${c.value}</td>
         <td class="r"><button type="button" class="remove" data-remove="${esc(keyOf(r))}" aria-label="Remover ${esc(r.symbol)}" title="Remover">${X_ICON}</button></td>
       </tr>`;
@@ -142,6 +154,22 @@
   }
 
   $("holdings").addEventListener("input", (ev) => {
+    const since = ev.target.closest(".since");
+    if (since) {
+      const row = rows.find((r) => keyOf(r) === since.dataset.key);
+      row.since = since.value || null;
+      saveDraft();
+      return;
+    }
+    const costInput = ev.target.closest(".cost");
+    if (costInput) {
+      const row = rows.find((r) => keyOf(r) === costInput.dataset.key);
+      const v = parseQuantity(costInput.value);
+      row.cost = v === null || Number.isNaN(v) ? null : v;
+      costInput.setAttribute("aria-invalid", String(costInput.value.trim() !== "" && !(row.cost > 0)));
+      saveDraft();
+      return;
+    }
     const input = ev.target.closest(".qty");
     if (!input) return;
     const row = rows.find((r) => keyOf(r) === input.dataset.key);
@@ -153,7 +181,7 @@
   });
   $("holdings").addEventListener("change", (ev) => {
     const input = ev.target.closest(".qty");
-    if (!input) return;
+    if (!input || input.classList.contains("cost")) return;
     const row = rows.find((r) => keyOf(r) === input.dataset.key);
     if (row.quantity > 0) input.value = fmtQty(row.quantity);
   });
@@ -309,7 +337,7 @@
       const result = await api("/api/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ years, positions: rows.map((r) => ({ symbol: r.symbol, quantity: r.quantity, currency: r.currency, kind: r.kind })) }),
+        body: JSON.stringify({ years, positions: rows.map(payload) }),
       });
       localStorage.removeItem(DRAFT);
       window.location.href = result.url;
@@ -335,7 +363,7 @@
       document.querySelectorAll("#years button").forEach((x) => x.setAttribute("aria-pressed", String(+x.dataset.years === years)));
     }
     rows = source.map((p) => p.kind === "cash" ? cashRow(p.currency, p.quantity)
-      : { symbol: p.symbol, kind: "instrument", type: typeOf({ symbol: p.symbol }), name: "", exchange: "", currency: p.currency || "", price: null, live: false, quantity: p.quantity, loading: true, error: null });
+      : { symbol: p.symbol, kind: "instrument", type: typeOf({ symbol: p.symbol }), name: "", exchange: "", currency: p.currency || "", price: null, live: false, quantity: p.quantity, cost: p.cost || null, since: p.since || null, loading: true, error: null });
     render();
     await Promise.all(rows.map(loadQuote));
     const r = await fetch("/report", { redirect: "manual" });

@@ -525,3 +525,5 @@ h2 .num {
   .block { break-inside: avoid; }
   body { font-size: 12px; }
 }
+.reb-fig .value.up { color: var(--pos); }
+.reb-fig .value.down { color: var(--neg); }

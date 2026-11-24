@@ -17,7 +17,7 @@ def _write(tmp_path: Path, text: str) -> Path:
 def test_reads_example_file() -> None:
     holdings = load_holdings(EXAMPLE)
 
-    assert list(holdings.columns) == ["quantity", "currency", "source", "symbol"]
+    assert list(holdings.columns) == ["quantity", "currency", "source", "symbol", "cost", "since"]
     assert holdings.index.name == "asset"
     assert (holdings["quantity"] > 0).all()
     assert set(holdings["currency"]) <= {"EUR", "BRL", "USD"}
