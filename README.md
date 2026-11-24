@@ -206,7 +206,8 @@ flowchart LR
     R --> M1[risk · validation]
     R --> M2[stress · factors · benchmark · brinson]
     R --> M3[simulation · income · signals]
-    R --> M4[ledger · tearsheet]
+    R --> M4[ledger · tearsheet · rules]
+    M1 & M3 & M4 -. hot loops .-> CPP[[C++20 core<br/>rolling VaR · bootstrap<br/>Monte Carlo · backtest]]
     M1 & M2 & M3 & M4 --> J[JSON]
     J --> H[Self-contained HTML<br/>tabs · SVG charts · maths.js]
 ```
