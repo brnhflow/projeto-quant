@@ -670,3 +670,12 @@ h3.chart-title .info { width: 18px; height: 18px; margin-left: 6px; }
 .term-body { padding: 0 14px 14px; font-size: 14px; line-height: 1.55; color: var(--ink-2); }
 @media (max-width: 760px) { .glossary { grid-template-columns: 1fr; } }
 @media print { .term { break-inside: avoid; } .term .term-body { display: block; } }
+
+/* Info icon without script (editor): the explanation pops up on hover or focus. */
+.info-css { position: relative; }
+.info-pop {
+  display: none; position: absolute; left: 50%; top: calc(100% + 8px); transform: translateX(-50%); z-index: 20;
+  width: min(340px, 80vw); padding: 10px 12px; border-radius: 8px; background: var(--ink); color: var(--paper);
+  font: 400 13px/1.5 var(--sans); letter-spacing: 0; text-transform: none; text-align: left; box-shadow: 0 6px 24px rgba(0,0,0,.25);
+}
+.info-css:hover .info-pop, .info-css:focus .info-pop, .info-css:focus-within .info-pop { display: block; }
