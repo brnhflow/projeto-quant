@@ -103,13 +103,10 @@ def analyse_portfolio(
     now = now if now is not None else pd.Timestamp.now(tz="UTC")
     start = (now - pd.Timedelta(days=round(years * 365.25))).tz_convert(None).normalize()
     long_start = min(start, HISTORY_START)
-    market = update_market_data(
-        holdings, long_start, cache, fetch=fetch, now=now, offline=offline, pause=pause
-    )
-    proxy_prices: pd.DataFrame | None = None
-    fx = market.fx
-    try:
-        indices = update_market_data(
+    # The indices download while the holdings do; news starts as soon as names are known.
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        index_job = pool.submit(
+            update_market_data,
             proxy_holdings(),
             HISTORY_START,
             cache,
@@ -118,12 +115,19 @@ def analyse_portfolio(
             offline=offline,
             pause=pause,
         )
-        proxy_prices = indices.prices
-        fx = fx.combine_first(indices.fx) if not fx.empty else indices.fx
-    except (ConnectionError, ValueError):
-        proxy_prices = None
-
-    news = {} if offline else fetch_news(holdings, market, fetch_text)
+        market = update_market_data(
+            holdings, long_start, cache, fetch=fetch, now=now, offline=offline, pause=pause
+        )
+        news_job = pool.submit(fetch_news, holdings, market, fetch_text) if not offline else None
+        proxy_prices: pd.DataFrame | None = None
+        fx = market.fx
+        try:
+            indices = index_job.result()
+            proxy_prices = indices.prices
+            fx = fx.combine_first(indices.fx) if not fx.empty else indices.fx
+        except (ConnectionError, ValueError):
+            proxy_prices = None
+        news = news_job.result() if news_job is not None else {}
 
     # Cash is worth 1 every business day up to today; the report must end on the last day
     # a real asset has a price, or the latest move would show as a 0% "phantom" day.

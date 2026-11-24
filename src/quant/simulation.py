@@ -25,7 +25,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from quant.validation import binomial_cdf, stationary_bootstrap_indices
+from quant.validation import binomial_cdf, stationary_bootstrap_matrix
 
 Matrix = npt.NDArray[np.float64]
 TRADING_DAYS = 252
@@ -76,11 +76,10 @@ def simulate_growth(
     pieces = math.ceil(days / len(logs))
     out: Matrix = np.empty((paths, days))
     n = len(logs)
-    idx = np.empty(pieces * n, dtype=np.int64)
-    for p in range(paths):
-        for piece in range(pieces):
-            idx[piece * n : (piece + 1) * n] = stationary_bootstrap_indices(n, block, rng)
-        out[p] = np.exp(logs[idx[:days]].cumsum())
+    idx = np.empty((paths, pieces * n), dtype=np.int64)
+    for piece in range(pieces):
+        idx[:, piece * n : (piece + 1) * n] = stationary_bootstrap_matrix(n, block, rng, paths)
+    out[:] = np.exp(logs[idx[:, :days]].cumsum(axis=1))
     return out
 
 

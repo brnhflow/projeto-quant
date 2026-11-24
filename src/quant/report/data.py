@@ -34,6 +34,7 @@ from quant.stress import (
     ProxyFit,
     fit_proxy,
     run_scenario,
+    weekly_returns,
     window_return,
 )
 from quant.validation import (
@@ -331,13 +332,14 @@ def _stress(
     }
     source_of = dict(zip(names, column.get("source", [""] * len(names)), strict=True))
     symbol_of = dict(zip(names, column.get("symbol", names), strict=True))
+    proxy_weekly = {str(p): weekly_returns(proxies_eur[p]) for p in proxies_eur.columns}
     fits: dict[str, ProxyFit] = {}
     positions: list[dict[str, Any]] = []
     for asset in holdings.index:
         name = str(asset)
         is_cash = source_of[name] == "cash"
         symbol = symbol_of[name]
-        fit = fit_proxy(assets_eur[name], proxies_eur, symbol, str(currencies[asset]))
+        fit = fit_proxy(assets_eur[name], proxies_eur, symbol, str(currencies[asset]), proxy_weekly)
         fits[name] = fit
         positions.append(
             {

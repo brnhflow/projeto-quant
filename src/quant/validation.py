@@ -24,8 +24,6 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from quant.risk import historical_var_es
-
 TRADING_DAYS = 252
 FloatArray = npt.NDArray[np.float64]
 IndexArray = npt.NDArray[np.int64]
@@ -178,10 +176,13 @@ def rolling_var(returns: pd.Series, window: int, level: float = 0.95) -> pd.Data
     if window < 2 or len(returns) <= window:
         raise ValueError("need more returns than the window")
     values = returns.to_numpy(dtype=float)
-    forecasts = [
-        historical_var_es(pd.Series(values[t - window : t]), level=level)[0]
-        for t in range(window, len(values))
-    ]
+    # Row t holds the ``window`` returns before day ``window + t``; the forecast is the same
+    # "lower" empirical quantile as :func:`quant.risk.historical_var_es`, for all rows at once.
+    windows: FloatArray = np.lib.stride_tricks.sliding_window_view(values, window)[:-1]  # pyright: ignore[reportUnknownMemberType]
+    k = math.floor(round((window - 1) * (1 - level), 9))
+    ordered = windows.copy()
+    ordered.partition(k, axis=1)
+    forecasts = -ordered[:, k]
     tested = returns.iloc[window:]
     var = pd.Series(forecasts, index=tested.index)
     return pd.DataFrame({"return": tested, "var": var, "breach": tested < -var})
@@ -229,23 +230,32 @@ def backtest_var(returns: pd.Series, level: float = 0.95, window: int = 250) -> 
     )
 
 
-def stationary_bootstrap_indices(n: int, mean_block: float, rng: np.random.Generator) -> np.ndarray:
-    """Positions for one stationary-bootstrap resample of a series of length ``n``.
+def stationary_bootstrap_matrix(
+    n: int, mean_block: float, rng: np.random.Generator, rows: int
+) -> IndexArray:
+    """Positions for ``rows`` stationary-bootstrap resamples of a series of length ``n``.
 
     Each step either continues the current block (probability ``1 - 1/mean_block``) or
     jumps to a random day; blocks wrap around the end. Block lengths are geometric, so
-    the resampled series is stationary (Politis and Romano, 1994).
+    the resampled series is stationary (Politis and Romano, 1994). All rows are drawn in
+    one vectorised pass.
     """
-    if n < 1 or mean_block < 1:
-        raise ValueError("need n >= 1 and mean_block >= 1")
-    starts = rng.random(n) < 1 / mean_block
-    starts[0] = True
-    jumps = rng.integers(0, n, size=n)
+    if n < 1 or mean_block < 1 or rows < 1:
+        raise ValueError("need n >= 1, mean_block >= 1 and rows >= 1")
+    starts = rng.random((rows, n)) < 1 / mean_block
+    starts[:, 0] = True
+    jumps = rng.integers(0, n, size=(rows, n))
     steps = np.arange(n)
     # For each step, where its block began; the position walks on from that block's jump.
     marked = steps * starts  # a step's own index where a block starts, else 0
-    block_start = np.asarray(np.maximum.accumulate(marked), dtype=np.int64)  # pyright: ignore[reportUnknownMemberType]
-    return (jumps[block_start] + steps - block_start) % n
+    block_start = np.asarray(np.maximum.accumulate(marked, axis=1), dtype=np.int64)  # pyright: ignore[reportUnknownMemberType]
+    first = np.take_along_axis(jumps, block_start, axis=1)
+    return np.asarray((first + steps - block_start) % n, dtype=np.int64)
+
+
+def stationary_bootstrap_indices(n: int, mean_block: float, rng: np.random.Generator) -> IndexArray:
+    """Positions for one stationary-bootstrap resample; see :func:`stationary_bootstrap_matrix`."""
+    return stationary_bootstrap_matrix(n, mean_block, rng, 1)[0]
 
 
 @dataclass(frozen=True)
@@ -300,9 +310,7 @@ def bootstrap_interval(
         raise ValueError("need at least 20 returns without missing values")
     block = mean_block if mean_block is not None else max(5.0, n ** (1 / 3))
     rng = np.random.default_rng(seed)
-    rows: IndexArray = np.empty((resamples, n), dtype=np.int64)
-    for r in range(resamples):
-        rows[r] = stationary_bootstrap_indices(n, block, rng)
+    rows = stationary_bootstrap_matrix(n, block, rng, resamples)
     stats = pd.Series(statistic(values[rows]))
     tail = (1 - level) / 2
     estimate = float(statistic(values[np.newaxis, :])[0])

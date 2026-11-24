@@ -172,7 +172,13 @@ def vasicek_beta(beta: float, standard_error: float) -> float:
     return weight * beta + (1 - weight) * BETA_PRIOR_MEAN
 
 
-def fit_proxy(asset: pd.Series, proxies: pd.DataFrame, symbol: str, currency: str) -> ProxyFit:
+def fit_proxy(
+    asset: pd.Series,
+    proxies: pd.DataFrame,
+    symbol: str,
+    currency: str,
+    proxy_weekly: dict[str, pd.Series] | None = None,
+) -> ProxyFit:
     """Pick the index that explains the asset best (highest R²) and its beta.
 
     Parameters
@@ -195,7 +201,7 @@ def fit_proxy(asset: pd.Series, proxies: pd.DataFrame, symbol: str, currency: st
     a = weekly_returns(asset)
     best: ProxyFit | None = None
     for proxy in proxies.columns:
-        p = weekly_returns(proxies[proxy])
+        p = proxy_weekly[str(proxy)] if proxy_weekly else weekly_returns(proxies[proxy])
         joined = pd.concat([a, p], axis="columns", keys=["a", "p"], join="inner").dropna()
         if len(joined) < MIN_WEEKS:
             continue
