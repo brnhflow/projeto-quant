@@ -9,7 +9,7 @@ rebalancing. Every model comes with the test that says whether to trust it.
 [![CI](https://github.com/brnhflow/projeto-quant/actions/workflows/ci.yml/badge.svg)](https://github.com/brnhflow/projeto-quant/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.14-3776AB)
 ![C++](https://img.shields.io/badge/C%2B%2B-20-00599C)
-![Tests](https://img.shields.io/badge/tests-380%2B-2f8f6b)
+![Tests](https://img.shields.io/badge/tests-400%2B-2f8f6b)
 ![Coverage](https://img.shields.io/badge/coverage-94%25-2f8f6b)
 ![Types](https://img.shields.io/badge/pyright-strict-7b5cc4)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
@@ -17,6 +17,20 @@ rebalancing. Every model comes with the test that says whether to trust it.
 **[Live demo](https://brnhflow.github.io/projeto-quant/)** · [Methodology](docs/METHODOLOGY.md) · [Research note](docs/research/var-backtest.md) · [Where this makes money](docs/APPLICATIONS.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
 
 ![Report summary](docs/images/overview.png)
+
+**Highlights**
+
+- **Research with a finding.** Across 7 markets since 2008, historical VaR breaches cluster on
+  every one. In March 2020 the S&P 500 broke its 99% VaR 8 times in 29 days.
+  [Read the note](docs/research/var-backtest.md)
+- **C++20 core.** Rolling VaR, bootstrap, Monte Carlo and a backtest engine, 6–20× faster than
+  NumPy and checked against it on every push.
+- **Rules backtested with costs.** A 10% volatility target lifts the demo's Sharpe from 1.02 to
+  1.34 and cuts its worst drawdown from −19.8% to −12.1%.
+- **What professionals report.** Tearsheet, Brinson attribution, time- and money-weighted returns
+  from a trade log.
+- **Every model tested.** VaR (Kupiec, Christoffersen, Basel), out-of-sample factor fits,
+  Monte Carlo calibration, bootstrap intervals. 400+ tests, strict typing, CI.
 
 ## Why
 
@@ -116,7 +130,7 @@ The rolling risk models and the bootstrap run in a header-only C++20 library
   instead of copying and partitioning 250 values.
 - **Zero-copy arrays.** Inputs are read straight from NumPy memory; results are moved into NumPy
   arrays that own their buffer.
-- **Parallel, reproducible bootstrap.** Resamples run on every core. Each one is seeded from
+- **Parallel, reproducible bootstrap and Monte Carlo.** Resamples and paths run on every core. Each one is seeded from
   `(seed, index)` through SplitMix64, so the output is identical for any thread count.
 - **Optional by design.** Without a compiler the package falls back to the NumPy reference.
 
@@ -176,7 +190,7 @@ again next time.
 uv run python -m quant report --holdings data/holdings.example.csv \
     --transactions data/transactions.example.csv                      # same from the CLI
 uv run python scripts/build_site.py                                  # rebuild the live demo
-uv run python -m pytest                                              # 380+ tests
+uv run python -m pytest                                              # 400+ tests
 uv run python -m pyright && uv run ruff check .                      # strict types, lint
 ```
 
