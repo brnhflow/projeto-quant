@@ -640,3 +640,12 @@ h3.chart-title .info { width: 18px; height: 18px; margin-left: 6px; }
 @media (max-width: 960px) { .sizing-row { grid-template-columns: 1fr; } .sizing-result { border-left: 0; padding-left: 0; } }
 #rules-table tr.best td { background: var(--s1-soft); }
 .swatch-inline { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; vertical-align: -1px; }
+
+/* Phones: the header controls wrap inside the screen instead of widening the page. */
+@media (max-width: 640px) {
+  .masthead { align-items: stretch; }
+  .controls { width: 100%; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
+  .controls .segmented { max-width: 100%; }
+  .insights-grid { grid-template-columns: 1fr; }
+  .figures { padding: 4px 14px; }
+}
