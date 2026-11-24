@@ -11,6 +11,7 @@ from pathlib import Path
 from quant.app import AppConfig, make_server
 from quant.data import DataConfigError
 from quant.holdings import load_holdings
+from quant.ledger import load_transactions
 from quant.pipeline import analyse_portfolio
 
 
@@ -38,6 +39,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     report.add_argument("--title", default="", help="report title (default: My portfolio)")
     report.add_argument("--offline", action="store_true", help="use only cached data, no network")
+    report.add_argument(
+        "--transactions",
+        type=Path,
+        default=None,
+        help="CSV of every buy and sell (see data/transactions.example.csv)",
+    )
 
     app = commands.add_parser("app", help="open the portfolio editor in the browser")
     app.add_argument("--port", type=int, default=8750, help="local port (default: 8750)")
@@ -88,8 +95,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_app(args.port, args.holdings, args.cache, not args.no_browser)
     try:
         holdings = load_holdings(args.holdings)
+        transactions = load_transactions(args.transactions) if args.transactions else None
         market = analyse_portfolio(
-            holdings, args.years, args.cache, title=args.title, offline=args.offline
+            holdings,
+            args.years,
+            args.cache,
+            title=args.title,
+            offline=args.offline,
+            transactions=transactions,
         )
         page = market.page
     except (FileNotFoundError, ValueError, ConnectionError, DataConfigError) as error:

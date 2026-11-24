@@ -6,6 +6,16 @@ before 1.0 the interface may still change.
 ## Unreleased
 
 ### Added
+- English interface, with a PT/EN switch in the report and the editor (remembered per
+  browser). Quantities are read in the page's language.
+- **Tearsheet** tab: statistics against MSCI ACWI, monthly return table with the hit rate,
+  rolling 126-day Sharpe and volatility, worst drawdowns with recovery, calendar-year returns
+  and the daily return distribution against a normal.
+- **Transaction log** (CSV import in the editor, `--transactions` on the command line):
+  time-weighted return, money-weighted return (XIRR), realised and unrealised gains by average
+  cost, and value against net money invested. The log must end with the holdings' quantities.
+- **Brinson-Fachler attribution** against MSCI ACWI by market, with the index's regional mix
+  estimated by returns-based style analysis.
 - Long-only minimum-variance targets in the rebalancing planner (projected gradient on the
   simplex, Ledoit-Wolf covariance), tested against the closed form.
 - Optional average cost and purchase date per position: the summary shows the money invested
@@ -13,6 +23,7 @@ before 1.0 the interface may still change.
   return (XIRR); the positions table shows each position's cost and gain.
 
 ### Fixed
+- The total row of the positions table sat one column off.
 - The income calendar counts exactly 24 whole months, so a month is never counted three times.
 - Dividend yield history uses quoted closes; adjusted prices overstated past yields.
 - Benchmark statistics use only days the index traded, and the alpha note says when a price

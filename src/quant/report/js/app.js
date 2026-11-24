@@ -71,12 +71,14 @@ function renderCharts() {
   renderBacktestChart();
   renderIntervalBars();
   renderTearsheetCharts();
+  renderLedgerChart();
 }
 function renderPeriod() {
   document.querySelectorAll("#periods button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.key === current.key)));
   renderFigures(current);
   renderResult();
   renderBenchmark(current);
+  renderBrinson(current);
   renderCharts();
   renderTable(current);
 }
@@ -91,6 +93,7 @@ renderFuture();
 renderIncome();
 renderOpportunities();
 renderTearsheet();
+renderLedger();
 setBadge("semana", Object.values(MOVES).filter((m) => m.unusual).length);
 showTab(location.hash.slice(1), false);
 renderRebalance();

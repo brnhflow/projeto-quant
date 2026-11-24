@@ -2,12 +2,13 @@
 
 **A portfolio risk lab that checks its own numbers.** It pulls live market data for stocks,
 real-estate funds, ETFs, BDRs and crypto across B3, Europe and the US, and analyses the
-portfolio in euro: risk, crisis replays, factor exposures, Monte Carlo, dividend income and
+portfolio in euro: a tearsheet, risk, crisis replays, factor exposures, Brinson attribution,
+time- and money-weighted returns from a transaction log, Monte Carlo, dividend income and
 rebalancing. Every model comes with the test that says whether to trust it.
 
 [![CI](https://github.com/brnhflow/projeto-quant/actions/workflows/ci.yml/badge.svg)](https://github.com/brnhflow/projeto-quant/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.14-3776AB)
-![Tests](https://img.shields.io/badge/tests-320%2B-2f8f6b)
+![Tests](https://img.shields.io/badge/tests-380%2B-2f8f6b)
 ![Coverage](https://img.shields.io/badge/coverage-94%25-2f8f6b)
 ![Types](https://img.shields.io/badge/pyright-strict-7b5cc4)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
@@ -39,6 +40,8 @@ When a model fails its test, the report says so in plain language.
 | | |
 |---|---|
 | ![Portfolio editor](docs/images/editor.png) | **Build the portfolio.** Search any listed instrument by name or ticker; every match is returned, not just the top seven. Pick its type from drawn icons and type the quantity. Optionally add the average price paid and the first purchase date, and the report shows the gain on the money actually invested and its annual money-weighted return (XIRR). Cash in 15 currencies counts too. |
+| ![Tearsheet](docs/images/tearsheet.png) | **Tearsheet.** The one-page summary funds publish: CAGR, Sharpe, Sortino, Calmar, skew and kurtosis against MSCI ACWI, the month-by-month return table with the hit rate against the index, rolling Sharpe and volatility, the five worst drawdowns with their recovery, calendar-year returns and the daily return distribution against a normal. |
+| ![Your result](docs/images/ledger.png) | **Your result.** Import a CSV of every buy and sell. The report gives the time-weighted return (what GIPS requires of fund managers), the money-weighted return of your own cash (XIRR), and realised and unrealised gains by average cost, at each trade date's exchange rate. A Brinson-Fachler attribution splits the gap to MSCI ACWI into allocation, selection and interaction by market, with the index's regional mix estimated by returns-based style analysis. |
 | ![This week](docs/images/week.png) | **This week.** Assets whose last day or week moved more than 2.5 standard deviations of their own history are flagged, next to the headlines that explain the move. |
 | ![Risk](docs/images/risk.png) | **Risk.** Volatility, drawdown, historical VaR and ES, Sharpe, Sortino and Calmar. How much each asset adds to total risk (Euler decomposition) and the correlation matrix. A factor model of what the portfolio really depends on, with error bands and an out-of-sample check. |
 | ![Scenarios](docs/images/scenarios.png) | **Scenarios.** Eight real crises applied to today's positions: 2008, euro debt, Brazil 2015, Brexit, Joesley Day, Covid, 2022 rates and FTX. Assets that did not exist yet are estimated from their closest index, with a Vasicek-shrunk beta. Sliders build any custom scenario, and a 2,000-path block-bootstrap fan shows 1 to 5 years ahead. |
@@ -64,6 +67,8 @@ The report is a single self-contained HTML file:
 | Proxy betas for missing history | Shrinkage towards 1 according to estimation error | Vasicek (1973) |
 | Covariance for optimisation | Shrinkage to a scaled identity; matches scikit-learn | Ledoit and Wolf (2004) |
 | Risk parity | Gives inverse-volatility weights for independent assets, and equal risk contributions with correlation | Griveau-Billion, Richard and Roncalli (2013) |
+| Time- and money-weighted returns | Hand-built log with two contributions and one sale: TWR equals the price return, gains add up, the NPV is zero at the XIRR | GIPS; Bacon (2008) |
+| Brinson attribution | Effects add up to the active return in every period; style analysis recovers a known regional mix | Brinson, Hood and Beebower (1986); Sharpe (1992) |
 | Portfolio value | Independent pandas recomputation on a live 12-asset, 6-currency portfolio | |
 
 Unit tests compare against answers known in advance:
@@ -91,15 +96,19 @@ uv run python -m quant app            # portfolio editor at http://127.0.0.1:875
 Then:
 
 1. Search the assets and type the quantities.
-2. Press **Analisar carteira**. Prices, exchange rates, dividends and headlines are downloaded at that moment and the report opens.
+2. Optionally import the transaction log (`date,symbol,side,quantity,price,fee`; see
+   [data/transactions.example.csv](data/transactions.example.csv)). The editor checks that it
+   ends with the quantities above and can fill them in from it.
+3. Press **Analyse portfolio**. Prices, exchange rates, dividends and headlines are downloaded at that moment and the report opens.
 
-The portfolio is saved to `data/private/holdings.csv`, which git ignores, and is filled in
+The portfolio and its log are saved to `data/private/`, which git ignores, and are filled in
 again next time.
 
 ```bash
-uv run python -m quant report --holdings data/holdings.example.csv   # same from the CLI
+uv run python -m quant report --holdings data/holdings.example.csv \
+    --transactions data/transactions.example.csv                      # same from the CLI
 uv run python scripts/build_site.py                                  # rebuild the live demo
-uv run python -m pytest                                              # 320+ tests
+uv run python -m pytest                                              # 380+ tests
 uv run python -m pyright && uv run ruff check .                      # strict types, lint
 ```
 
@@ -112,9 +121,10 @@ flowchart LR
     P --> D[data<br/>Yahoo · Kraken · ECB · Google News<br/>parallel, cached, retried]
     D --> R[report.data<br/>returns · FX · alignment]
     R --> M1[risk · validation]
-    R --> M2[stress · factors · benchmark]
+    R --> M2[stress · factors · benchmark · brinson]
     R --> M3[simulation · income · signals]
-    M1 & M2 & M3 --> J[JSON]
+    R --> M4[ledger · tearsheet]
+    M1 & M2 & M3 & M4 --> J[JSON]
     J --> H[Self-contained HTML<br/>tabs · SVG charts · maths.js]
 ```
 
@@ -129,6 +139,9 @@ src/quant/
 ├── stress.py      historical crises, proxy betas
 ├── factors.py     factor regression, walk-forward test
 ├── benchmark.py   beta, alpha, tracking error, information ratio, capture
+├── brinson.py     Brinson-Fachler attribution, returns-based style analysis
+├── ledger.py      transaction log: TWR, MWR, average-cost gains
+├── tearsheet.py   monthly table, rolling ratios, drawdown periods, distribution
 ├── simulation.py  Monte Carlo and its calibration
 ├── income.py      dividend calendar and growth
 ├── signals.py     rule-based opportunity signals
@@ -171,13 +184,15 @@ src/quant/
 | Exchange rates | ECB reference rates via [Frankfurter](https://frankfurter.dev) | One rate per TARGET business day |
 | Headlines | Google News RSS | B3 stocks searched by ticker in Portuguese, others by name in English |
 
-The interface is in Portuguese; code, tests and documentation are in English.
+The interface is in English and Portuguese (switch in the top corner, remembered per
+browser); code, tests and documentation are in English.
 
 ## Limitations
 
-- Apart from the gain on money invested, holdings are treated as held for the whole history,
-  because there is no full transaction log yet. Past figures describe today's portfolio, not
-  past decisions.
+- Without a transaction log, holdings are treated as held for the whole history, so past
+  figures describe today's portfolio, not past decisions. With a log, the "Your result"
+  section measures the real decisions; the other sections still describe today's portfolio.
+- Taxes are not modelled.
 - Free data has gaps, survivorship bias and occasional adjustment errors. Yahoo's API is
   unofficial and may change.
 - Models are simplifications. Nothing here is financial advice.

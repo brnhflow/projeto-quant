@@ -15,20 +15,17 @@ Ordered by how useful each step is for managing a real portfolio. A step ships o
 | 5 | Rebalancing with costs, bands and risk parity | Plans pay for themselves (fuzzed); risk parity matches inverse volatility |
 | 6 | Monte Carlo with calibration | Lognormal answer on i.i.d. data; a regime break fails the calibration |
 | — | Factor exposures, benchmark comparison, Ledoit-Wolf, income, signals | See [METHODOLOGY.md](METHODOLOGY.md) |
+| 7 | Transaction log: TWR, MWR, average-cost gains; Brinson attribution; tearsheet | TWR and MWR match a hand-built example with two contributions and one sale |
+| 11 | English interface | Every string in both languages; no Portuguese left in the English page |
 
 ## Next
 
-### 7. Transaction log
-*Partly done:* the average cost and first purchase date per position give the gain on money
-invested and its XIRR. Still to do: record each buy, sell and contribution, instead of
-today's quantities only. This enables:
+### 7b. Taxes
+Capital gains tax from the transaction log (Brazil: monthly exemption for stock sales up to
+R$20,000 and 15% otherwise; Italy: 26%, 12.5% on government bonds), and a sale planner that
+picks the lots with the lowest tax.
 
-- time-weighted and money-weighted returns;
-- the average cost per position;
-- realised versus unrealised gains;
-- taxes (Brazil, Italy).
-
-*Done when:* TWR and MWR match a hand-built example with two contributions and one sale.
+*Done when:* the tax matches hand-computed cases from each country's rules.
 
 ### 8. Allocation with constraints
 Minimum variance and a mean-variance frontier on the Ledoit-Wolf covariance, long only, with
@@ -47,6 +44,3 @@ best.
 Move the measured hot path (the bootstrap and Monte Carlo) to C++ behind the same Python
 interface (CMake, scikit-build-core, nanobind). Results must match Python to a stated
 tolerance, and the speed-up must be measured, not assumed.
-
-### 11. English interface
-A language switch for the report and the editor. Code and documentation are already in English.

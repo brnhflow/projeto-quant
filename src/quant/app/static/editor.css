@@ -104,6 +104,15 @@
 }
 .since:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px var(--s1-soft); }
 .opt { display: block; font-size: 10px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--ink-3, var(--ink-2)); }
+.opt-tag { font: 500 11px/1 var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin-left: 8px; vertical-align: middle; }
+.ledger-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 4px 0 12px; }
+.file-button { cursor: pointer; }
+.ledger-state:empty { display: none; }
+.ledger-state { border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; font-size: 14px; }
+.ledger-state p { margin: 0 0 6px; }
+.ledger-state ul { margin: 6px 0 10px; padding-left: 18px; color: var(--ink-2); }
+.ledger-state .bad { color: var(--neg); }
+.ledger-state .good { color: var(--pos); }
 .qty:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px var(--s1-soft); }
 .qty[aria-invalid="true"] { border-color: var(--neg); }
 .remove {

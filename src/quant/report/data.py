@@ -8,19 +8,21 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from datetime import date
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
 from quant.align import align_to_dates
 from quant.attribution import return_attribution
 from quant.benchmark import compare
+from quant.brinson import brinson_fachler, style_r2, style_weights
 from quant.data.market import SeriesStatus
 from quant.data.news import Headline
 from quant.data.sources import Quote
 from quant.factors import factor_exposure
 from quant.fx import to_base_currency
 from quant.income import outlook
+from quant.ledger import analyse_ledger
 from quant.performance import xirr
 from quant.returns import portfolio_value, simple_returns
 from quant.risk import (
@@ -1011,6 +1013,180 @@ def _result(
     }
 
 
+def _ledger(
+    transactions: pd.DataFrame | None,
+    holdings: pd.DataFrame,
+    base_prices: pd.DataFrame,
+    fx_rates: pd.DataFrame,
+    base: str,
+) -> dict[str, Any] | None:
+    """Time- and money-weighted returns and gains from the transaction log, if there is one."""
+    if transactions is None or transactions.empty:
+        return None
+    r = analyse_ledger(transactions, holdings, base_prices, fx_rates, base)
+    dates = pd.DatetimeIndex(cast(pd.DatetimeIndex, r["dates"]))
+    value = cast(pd.Series, r["value"])
+    invested = cast(pd.Series, r["invested"])
+    twr = cast(pd.Series, r["twr"]).fillna(0.0)
+    growth = (1 + twr).cumprod()
+    positions = cast(dict[str, Any], r["positions"])
+    end_values = cast(dict[str, float], r["endValues"])
+    mwr = r["mwr"]
+    twr_annual = r["twrAnnual"]
+    return {
+        "dates": [_iso(d) for d in dates],
+        "value": [_num(float(x), 2) for x in value],
+        "invested": [_num(float(x), 2) for x in invested],
+        "twrIndex": [1.0] + [_num(float(x), 6) for x in growth],
+        "twrTotal": _num(cast(float, r["twrTotal"])),
+        "twrAnnual": None if twr_annual is None else _num(cast(float, twr_annual)),
+        "mwr": None if mwr is None else _num(cast(float, mwr)),
+        "netInvested": _num(cast(float, r["netInvested"]), 2),
+        "end": _num(cast(float, r["end"]), 2),
+        "realised": _num(cast(float, r["realised"]), 2),
+        "unrealised": _num(cast(float, r["unrealised"]), 2),
+        "first": _iso(cast(pd.Timestamp, r["first"])),
+        "trades": r["trades"],
+        "beforeHistory": r["beforeHistory"],
+        "positions": [
+            {
+                "asset": a,
+                "units": _num(p.units, 8),
+                "costBasis": _num(p.cost_basis, 2),
+                "averageCost": None if p.units <= 0 else _num(p.cost_basis / p.units, 4),
+                "value": _num(end_values.get(a, 0.0), 2),
+                "unrealised": _num(end_values.get(a, 0.0) - p.cost_basis, 2),
+                "realised": _num(p.realised, 2),
+                "bought": _num(p.bought, 2),
+                "sold": _num(p.sold, 2),
+            }
+            for a, p in sorted(positions.items(), key=lambda kv: -end_values.get(kv[0], 0.0))
+        ],
+    }
+
+
+STYLE_WEEKS = 104  # two years of weekly returns for the benchmark's regional mix
+GLOBAL = "ACWI"
+
+
+def _brinson(
+    holdings: pd.DataFrame,
+    local_prices: pd.DataFrame,
+    fx_rates: pd.DataFrame,
+    proxy_prices: pd.DataFrame | None,
+    held: pd.DataFrame,
+    base: str,
+) -> dict[str, Any] | None:
+    """Brinson attribution against MSCI ACWI, with markets as segments.
+
+    Each asset belongs to the regional index that explains it best (global stocks excluded,
+    so a world ETF is split no further than its best region). The benchmark's weights on
+    those regions come from returns-based style analysis of ACWI over the last two years.
+    ``held`` is the value of each position in the base currency on the report's dates.
+    """
+    if proxy_prices is None or GLOBAL not in proxy_prices.columns:
+        return None
+    regions = [p for p in PROXIES if p != GLOBAL and p in proxy_prices.columns]
+    symbols = [*regions, GLOBAL]
+    index_currency = pd.Series({p: PROXIES[p][1] for p in symbols})
+    if not regions or not set(index_currency) - {base} <= set(fx_rates.columns):
+        return None
+    last = pd.Timestamp(held.index[-1])
+    first = min(pd.Timestamp(local_prices.index.min()), pd.Timestamp(proxy_prices.index.min()))
+    long = pd.bdate_range(first, last)
+    indices = to_base_currency(
+        align_to_dates(proxy_prices[symbols], long),
+        index_currency,
+        align_to_dates(fx_rates, long),
+        base=base,
+    )
+    weekly = {p: weekly_returns(indices[p]) for p in symbols}
+    style = pd.DataFrame(weekly).dropna().tail(STYLE_WEEKS)
+    if len(style) < 26:
+        return None
+    wb_all = style_weights(style[GLOBAL], style[regions])
+    r2 = style_r2(style[GLOBAL], style[regions], wb_all)
+    # Weights under 1% are noise of the fit, not a real allocation of the index.
+    wb_all = wb_all.where(wb_all >= 0.01, 0.0)
+    wb_all = wb_all / float(wb_all.sum())
+
+    assets_eur = to_base_currency(
+        align_to_dates(local_prices[holdings.index], long),
+        holdings["currency"],
+        align_to_dates(fx_rates, long),
+        base=base,
+    )
+    names = [str(a) for a in holdings.index]
+    sources = holdings["source"] if "source" in holdings else pd.Series("yahoo", holdings.index)
+    tickers = holdings["symbol"] if "symbol" in holdings else pd.Series(names, holdings.index)
+    segment: dict[str, str] = {}
+    for asset, source, symbol, currency in zip(
+        holdings.index, sources, tickers, holdings["currency"], strict=True
+    ):
+        if source == "cash":
+            segment[str(asset)] = "cash"
+            continue
+        prices = cast(pd.Series, assets_eur[asset])
+        fit = fit_proxy(prices, indices[regions], str(symbol), str(currency), weekly)
+        segment[str(asset)] = fit.proxy if fit.proxy in regions else "^GSPC"
+
+    calendar = pd.DatetimeIndex(held.index)
+    on_dates = align_to_dates(indices[regions], calendar)
+    global_on_dates = align_to_dates(indices[[GLOBAL]], calendar)[GLOBAL]
+    periods: dict[str, Any] = {}
+    for period in PERIODS:
+        start = period_start(calendar, period)
+        if start is None:
+            continue
+        v0, v1 = held.iloc[start], held.iloc[-1]
+        keys = sorted({*segment.values(), *[p for p in regions if wb_all[p] > 0.005]})
+        wp = pd.Series(0.0, index=keys)
+        rp = pd.Series(0.0, index=keys)
+        rb = pd.Series(0.0, index=keys)
+        for key in keys:
+            members = [a for a, s in segment.items() if s == key]
+            start_value = float(v0[members].sum()) if members else 0.0
+            wp[key] = start_value / float(v0.sum())
+            if key != "cash":
+                a, b = on_dates[key].iloc[start], on_dates[key].iloc[-1]
+                rb[key] = float(b / a - 1) if a > 0 and not math.isnan(float(a)) else 0.0
+            rp[key] = float(v1[members].sum()) / start_value - 1 if start_value > 0 else rb[key]
+        # Not held: no selection effect. Cash: its whole effect is allocation.
+        rb["cash"] = rp["cash"] if "cash" in keys else 0.0
+        wb = wb_all.reindex(keys, fill_value=0.0)
+        wb = wb / wb.sum()
+        effects = cast(
+            dict[str, dict[str, float]], brinson_fachler(wp, rp, wb, rb).to_dict(orient="index")
+        )
+        g0, g1 = global_on_dates.iloc[start], global_on_dates.iloc[-1]
+        periods[period.key] = {
+            "portfolio": _num(float((wp * rp).sum())),
+            "benchmark": _num(float((wb * rb).sum())),
+            "global": _num(float(g1 / g0 - 1)) if g0 > 0 else None,
+            "segments": [
+                {
+                    "key": k,
+                    "name": "Cash" if k == "cash" else PROXIES[k][0],
+                    "wp": _num(float(wp[k])),
+                    "wb": _num(float(wb[k])),
+                    "rp": _num(float(rp[k])),
+                    "rb": _num(float(rb[k])),
+                    "allocation": _num(effects[k]["allocation"]),
+                    "selection": _num(effects[k]["selection"]),
+                    "interaction": _num(effects[k]["interaction"]),
+                }
+                for k in keys
+            ],
+        }
+    return {
+        "r2": _num(r2, 4),
+        "weeks": len(style),
+        "weights": {p: _num(float(w)) for p, w in wb_all.items() if w > 0.0005},
+        "segmentOf": segment,
+        "periods": periods,
+    }
+
+
 def _news(news: dict[str, list[Headline] | None]) -> dict[str, Any]:
     return {
         asset: None
@@ -1106,6 +1282,7 @@ def build_report_data(
     details: dict[str, Quote] | None = None,
     news: dict[str, list[Headline] | None] | None = None,
     demo_url: str | None = None,
+    transactions: pd.DataFrame | None = None,
 ) -> dict[str, Any]:
     """Assemble the report content as plain JSON-ready data.
 
@@ -1142,6 +1319,9 @@ def build_report_data(
         Headlines by asset (None where the feed failed).
     demo_url : str, optional
         Marks a public demo built on made-up holdings, linking to the source code.
+    transactions : pd.DataFrame, optional
+        Every buy and sell (:func:`quant.ledger.parse_transactions`), matching the holdings;
+        adds the time- and money-weighted returns and realised gains.
 
     Returns
     -------
@@ -1247,6 +1427,15 @@ def build_report_data(
         "stress": stress,
         "benchmarks": _benchmarks(value, proxy_prices, fx_rates, base),
         "tearsheet": _tearsheet(value, proxy_prices, fx_rates, base),
+        "ledger": _ledger(transactions, holdings, base_prices, fx_rates, base),
+        "brinson": _brinson(
+            holdings,
+            local_prices,
+            fx_rates,
+            proxy_prices,
+            base_prices * quantities,
+            base,
+        ),
         "moves": unusual_moves(local),
         "result": _result(
             holdings, local, fx_rates, position_value, base, pd.Timestamp(value.index[-1])

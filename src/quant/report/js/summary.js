@@ -363,6 +363,7 @@ function renderRisk(p) {
 const RESULT = D.result;
 const RESULT_BY = RESULT ? Object.fromEntries(RESULT.positions.map((r) => [r.asset, r])) : {};
 function renderResult() {
+  if (D.ledger) return;  // the transaction log fills this section (ledger.js)
   $("result-section").hidden = !RESULT;
   if (!RESULT) return;
   const up = RESULT.gain >= 0;

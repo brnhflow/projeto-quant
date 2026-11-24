@@ -39,14 +39,16 @@ from quant.data.sources import (
     yahoo_snapshot_url,
 )
 from quant.holdings import asset_labels, load_holdings, save_holdings
+from quant.ledger import check_against_holdings, load_transactions, parse_transactions
 from quant.pipeline import analyse_portfolio
 
 SYMBOL = re.compile(r"^[A-Za-z0-9.\-=^&]{1,24}$")  # & appears in real tickers (M&M.NS)
 CURRENCY = re.compile(r"^[A-Z]{3}$")
 YEARS = (1, 2, 3, 5)
 PAGE = 25  # lookup results per page
-MAX_BODY = 64 * 1024
+MAX_BODY = 512 * 1024
 MAX_POSITIONS = 100
+MAX_TRANSACTIONS = 5000
 MAX_QUANTITY = 1e12
 API_HEADER = "X-Quant-App"
 STATIC = {
@@ -73,6 +75,11 @@ class AppConfig:
     pause: float = 0.2
     report_html: str | None = None
     lock: threading.Lock = field(default_factory=threading.Lock)
+
+    @property
+    def transactions_path(self) -> Path:
+        """The transaction log, saved next to the holdings."""
+        return self.holdings_path.parent / "transactions.csv"
 
 
 class BadRequestError(ValueError):
@@ -241,9 +248,89 @@ def parse_positions(body: Any) -> tuple[pd.DataFrame, int]:
     return holdings, int(years)
 
 
-def analyse(config: AppConfig, holdings: pd.DataFrame, years: int) -> dict[str, Any]:
+def parse_transactions_request(body: Any, holdings: pd.DataFrame) -> pd.DataFrame | None:
+    """Validate the optional transaction log sent with an analysis.
+
+    ``body["transactions"]`` is a list of ``{"date", "symbol", "side", "quantity", "price",
+    "fee"}``; absent or empty means no log. The log must end with the same units as the
+    positions, so the two describe the same portfolio.
+    """
+    raw = cast(dict[str, Any], body).get("transactions") if isinstance(body, dict) else None
+    if not raw:
+        return None
+    if not isinstance(raw, list) or len(cast(list[Any], raw)) > MAX_TRANSACTIONS:
+        raise BadRequestError(
+            f"The transaction log must be a list of at most {MAX_TRANSACTIONS} rows.",
+            f"O registro de operações deve ter no máximo {MAX_TRANSACTIONS} linhas.",
+        )
+    columns = ("date", "symbol", "side", "quantity", "price", "fee")
+    rows = [
+        {c: str(cast(dict[str, Any], r).get(c, "") or "") for c in columns}
+        if isinstance(r, dict)
+        else {}
+        for r in cast(list[Any], raw)
+    ]
+    try:
+        trades = parse_transactions(pd.DataFrame(rows, columns=list(columns)))
+        problems = check_against_holdings(trades, holdings)
+    except ValueError as error:
+        raise BadRequestError(
+            f"Transaction log: {error}.", f"Registro de operações: {error}."
+        ) from error
+    if problems:
+        listed = "; ".join(problems[:5])
+        raise BadRequestError(
+            f"The transaction log does not end with the positions' quantities: {listed}.",
+            f"O registro de operações não termina nas quantidades das posições: {listed}.",
+        )
+    return trades
+
+
+def save_transactions(trades: pd.DataFrame | None, path: Path) -> None:
+    """Write the log as CSV, or delete the saved one when there is no log."""
+    if trades is None:
+        path.unlink(missing_ok=True)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    out = trades.assign(date=trades["date"].dt.strftime("%Y-%m-%d"))
+    out.to_csv(path, index=False, lineterminator="\n")
+
+
+def saved_transactions(config: AppConfig) -> list[dict[str, Any]]:
+    """Return the saved transaction log, or an empty list."""
+    if not config.transactions_path.exists():
+        return []
+    trades = load_transactions(config.transactions_path)
+    return [
+        {
+            "date": f"{d:%Y-%m-%d}",
+            "symbol": str(s),
+            "side": str(side),
+            "quantity": float(q),
+            "price": float(p),
+            "fee": float(f),
+        }
+        for d, s, side, q, p, f in zip(
+            trades["date"],
+            trades["symbol"],
+            trades["side"],
+            trades["quantity"],
+            trades["price"],
+            trades["fee"],
+            strict=True,
+        )
+    ]
+
+
+def analyse(
+    config: AppConfig,
+    holdings: pd.DataFrame,
+    years: int,
+    transactions: pd.DataFrame | None = None,
+) -> dict[str, Any]:
     """Save the portfolio, fetch fresh data, build the report; returns the API response."""
     save_holdings(holdings, config.holdings_path)
+    save_transactions(transactions, config.transactions_path)
     result = analyse_portfolio(
         holdings,
         years,
@@ -253,6 +340,7 @@ def analyse(config: AppConfig, holdings: pd.DataFrame, years: int) -> dict[str, 
         now=config.now(),
         pause=config.pause,
         edit_url="/",
+        transactions=transactions,
     )
     page = result.page
     config.report_html = page
@@ -402,7 +490,13 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
                 )
             elif url.path == "/api/holdings":
                 try:
-                    self._json(HTTPStatus.OK, {"positions": saved_positions(config)})
+                    self._json(
+                        HTTPStatus.OK,
+                        {
+                            "positions": saved_positions(config),
+                            "transactions": saved_transactions(config),
+                        },
+                    )
                 except ValueError as error:
                     self._error(
                         HTTPStatus.UNPROCESSABLE_ENTITY,
@@ -478,7 +572,9 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
                 self._error(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, "Send JSON.", "Envie JSON.")
                 return
             try:
-                holdings, years = parse_positions(json.loads(raw))
+                body = json.loads(raw)
+                holdings, years = parse_positions(body)
+                transactions = parse_transactions_request(body, holdings)
             except json.JSONDecodeError:
                 self._error(HTTPStatus.BAD_REQUEST, "Invalid request.", "Pedido inválido.")
                 return
@@ -493,7 +589,7 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
                 )
                 return
             try:
-                self._json(HTTPStatus.OK, analyse(config, holdings, years))
+                self._json(HTTPStatus.OK, analyse(config, holdings, years, transactions))
             except DataConfigError as error:
                 self._error(HTTPStatus.UNPROCESSABLE_ENTITY, str(error))
             except (ConnectionError, ValueError) as error:

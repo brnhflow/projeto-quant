@@ -12,6 +12,7 @@ import pandas as pd
 from quant.data.http import fetch_bytes, fetch_json
 from quant.data.market import Fetch, MarketData, SeriesStatus, update_market_data
 from quant.data.news import Headline, google_news_url, news_query, parse_google_news
+from quant.ledger import check_against_holdings
 from quant.report import build_report
 from quant.stress import HISTORY_START, PROXIES
 
@@ -87,6 +88,7 @@ def analyse_portfolio(
     edit_url: str | None = None,
     fetch_text: FetchText = fetch_bytes,
     demo_url: str | None = None,
+    transactions: pd.DataFrame | None = None,
 ) -> Analysis:
     """Download fresh data for ``holdings`` and build the report over ``years`` of history.
 
@@ -100,6 +102,10 @@ def analyse_portfolio(
         As :func:`quant.data.update_market_data` and :func:`quant.report.build_report`.
 
     """
+    if transactions is not None:
+        problems = check_against_holdings(transactions, holdings)
+        if problems:
+            raise ValueError("transaction log does not match the holdings: " + "; ".join(problems))
     cache = cache_dir
     now = now if now is not None else pd.Timestamp.now(tz="UTC")
     start = (now - pd.Timedelta(days=round(years * 365.25))).tz_convert(None).normalize()
@@ -147,5 +153,6 @@ def analyse_portfolio(
         details=market.details,
         news=news,
         demo_url=demo_url,
+        transactions=transactions,
     )
     return Analysis(page, market.status)

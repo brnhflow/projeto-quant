@@ -2,7 +2,8 @@
 
 Run: uv run python scripts/build_site.py  ->  docs/index.html (served by GitHub Pages)
 
-The example holdings are made up (data/holdings.example.csv); prices, exchange rates,
+The example holdings and trades are made up (data/holdings.example.csv and
+data/transactions.example.csv); prices, exchange rates,
 dividends and headlines are downloaded at build time, so the page is a dated snapshot.
 """
 
@@ -12,6 +13,7 @@ import sys
 from pathlib import Path
 
 from quant.holdings import load_holdings
+from quant.ledger import load_transactions
 from quant.pipeline import analyse_portfolio
 
 ROOT = Path(__file__).parents[1]
@@ -27,6 +29,7 @@ def main() -> int:
         ROOT / "data" / "cache",
         title="",
         demo_url="https://github.com/brnhflow/projeto-quant",
+        transactions=load_transactions(ROOT / "data" / "transactions.example.csv"),
     )
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_bytes(analysis.page.encode("utf-8"))  # LF endings on every OS

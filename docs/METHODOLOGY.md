@@ -19,7 +19,10 @@ $r_t = P_t / P_{t-1} - 1$ in euro unless stated otherwise; a year has 252 tradin
 11. [Dividend income](#11-dividend-income)
 12. [Signals](#12-signals)
 13. [Gain on money invested](#13-gain-on-money-invested)
-13. [References](#references)
+14. [Transaction log: time- and money-weighted returns](#14-transaction-log-time--and-money-weighted-returns)
+15. [Brinson attribution](#15-brinson-attribution)
+16. [Tearsheet](#16-tearsheet)
+17. [References](#references)
 
 ## 1. Data and portfolio value
 
@@ -304,13 +307,131 @@ bought several times enters at its first purchase date, which understates the ra
 - A later contribution before a gain raises the rate.
 - With one purchase date for the whole portfolio, it equals the compound annual growth rate.
 
+## 14. Transaction log: time- and money-weighted returns
+
+`ledger.py`, `_ledger` in `report/data.py`
+
+The other sections hold today's quantities over the whole history. With a log of every buy
+and sell (date, ticker, side, quantity, price, fee), the units $u_{t,a}$ held at each close are
+known, and two different questions get two different answers.
+
+**Time-weighted return.** Each day's return is the return of the previous close's holdings:
+
+$$r_t = \frac{\sum_a u_{t-1,a}\,(P_{t,a} - P_{t-1,a})}{\sum_a u_{t-1,a}\,P_{t-1,a}}, \qquad
+\text{TWR} = \prod_t (1 + r_t) - 1$$
+
+Trades are valued at the day's close, so money moving in or out never shows up as a return.
+This is the measure GIPS requires of fund managers: it judges the investments and is blind to
+the timing of contributions. A trade before the analysed history enters as the opening position;
+a trade on a weekend counts from the next business day.
+
+**Money-weighted return.** The XIRR (section 13) of the actual cash: each purchase
+$-(q p + f)\,X_{d}$ and each sale $+(q p - f)\,X_{d}$ at the exchange rate $X_d$ of its date,
+with today's value as the last flow. When contributions come before strong periods it is above
+the TWR; before weak ones, below. The report compares the two only when the log starts inside
+the analysed history, since otherwise they cover different spans.
+
+**Realised and unrealised gains.** Average-cost method per asset, in euro: a purchase adds
+$q p X_d + f X_d$ to the cost basis; a sale realises $(q p - f) X_d - \bar c\, q$, where $\bar c$ is
+the average cost of the units held, and removes $\bar c\, q$ from the basis. Unrealised gain is
+today's value minus the remaining basis. By construction
+
+$$\text{realised} + \text{unrealised} = V_{\text{today}} + \sum \text{sales} - \sum \text{purchases}$$
+
+Dividends received in cash are not in the log; the prices are adjusted closes, so the TWR
+includes them as total return.
+
+The log must end with the holdings' quantities: the app and the command line refuse a log that
+does not, naming each asset that differs, and refuse a sale of more units than were held.
+
+*Checks* (`tests/test_ledger.py`), on a hand-built example with two contributions and one
+sale (prices 10, 11, 11, 12, 12; buy 10 at 10, buy 10 at 11, sell 5 at 12 with a fee of 1):
+
+- Daily TWR 10%, 0%, 1/11, 0%, chaining to exactly the price return of 20%.
+- Realised 6.5, unrealised 22.5, adding up to value plus sales minus purchases (29).
+- The NPV of the cash flows is zero at the money-weighted rate.
+- Moving all the money to a later date changes the MWR and leaves the TWR as the return of the
+  days actually held.
+- Cost in another currency uses the rate of the trade date; a sale beyond the units held, a log
+  ending at different units, and malformed rows are refused.
+
+## 15. Brinson attribution
+
+`brinson.py`, `_brinson` in `report/data.py`
+
+The gap to MSCI ACWI is split by market, in the Brinson-Fachler form of Brinson, Hood and
+Beebower (1986). With portfolio weights $w^p_i$ and returns $r^p_i$ per market, benchmark weights
+$w^b_i$ and index returns $r^b_i$, and $R^b = \sum_i w^b_i r^b_i$:
+
+| Effect | Formula | Reads as |
+|---|---|---|
+| Allocation | $(w^p_i - w^b_i)(r^b_i - R^b)$ | More weight in markets that beat the benchmark |
+| Selection | $w^b_i\,(r^p_i - r^b_i)$ | Your assets against their market's index |
+| Interaction | $(w^p_i - w^b_i)(r^p_i - r^b_i)$ | Selection where you were overweight |
+
+The three add up exactly to $\sum_i w^p_i r^p_i - R^b$. Weights are taken at the start of the
+period and returns are buy-and-hold, which is exact for a portfolio that does not trade within
+the period.
+
+**Segments.** Each asset belongs to the regional index that explains its weekly euro returns
+best (the stress-test mapping of section 7, with global stocks excluded). Cash is its own
+segment, with zero benchmark weight; its whole effect is allocation.
+
+**Benchmark weights by style analysis.** The index's regional mix is not taken from a factsheet
+but estimated from its returns (Sharpe, 1992): the long-only weights summing to one that make
+the mix of regional indices track ACWI best over the last two years of weekly returns,
+
+$$\min_{w \ge 0,\ \mathbf 1^\top w = 1} \; \lVert r_{\text{ACWI}} - R\,w \rVert^2,$$
+
+solved by projected gradient descent with the sorting projection onto the simplex (Duchi et al.,
+2008). Weights under 1% are dropped as noise. The fit's R² is shown, and the replica's return is
+shown beside ACWI's own, so any gap between the two is visible.
+
+*Checks* (`tests/test_brinson.py`, `tests/test_stress.py`):
+
+- Style weights recover a known 60/40 mix exactly (R² = 1) and stay long only when the best
+  unconstrained fit would short.
+- A textbook example reproduces each effect by hand, and the effects sum to the gap.
+- In a full report on a synthetic market where ACWI is 70% US and 30% Europe, the weights come
+  out at 70/30 and the effects add up to the gap in every period.
+
+## 16. Tearsheet
+
+`tearsheet.py`, `_tearsheet` in `report/data.py`
+
+The usual one-page summary of a strategy, over the whole history, against MSCI ACWI on the days
+it traded:
+
+- **Statistics.** CAGR, volatility, Sharpe, Sortino, Calmar, maximum and longest drawdown,
+  one-day 95% VaR and ES, best and worst day and month, share of positive days and months, and
+  the bias-adjusted sample skew and excess kurtosis (zero for a normal distribution).
+- **Monthly returns.** From each month's last close to the next; the first month starts from
+  the first value. The year column compounds the months. The hit rate counts the months in which
+  the portfolio beat the index.
+- **Rolling Sharpe and volatility** over 126 trading days.
+- **Worst drawdowns.** Each counted once from its peak to the first day back at that peak, with
+  the trading days down and the days to recover; an open drawdown has no recovery yet.
+- **Distribution.** Daily returns in 41 bins over ±4 standard deviations (outliers in the outer
+  bins), against the counts a normal with the same mean and volatility would give.
+
+*Checks* (`tests/test_tearsheet.py`): known month-end returns, months compounding to the total,
+partial first years, drawdown periods with their peak, trough and recovery, the deepest ones
+first, rolling ratios equal to the window computed directly, histogram counts adding up to the
+number of days, and statistics on a series with a known CAGR, maximum drawdown and tail. In the
+report, the tearsheet's maximum drawdown and VaR equal the summary's, and its months compound to
+the whole-history return.
+
 ## References
 
+- Bacon, C. (2008). *Practical Portfolio Performance Measurement and Attribution*, 2nd ed. Wiley.
 - Basel Committee on Banking Supervision (1996). *Supervisory framework for the use of "backtesting" in conjunction with the internal models approach to market risk capital requirements.*
+- Brinson, G., Hood, L. R., Beebower, G. (1986). Determinants of portfolio performance. *Financial Analysts Journal*, 42(4), 39–44.
 - Christoffersen, P. (1998). Evaluating interval forecasts. *International Economic Review*, 39(4), 841–862.
+- Duchi, J., Shalev-Shwartz, S., Singer, Y., Chandra, T. (2008). Efficient projections onto the l1-ball for learning in high dimensions. *ICML 2008*.
 - Griveau-Billion, T., Richard, J.-C., Roncalli, T. (2013). A fast algorithm for computing high-dimensional risk parity portfolios. *SSRN 2325255.*
 - Jorion, P. (2007). *Value at Risk: The New Benchmark for Managing Financial Risk*, 3rd ed. McGraw-Hill.
 - Kupiec, P. (1995). Techniques for verifying the accuracy of risk measurement models. *Journal of Derivatives*, 3(2), 73–84.
 - Ledoit, O., Wolf, M. (2004). A well-conditioned estimator for large-dimensional covariance matrices. *Journal of Multivariate Analysis*, 88(2), 365–411.
 - Politis, D., Romano, J. (1994). The stationary bootstrap. *Journal of the American Statistical Association*, 89(428), 1303–1313.
+- Sharpe, W. F. (1992). Asset allocation: management style and performance measurement. *Journal of Portfolio Management*, 18(2), 7–19.
 - Vasicek, O. (1973). A note on using cross-sectional information in Bayesian estimation of security betas. *Journal of Finance*, 28(5), 1233–1239.

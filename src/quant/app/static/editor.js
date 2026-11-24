@@ -8,6 +8,7 @@
 
   /** @type {{symbol:string,kind:string,name:string,exchange:string,currency:string,price:number|null,live:boolean,quantity:number|null,loading:boolean,error:string|null}[]} */
   let rows = [];
+  let trades = [];  // transaction log: {date, symbol, side, quantity, price, fee}
   let years = 2;
   let typeFilter = "";
   const TYPE_HINTS = {
@@ -46,7 +47,7 @@
   // ---------------------------------------------------------------- state
   function saveDraft() {
     const data = rows.map(payload);
-    localStorage.setItem(DRAFT, JSON.stringify({ rows: data, years }));
+    localStorage.setItem(DRAFT, JSON.stringify({ rows: data, years, trades }));
   }
 
   // Cash and a ticker can share a code (the ETF "USD" and dollars), so rows have a key.
@@ -138,6 +139,7 @@
         <td class="r"><button type="button" class="remove" data-remove="${esc(keyOf(r))}" aria-label="${esc(L(`Remover ${r.symbol}`, `Remove ${r.symbol}`))}" title="${L("Remover", "Remove")}">${X_ICON}</button></td>
       </tr>`;
     }).join("");
+    renderLog();
     $("positions-lede").textContent = rows.length === 0 ? L("Nenhum ativo ainda.", "No assets yet.")
       : L(`${rows.length} ${rows.length === 1 ? "ativo" : "ativos"}. Valores em cada moeda original; o relatório converte tudo para euro.`,
         `${rows.length} ${rows.length === 1 ? "asset" : "assets"}. Values in each original currency; the report converts everything to euro.`);
@@ -154,7 +156,7 @@
   }
 
   function refreshButton() {
-    const valid = rows.length > 0 && rows.every((r) => r.quantity > 0 && !r.loading && !r.error);
+    const valid = rows.length > 0 && rows.every((r) => r.quantity > 0 && !r.loading && !r.error) && (!trades.length || !mismatches().length);
     $("analyse").disabled = !valid;
   }
 
@@ -182,6 +184,7 @@
     row.quantity = q === null || Number.isNaN(q) ? (input.value.trim() ? -1 : null) : q;
     input.setAttribute("aria-invalid", String(row.quantity !== null && !(row.quantity > 0)));
     updateRow(row);
+    renderLog();
     saveDraft();
   });
   $("holdings").addEventListener("change", (ev) => {
@@ -331,6 +334,93 @@
   });
   renderTypePicker();
 
+  // ---------------------------------------------------------------- transaction log
+  // Read in the browser; the server checks every row again before using it.
+  const LOG_COLUMNS = ["date", "symbol", "side", "quantity", "price", "fee"];
+  function parseCsv(text) {
+    const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim());
+    if (!lines.length) throw new Error(L("O arquivo está vazio.", "The file is empty."));
+    const sep = lines[0].includes(";") ? ";" : ",";
+    const head = lines[0].split(sep).map((h) => h.trim().toLowerCase());
+    const missing = LOG_COLUMNS.slice(0, 5).filter((c) => !head.includes(c));
+    if (missing.length) throw new Error(L(`Faltam colunas: ${missing.join(", ")}.`, `Missing columns: ${missing.join(", ")}.`));
+    // With ";" as separator the decimals may use a comma, as spreadsheets in Portuguese save them.
+    const number = (v) => (sep === ";" ? v.replace(/\./g, "").replace(",", ".") : v);
+    return lines.slice(1).map((line, i) => {
+      const cells = line.split(sep).map((c) => c.trim());
+      const get = (c) => (head.indexOf(c) >= 0 ? cells[head.indexOf(c)] || "" : "");
+      const row = { date: get("date"), symbol: get("symbol").toUpperCase(), side: get("side").toLowerCase(), quantity: number(get("quantity")), price: number(get("price")), fee: number(get("fee")) || "0" };
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(row.date) || !["buy", "sell"].includes(row.side) || !(+row.quantity > 0) || !(+row.price > 0) || !row.symbol) {
+        throw new Error(L(`Linha ${i + 2} inválida: ${line}`, `Invalid line ${i + 2}: ${line}`));
+      }
+      return row;
+    });
+  }
+  function netUnits() {
+    const held = {};
+    trades.slice().sort((a, b) => a.date.localeCompare(b.date)).forEach((t) => {
+      held[t.symbol] = (held[t.symbol] || 0) + (t.side === "buy" ? +t.quantity : -t.quantity);
+    });
+    return held;
+  }
+  function mismatches() {
+    const held = netUnits();
+    const out = [];
+    rows.filter((r) => r.kind !== "cash").forEach((r) => {
+      const logged = held[r.symbol] || 0;
+      delete held[r.symbol];
+      if (Math.abs(logged - (r.quantity || 0)) > 1e-6 * Math.max(1, r.quantity || 0)) out.push({ symbol: r.symbol, logged, quantity: r.quantity || 0, known: true });
+    });
+    Object.entries(held).forEach(([symbol, logged]) => { if (logged > 1e-9) out.push({ symbol, logged, quantity: 0, known: false }); });
+    return out;
+  }
+  function renderLog() {
+    const box = $("log-state");
+    $("log-clear").hidden = !trades.length;
+    if (!trades.length) { box.innerHTML = ""; return; }
+    const dates = trades.map((t) => t.date).sort();
+    const bad = mismatches();
+    const count = L(`${trades.length} ${trades.length === 1 ? "operação" : "operações"}`, `${trades.length} ${trades.length === 1 ? "trade" : "trades"}`);
+    box.innerHTML = `<p><strong>${count}</strong> ${L(`de ${dates[0]} a ${dates[dates.length - 1]}.`, `from ${dates[0]} to ${dates[dates.length - 1]}.`)}</p>` +
+      (bad.length
+        ? `<p class="bad">${L("O registro não termina nas quantidades das posições:", "The log does not end with the positions' quantities:")}</p><ul>` +
+          bad.map((b) => `<li>${esc(b.symbol)}: ${L("registro", "log")} ${fmtQty(b.logged)}, ${L("posição", "position")} ${b.known ? fmtQty(b.quantity) : L("não está na carteira", "not in the portfolio")}</li>`).join("") +
+          `</ul>${bad.some((b) => b.known) ? `<button type="button" class="ghost" id="log-apply">${L("Usar as quantidades do registro", "Use the log's quantities")}</button>` : ""}`
+        : `<p class="good">${L("Bate com as posições.", "Matches the positions.")}</p>`);
+    refreshButton();
+  }
+  $("log-state").addEventListener("click", (ev) => {
+    if (!ev.target.closest("#log-apply")) return;
+    const held = netUnits();
+    rows.forEach((r) => { if (r.kind !== "cash" && held[r.symbol] > 0) r.quantity = held[r.symbol]; });
+    render();
+    saveDraft();
+  });
+  $("log-file").addEventListener("change", async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    ev.target.value = "";
+    if (!file) return;
+    try {
+      trades = parseCsv(await file.text());
+      $("message").hidden = true;
+    } catch (e) {
+      $("message").textContent = e.message; $("message").hidden = false;
+    }
+    renderLog();
+    saveDraft();
+  });
+  $("log-clear").addEventListener("click", () => { trades = []; renderLog(); saveDraft(); });
+  // A starting point: one purchase per position, at its average cost and date if known.
+  $("log-template").addEventListener("click", () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const lines = ["date,symbol,side,quantity,price,fee"].concat(rows.filter((r) => r.kind !== "cash" && r.quantity > 0).map((r) =>
+      [r.since || today, r.symbol, "buy", r.quantity, r.cost > 0 ? r.cost : (r.price || 0), 0].join(",")));
+    const url = URL.createObjectURL(new Blob([lines.join("\n") + "\n"], { type: "text/csv" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: "transactions.csv" });
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  });
+
   // ---------------------------------------------------------------- analyse
   document.querySelectorAll("#years button").forEach((b) => b.addEventListener("click", () => {
     years = +b.dataset.years;
@@ -347,7 +437,7 @@
       const result = await api("/api/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ years, positions: rows.map(payload) }),
+        body: JSON.stringify({ years, positions: rows.map(payload), transactions: trades }),
       });
       localStorage.removeItem(DRAFT);
       window.location.href = result.url;
@@ -361,8 +451,8 @@
 
   // ---------------------------------------------------------------- start
   async function start() {
-    let saved = [];
-    try { saved = (await api("/api/holdings")).positions; } catch (e) {
+    let saved = [], savedLog = [];
+    try { const h = await api("/api/holdings"); saved = h.positions; savedLog = h.transactions || []; } catch (e) {
       $("message").textContent = e.message; $("message").hidden = false;
     }
     let draft = null;
@@ -372,6 +462,7 @@
       years = draft.years;
       document.querySelectorAll("#years button").forEach((x) => x.setAttribute("aria-pressed", String(+x.dataset.years === years)));
     }
+    trades = draft && Array.isArray(draft.trades) && draft.rows && draft.rows.length ? draft.trades : (savedLog || []);
     rows = source.map((p) => p.kind === "cash" ? cashRow(p.currency, p.quantity)
       : { symbol: p.symbol, kind: "instrument", type: typeOf({ symbol: p.symbol }), name: "", exchange: "", currency: p.currency || "", price: null, live: false, quantity: p.quantity, cost: p.cost || null, since: p.since || null, loading: true, error: null });
     render();

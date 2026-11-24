@@ -534,7 +534,7 @@ html[data-lang="pt"] [data-l="en"], html:not([data-lang="pt"]) [data-l="pt"] { d
 .lang-switch button { min-width: 40px; font-weight: 600; letter-spacing: 0.04em; }
 
 /* ---------------------------------------------------------------- tearsheet */
-.ts-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px 28px; margin: 8px 0 8px; }
+.ts-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px 28px; margin: 8px 0 8px; }
 .ts-card h4 {
   margin: 0 0 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--ink-2); padding-bottom: 6px; border-bottom: 1px solid var(--rule-strong);
@@ -550,3 +550,4 @@ html[data-lang="pt"] [data-l="en"], html:not([data-lang="pt"]) [data-l="pt"] { d
 .heat td.empty-cell { background: transparent; }
 .heat td.year { font-weight: 600; padding-left: 10px; }
 .heat td.r, .heat th.r { text-align: right; }
+.ts-roll-legend { margin-top: 22px; }

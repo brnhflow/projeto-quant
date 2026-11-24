@@ -10,16 +10,15 @@ const TS_BENCH = TS && TS.benchmark;
 const TS_SHORT = TS_BENCH ? ((/\(([^)]*MSCI[^)]*)\)/.exec(TS_BENCH.name) || [])[1] || T(TS_BENCH.name).replace(/ \(.*\)$/, "")) : "";
 
 function renderTearsheet() {
-  $("tearsheet").hidden = !TS;
+  $("tearsheet-section").hidden = !TS;
   if (!TS) return;
   const s = TS.stats, b = TS_BENCH ? TS_BENCH.stats : null;
-  const benchName = TS_BENCH ? T(TS_BENCH.name) : "";
   const years = abs(s.years, 1);
   $("ts-lede").innerHTML = L(
     `Histórico completo, de ${dateLong(TS.start)} a ${dateLong(TS.end)} (${years} anos), com as quantidades de hoje` +
-      (TS_BENCH ? `, contra o <strong>${esc(benchName)}</strong>${TS_BENCH.dividends ? " com dividendos" : " sem dividendos"}, em euro.` : "."),
+      (TS_BENCH ? `, contra o <strong>${esc(TS_SHORT)}</strong> (${TS_BENCH.dividends ? "com dividendos" : "sem dividendos"}), em euro.` : "."),
     `Whole history, ${dateLong(TS.start)} to ${dateLong(TS.end)} (${years} years), with today's quantities` +
-      (TS_BENCH ? `, against the <strong>${esc(benchName)}</strong>${TS_BENCH.dividends ? " with dividends" : " (price only)"}, in euro.` : "."));
+      (TS_BENCH ? `, against <strong>${esc(TS_SHORT)}</strong> (${TS_BENCH.dividends ? "with dividends" : "price only"}), in euro.` : "."));
 
   const pct = (v) => (v === null || v === undefined ? "—" : fmt.pct(v));
   const share = (v) => (v === null || v === undefined ? "—" : fmt.share(v));
@@ -57,6 +56,9 @@ function renderTearsheet() {
     `</tbody></table></div>`).join("");
 
   renderMonthly();
+  $("ts-roll-legend").innerHTML = `<span class="key"><span class="swatch" style="background:${cssVar("--s1")}"></span>${L("Carteira", "Portfolio")}</span>` +
+    (TS_BENCH ? `<span class="key"><span class="tick-key dashed"></span>${esc(TS_SHORT)}</span>` : "") +
+    `<span class="key muted">${L(`Janelas de ${TS.window} dias úteis`, `${TS.window}-trading-day windows`)}</span>`;
   renderDrawdownTable();
   const kurt = s.kurtosis, skew = s.skew;
   $("ts-hist-caption").innerHTML = L(

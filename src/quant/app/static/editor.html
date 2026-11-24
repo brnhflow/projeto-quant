@@ -67,8 +67,19 @@
   <div class="empty" id="empty"><span data-l="en">Search for an asset above to start.</span><span data-l="pt">Busque um ativo acima para começar.</span></div>
 </section>
 
+<section class="block ledger">
+  <h2><span class="num">2</span><span data-l="en">Transaction log</span><span data-l="pt">Registro de operações</span> <span class="opt-tag"><span data-l="en">optional</span><span data-l="pt">opcional</span></span></h2>
+  <p class="lede"><span data-l="en">Import every buy and sell to get the time-weighted return, the return on your money (XIRR) and realised gains. A CSV with the columns date, symbol, side (buy or sell), quantity, price and fee, in each asset's currency. The log must end with the quantities above.</span><span data-l="pt">Importe cada compra e venda para ver o retorno ponderado pelo tempo, o retorno do seu dinheiro (TIR) e o ganho realizado. Um CSV com as colunas date, symbol, side (buy ou sell), quantity, price e fee, na moeda de cada ativo. O registro precisa terminar nas quantidades acima.</span></p>
+  <div class="ledger-actions">
+    <label class="ghost link-button file-button"><input type="file" id="log-file" accept=".csv,text/csv" hidden><span data-l="en">Import CSV</span><span data-l="pt">Importar CSV</span></label>
+    <button type="button" class="ghost" id="log-template"><span data-l="en">Download a template</span><span data-l="pt">Baixar um modelo</span></button>
+    <button type="button" class="ghost" id="log-clear" hidden><span data-l="en">Remove the log</span><span data-l="pt">Remover o registro</span></button>
+  </div>
+  <div class="ledger-state" id="log-state" aria-live="polite"></div>
+</section>
+
 <section class="block analyse">
-  <h2><span class="num">2</span><span data-l="en">Analyse</span><span data-l="pt">Analisar</span></h2>
+  <h2><span class="num">3</span><span data-l="en">Analyse</span><span data-l="pt">Analisar</span></h2>
   <div class="analyse-row">
     <div>
       <p class="field-label" id="years-label"><span data-l="en">History used in the analysis</span><span data-l="pt">Histórico usado na análise</span></p>

@@ -266,3 +266,60 @@ def test_report_without_indices_has_no_stress_block() -> None:
     data = build_report_data(holdings, prices, pd.DataFrame(), DATES[-300:], title="T")
 
     assert data["stress"] is None
+
+
+def test_report_brinson_and_ledger_add_up() -> None:
+    sp, stoxx = _walk(20), _walk(21)
+    # The global index is 70% US and 30% Europe, rebalanced weekly.
+    weekly = pd.concat([sp, stoxx], axis=1).resample("W-FRI").last().pct_change()
+    mix = (1 + 0.7 * weekly.iloc[:, 0] + 0.3 * weekly.iloc[:, 1]).fillna(1.0).cumprod() * 100
+    acwi = mix.reindex(DATES, method="ffill").bfill()
+    holdings = pd.DataFrame(
+        {
+            "quantity": [10.0, 20.0, 500.0],
+            "currency": ["USD", "EUR", "EUR"],
+            "source": ["yahoo", "yahoo", "cash"],
+            "symbol": ["AAPL", "SAP.DE", "EUR"],
+        },
+        index=pd.Index(["AAPL", "SAP", "Cash EUR"], name="asset"),
+    )
+    local = pd.DataFrame({"AAPL": 1.3 * sp, "SAP": 0.5 * stoxx, "Cash EUR": 1.0})
+    fx = pd.DataFrame({"USD": 0.9}, index=DATES)
+    proxies = pd.DataFrame({"^GSPC": sp, "^STOXX50E": stoxx, "ACWI": acwi})
+    calendar = pd.bdate_range("2024-11-20", "2026-11-20")
+    trades = pd.DataFrame(
+        [
+            ("2025-01-06", "AAPL", "buy", "10", "100", "1"),
+            ("2025-03-03", "SAP.DE", "buy", "20", "40", "1"),
+        ],
+        columns=["date", "symbol", "side", "quantity", "price", "fee"],
+    )
+    from quant.ledger import parse_transactions
+
+    data = build_report_data(
+        holdings,
+        local,
+        fx,
+        calendar,
+        title="T",
+        proxy_prices=proxies,
+        transactions=parse_transactions(trades),
+    )
+
+    brinson = data["brinson"]
+    assert brinson["weights"] == pytest.approx({"^GSPC": 0.7, "^STOXX50E": 0.3}, abs=0.02)
+    assert brinson["segmentOf"] == {"AAPL": "^GSPC", "SAP": "^STOXX50E", "Cash EUR": "cash"}
+    for period in brinson["periods"].values():
+        effects = sum(
+            s["allocation"] + s["selection"] + s["interaction"] for s in period["segments"]
+        )
+        assert effects == pytest.approx(period["portfolio"] - period["benchmark"], abs=1e-5)
+    whole = next(p for p in data["periods"] if p["key"] == "ALL")
+    stock_value = sum(p["value"] for p in data["positions"] if p["asset"] != "Cash EUR")
+    assert brinson["periods"]["ALL"]["portfolio"] == pytest.approx(whole["totalReturn"], abs=1e-5)
+    ledger = data["ledger"]
+    assert ledger["trades"] == 2
+    assert ledger["end"] == pytest.approx(stock_value, abs=0.05)
+    assert ledger["netInvested"] == pytest.approx(10 * 100 * 0.9 + 0.9 + 20 * 40 + 1, abs=1e-6)
+    assert ledger["realised"] == 0
+    assert ledger["unrealised"] == pytest.approx(ledger["end"] - ledger["netInvested"], abs=0.05)

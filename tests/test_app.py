@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 from quant.app import AppConfig, BadRequestError, make_server, parse_positions
+from quant.app.server import parse_transactions_request, save_transactions
 from quant.holdings import load_holdings
 
 
@@ -463,3 +464,75 @@ def test_cash_only_portfolio_is_refused_with_a_clear_message() -> None:
         parse_positions(
             {"positions": [{"symbol": "EUR", "quantity": 1, "currency": "EUR", "kind": "cash"}]}
         )
+
+
+def _body(transactions: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "positions": [{"symbol": "PETR4.SA", "quantity": 150, "currency": "BRL"}],
+        "transactions": transactions,
+    }
+
+
+def test_transaction_log_is_parsed_and_checked_against_the_positions() -> None:
+    body = _body(
+        [
+            {
+                "date": "2024-01-02",
+                "symbol": "PETR4.SA",
+                "side": "buy",
+                "quantity": 200,
+                "price": 30,
+            },
+            {
+                "date": "2024-06-03",
+                "symbol": "PETR4.SA",
+                "side": "sell",
+                "quantity": 50,
+                "price": 35,
+                "fee": 4.9,
+            },
+        ]
+    )
+    holdings, _ = parse_positions(body)
+
+    trades = parse_transactions_request(body, holdings)
+
+    assert trades is not None
+    assert trades["side"].tolist() == ["buy", "sell"]
+    assert trades["fee"].tolist() == [0.0, 4.9]
+    assert parse_transactions_request({"positions": []}, holdings) is None
+
+
+def test_transaction_log_that_ends_elsewhere_is_refused() -> None:
+    body = _body(
+        [{"date": "2024-01-02", "symbol": "PETR4.SA", "side": "buy", "quantity": 100, "price": 30}]
+    )
+    holdings, _ = parse_positions(body)
+
+    with refused("não termina nas quantidades"):
+        parse_transactions_request(body, holdings)
+
+
+def test_transaction_log_with_a_bad_row_is_refused() -> None:
+    body = _body(
+        [{"date": "02/01/2024", "symbol": "PETR4.SA", "side": "buy", "quantity": 150, "price": 30}]
+    )
+    holdings, _ = parse_positions(body)
+
+    with refused("Registro de operações"):
+        parse_transactions_request(body, holdings)
+
+
+def test_transaction_log_is_saved_and_removed(tmp_path: Path) -> None:
+    body = _body(
+        [{"date": "2024-01-02", "symbol": "PETR4.SA", "side": "buy", "quantity": 150, "price": 30}]
+    )
+    holdings, _ = parse_positions(body)
+    path = tmp_path / "private" / "transactions.csv"
+
+    save_transactions(parse_transactions_request(body, holdings), path)
+    assert (
+        path.read_text(encoding="utf-8").splitlines()[1].startswith("2024-01-02,PETR4.SA,buy,150")
+    )
+    save_transactions(None, path)
+    assert not path.exists()
