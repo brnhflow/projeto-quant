@@ -99,4 +99,17 @@ NB_MODULE(quant_core, m) {
         nb::arg("prices"), nb::arg("targets"), nb::arg("rule"), nb::arg("cost"), nb::arg("every"), nb::arg("band"),
         nb::arg("vol_target"), nb::arg("lam"), nb::arg("seed"),
         "Walk-forward backtest of one allocation rule: (daily value, turnover, costs, rebalances).");
+
+    m.def(
+        "simulate_growth",
+        [](const Input& logs, std::size_t days, std::size_t paths, double mean_block, std::uint64_t seed) {
+            std::vector<double> out;
+            {
+                nb::gil_scoped_release release;
+                out = quant::simulate_growth(view(logs), days, paths, mean_block, seed);
+            }
+            return to_numpy(std::move(out), days);
+        },
+        nb::arg("logs"), nb::arg("days"), nb::arg("paths"), nb::arg("mean_block"), nb::arg("seed"),
+        "Monte Carlo growth of 1 unit: paths x days, stationary bootstrap of log returns.");
 }

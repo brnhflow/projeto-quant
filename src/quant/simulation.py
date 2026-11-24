@@ -25,6 +25,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from quant import core
 from quant.validation import binomial_cdf, stationary_bootstrap_matrix
 
 Matrix = npt.NDArray[np.float64]
@@ -71,6 +72,9 @@ def simulate_growth(
     if demean:
         logs = logs - logs.mean()
     block = mean_block if mean_block is not None else max(5.0, len(logs) ** (1 / 3))
+    fast = core.simulate_growth(logs, days, paths, block, seed)
+    if fast is not None:  # same algorithm in C++, in parallel (cpp/include/quant/risk.hpp)
+        return fast
     rng = np.random.default_rng(seed)
     # Each path is built from consecutive resamples of the history.
     pieces = math.ceil(days / len(logs))

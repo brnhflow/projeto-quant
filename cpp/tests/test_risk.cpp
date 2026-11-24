@@ -115,9 +115,20 @@ void calendar_rebalance_pays_its_costs() {
     check(r.trades == 2, "calendar every day: two rebalances after the purchase");
 }
 
+void simulation_of_a_constant_log_return_is_exact() {
+    const std::vector<double> logs(100, 0.001);
+    const auto g = quant::simulate_growth(logs, 252, 200, 10.0, 5);
+    bool ok = true;
+    for (std::size_t p = 0; p < 200; ++p) ok = ok && near(g[p * 252 + 251], std::exp(0.252), 1e-12);
+    check(ok, "every path of a constant log return compounds to exp(0.252)");
+    check(quant::simulate_growth(logs, 50, 300, 10.0, 5, 1) == quant::simulate_growth(logs, 50, 300, 10.0, 5, 8),
+          "simulation is the same for any number of threads");
+}
+
 }  // namespace
 
 int main() {
+    simulation_of_a_constant_log_return_is_exact();
     buy_and_hold_never_trades_and_tracks_prices();
     calendar_rebalance_pays_its_costs();
     quantile_index_matches_the_python_rule();

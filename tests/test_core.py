@@ -93,3 +93,20 @@ def test_numpy_bootstrap_of_constant_returns_is_exact() -> None:
     assert stats[:, 0] == pytest.approx(1.001**252 - 1)
     assert stats[:, 1] == pytest.approx(0.0, abs=1e-9)
     assert stats[:, 3] == pytest.approx(-0.001)
+
+
+@needs_core
+def test_simulation_agrees_with_numpy_in_distribution() -> None:
+    from quant.simulation import simulate_growth
+
+    r = _returns(1000).to_numpy()
+    fast = simulate_growth(r, 252, 3000, demean=True, seed=3)
+    saved, core._core = core._core, None  # pyright: ignore[reportPrivateUsage]
+    try:
+        slow = simulate_growth(r, 252, 3000, demean=True, seed=3)
+    finally:
+        core._core = saved  # pyright: ignore[reportPrivateUsage]
+    q_fast = pd.Series(fast[:, -1]).quantile([0.05, 0.5, 0.95]).to_numpy()
+    q_slow = pd.Series(slow[:, -1]).quantile([0.05, 0.5, 0.95]).to_numpy()
+    assert fast.shape == slow.shape == (3000, 252)
+    assert np.abs(q_fast - q_slow).max() < 0.1 * (q_slow[2] - q_slow[0])

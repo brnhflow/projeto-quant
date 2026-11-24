@@ -59,6 +59,15 @@ def main() -> int:
         finally:
             core._core = saved  # pyright: ignore[reportPrivateUsage]
 
+    from quant.simulation import simulate_growth
+
+    def numpy_simulation() -> None:
+        core._core = None  # pyright: ignore[reportPrivateUsage]
+        try:
+            simulate_growth(x[:2500], 1260, 2000, demean=True)
+        finally:
+            core._core = saved  # pyright: ignore[reportPrivateUsage]
+
     cases = [
         (
             "rolling historical VaR (250d)",
@@ -74,6 +83,11 @@ def main() -> int:
             "stationary bootstrap, 2,000 x 2,500 days",
             numpy_bootstrap,
             lambda: core.bootstrap_statistics(x[:2500], 2000, 20.0, 1),
+        ),
+        (
+            "Monte Carlo, 2,000 paths x 5 years",
+            numpy_simulation,
+            lambda: simulate_growth(x[:2500], 1260, 2000, demean=True),
         ),
     ]
     for name, slow, fast in cases:

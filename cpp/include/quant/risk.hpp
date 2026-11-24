@@ -163,18 +163,18 @@ inline std::uint64_t splitmix64(std::uint64_t x) {
     return x ^ (x >> 31);
 }
 
-// One stationary-bootstrap path: blocks start at uniform positions and have geometric lengths
+// One stationary-bootstrap path of any length: blocks start at uniform positions and have geometric lengths
 // with mean `mean_block` (equivalent to restarting with probability 1 / mean_block each day),
 // wrapping around the end. Whole blocks are copied at once.
 inline void bootstrap_path(std::span<const double> r, double mean_block, std::mt19937_64& rng,
-                           std::vector<double>& path) {
-    const std::size_t n = r.size();
+                           std::span<double> path) {
+    const std::size_t n = r.size(), length = path.size();
     std::uniform_int_distribution<std::size_t> start(0, n - 1);
     std::geometric_distribution<std::size_t> extra(1.0 / mean_block);  // length - 1
     std::size_t filled = 0;
-    while (filled < n) {
+    while (filled < length) {
         std::size_t pos = start(rng);
-        std::size_t len = std::min(extra(rng) + 1, n - filled);
+        std::size_t len = std::min(extra(rng) + 1, length - filled);
         while (len > 0) {
             const std::size_t run = std::min(len, n - pos);  // up to the end, then wrap
             std::copy_n(r.begin() + static_cast<std::ptrdiff_t>(pos), run,
@@ -220,6 +220,41 @@ inline std::vector<double> stationary_bootstrap(std::span<const double> r, std::
         if (first < last) pool.emplace_back(work, first, last);
     }
     return out;  // jthreads join here, before `out` is returned
+}
+
+// Monte Carlo growth paths: `paths` x `days` values of 1 invested, built by stationary
+// bootstrap of daily log returns (already demeaned by the caller if no trend is wanted) and
+// compounded in the same pass. Parallel and reproducible like stationary_bootstrap.
+inline std::vector<double> simulate_growth(std::span<const double> logs, std::size_t days, std::size_t paths,
+                                           double mean_block, std::uint64_t seed, unsigned threads = 0) {
+    if (logs.size() < 20) throw std::invalid_argument("need at least 20 returns");
+    if (!(mean_block >= 1.0)) throw std::invalid_argument("mean_block must be at least 1");
+    std::vector<double> out(paths * days);
+    auto work = [&](std::size_t first, std::size_t last) {
+        for (std::size_t p = first; p < last; ++p) {
+            std::span<double> row(out.data() + p * days, days);
+            std::mt19937_64 rng(splitmix64(seed ^ splitmix64(p)));
+            bootstrap_path(logs, mean_block, rng, row);
+            double level = 0.0;
+            for (double& x : row) {
+                level += x;
+                x = std::exp(level);
+            }
+        }
+    };
+    unsigned count = threads != 0 ? threads : std::max(1u, std::thread::hardware_concurrency());
+    count = static_cast<unsigned>(std::min<std::size_t>(count, std::max<std::size_t>(1, paths / 64)));
+    if (count <= 1) {
+        work(0, paths);
+        return out;
+    }
+    std::vector<std::jthread> pool;
+    const std::size_t chunk = (paths + count - 1) / count;
+    for (unsigned i = 0; i < count; ++i) {
+        const std::size_t first = i * chunk, last = std::min(paths, first + chunk);
+        if (first < last) pool.emplace_back(work, first, last);
+    }
+    return out;
 }
 
 }  // namespace quant

@@ -115,3 +115,13 @@ def backtest_rule(
         params.seed,
     )
     return np.asarray(value, dtype=np.float64), float(turnover), float(costs), int(trades)
+
+
+def simulate_growth(
+    logs: Vector, days: int, paths: int, mean_block: float, seed: int
+) -> npt.NDArray[np.float64] | None:
+    """C++ Monte Carlo growth paths (paths x days), or None without the extension."""
+    if _core is None:
+        return None
+    out = _core.simulate_growth(_vector(logs), days, paths, mean_block, seed)
+    return np.asarray(out, dtype=np.float64)
