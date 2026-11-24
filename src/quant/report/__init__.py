@@ -85,6 +85,7 @@ def build_report(
     proxy_prices: pd.DataFrame | None = None,
     details: dict[str, Quote] | None = None,
     news: dict[str, list[Headline] | None] | None = None,
+    demo_url: str | None = None,
 ) -> str:
     """Compute the report data and render it; see :func:`build_report_data` for arguments."""
     data = build_report_data(
@@ -100,5 +101,6 @@ def build_report(
         proxy_prices=proxy_prices,
         details=details,
         news=news,
+        demo_url=demo_url,
     )
     return render_html(data)

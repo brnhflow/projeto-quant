@@ -890,6 +890,7 @@ def build_report_data(
     proxy_prices: pd.DataFrame | None = None,
     details: dict[str, Quote] | None = None,
     news: dict[str, list[Headline] | None] | None = None,
+    demo_url: str | None = None,
 ) -> dict[str, Any]:
     """Assemble the report content as plain JSON-ready data.
 
@@ -924,6 +925,8 @@ def build_report_data(
         Live downloads by asset (name, instrument type, dividends), for income.
     news : dict, optional
         Headlines by asset (None where the feed failed).
+    demo_url : str, optional
+        Marks a public demo built on made-up holdings, linking to the source code.
 
     Returns
     -------
@@ -1081,6 +1084,7 @@ def build_report_data(
         "defaultPeriod": default,
         "periods": periods,
         "editUrl": edit_url,
+        "demo": demo_url,
         "sources": [
             {
                 "name": s.name,

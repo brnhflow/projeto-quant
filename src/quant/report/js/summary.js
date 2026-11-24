@@ -16,6 +16,8 @@ function renderHeader() {
   $("title").textContent = D.title;
   $("meta").innerHTML = `Valores em ${CURRENCY[D.base] || D.base} · dados até ${dateLong(D.asOf)}` +
     (D.synthetic ? `<span class="flag">Dados simulados</span>` : "");
+  if (D.demo) addNotice(`<strong>Demonstração.</strong> Carteira fictícia com dados reais de mercado de ${esc(dateLong(D.asOf))}. ` +
+    `Código, metodologia e testes em <a href="${esc(D.demo)}" rel="noopener">${esc(D.demo.replace(/^https:\/\//, ""))}</a>.`);
   renderHistoryLimit();
   renderSources();
   $("min-var").textContent = D.minDaysVar;

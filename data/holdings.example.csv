@@ -1,6 +1,9 @@
 asset,quantity,currency,source,symbol
 PETR4,200,BRL,yahoo,PETR4.SA
-VALE3,150,BRL,yahoo,VALE3.SA
+ITUB4,300,BRL,yahoo,ITUB4.SA
+HGLG11,25,BRL,yahoo,HGLG11.SA
+AAPL34,60,BRL,yahoo,AAPL34.SA
+IWDA,80,EUR,yahoo,IWDA.AS
 ASML,4,EUR,yahoo,ASML.AS
-IWDA,60,EUR,yahoo,IWDA.AS
-BTC,0.05,USD,kraken,XBTUSD
+BTC,0.04,USD,yahoo,BTC-USD
+Caixa EUR,1500,EUR,cash,EUR

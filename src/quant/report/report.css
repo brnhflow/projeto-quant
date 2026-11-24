@@ -92,6 +92,7 @@ button:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
   background: var(--field); font-size: 14px; color: var(--ink);
 }
 .notice strong { font-weight: 600; }
+.notice a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
 /* ---------------------------------------------------------------- key figures */
 .figures {

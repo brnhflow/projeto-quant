@@ -86,6 +86,7 @@ def analyse_portfolio(
     pause: float = 0.2,
     edit_url: str | None = None,
     fetch_text: FetchText = fetch_bytes,
+    demo_url: str | None = None,
 ) -> Analysis:
     """Download fresh data for ``holdings`` and build the report over ``years`` of history.
 
@@ -145,5 +146,6 @@ def analyse_portfolio(
         proxy_prices=proxy_prices,
         details=market.details,
         news=news,
+        demo_url=demo_url,
     )
     return Analysis(page, market.status)

@@ -1,4 +1,4 @@
-"""Build the portfolio report for the example holdings on synthetic market data.
+"""Build the portfolio report for a small portfolio on synthetic market data (offline).
 
 Run: uv run python scripts/demo_report.py  ->  reports/demo.html
 
@@ -14,7 +14,6 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from quant.holdings import load_holdings
 from quant.report import build_report
 
 ROOT = Path(__file__).parents[1]
@@ -74,7 +73,15 @@ def synthetic_market(seed: int = 14) -> tuple[pd.DataFrame, pd.DataFrame, pd.Dat
 
 
 if __name__ == "__main__":
-    holdings = load_holdings(ROOT / "data" / "holdings.example.csv")
+    holdings = pd.DataFrame(
+        {
+            "quantity": [200.0, 150.0, 4.0, 60.0, 0.05],
+            "currency": ["BRL", "BRL", "EUR", "EUR", "USD"],
+            "source": "yahoo",
+            "symbol": ["PETR4.SA", "VALE3.SA", "ASML.AS", "IWDA.AS", "BTC-USD"],
+        },
+        index=pd.Index(["PETR4", "VALE3", "ASML", "IWDA", "BTC"], name="asset"),
+    )
     prices, fx, calendar = synthetic_market()
     page = build_report(holdings, prices, fx, calendar, title="Carteira de exemplo", synthetic=True)
     OUT.parent.mkdir(exist_ok=True)
