@@ -453,3 +453,19 @@ def test_fx_cache_keeps_currencies_from_earlier_runs(tmp_path: Path) -> None:
     )
 
     assert set(offline.fx.columns) == {"BRL", "USD"}
+
+
+def test_a_damaged_cache_file_is_replaced_by_the_download(tmp_path: Path) -> None:
+    holdings = _holdings([("PETR4", "BRL", "yahoo", "PETR4.SA")])
+    update_market_data(holdings, START, tmp_path, fetch=_fake_fetch(set()), now=NOW, pause=0)
+    fx_file = tmp_path / "fx_EUR.csv"
+    # As if two processes had written at once: a row with too many fields.
+    fx_file.write_text(fx_file.read_text(encoding="utf-8") + "2020-01-01,1,2,3,4,5,6\n")
+
+    market = update_market_data(
+        holdings, START, tmp_path, fetch=_fake_fetch(set()), now=NOW, pause=0
+    )
+
+    assert "BRL" in market.fx.columns
+    assert "2020-01-01,1,2,3" not in fx_file.read_text(encoding="utf-8")
+    assert not list(tmp_path.glob(".*.tmp"))  # no temporary files left behind

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import tempfile
+import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -66,9 +69,37 @@ def _cache_file(cache_dir: Path, source: str, symbol: str) -> Path:
     return cache_dir / f"{source}_{re.sub(r'[^A-Za-z0-9.-]', '_', symbol)}.csv"
 
 
+# The holdings and the market indices download in parallel and share the exchange-rate
+# file, so every cache read and write in this process goes through one lock.
+_CACHE_LOCK = threading.RLock()
+
+
 def _save(path: Path, table: pd.DataFrame | pd.Series) -> None:
+    """Write the cache file atomically.
+
+    The table goes to a temporary file in the same folder, which then replaces the old one
+    in a single step, so a reader never sees a half-written file. On Windows the replace
+    fails while another process has the file open, so it is retried briefly.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    table.to_csv(path, index_label="date", lineterminator="\n")
+    with _CACHE_LOCK:
+        handle, temporary = tempfile.mkstemp(
+            dir=path.parent, prefix=f".{path.stem}-", suffix=".tmp"
+        )
+        try:
+            with os.fdopen(handle, "w", encoding="utf-8", newline="") as out:
+                table.to_csv(out, index_label="date", lineterminator="\n")
+            for attempt in range(10):
+                try:
+                    os.replace(temporary, path)
+                    break
+                except PermissionError:
+                    if attempt == 9:
+                        raise
+                    time.sleep(0.05 * (attempt + 1))
+        except BaseException:
+            Path(temporary).unlink(missing_ok=True)
+            raise
 
 
 def _save_series(path: Path, series: pd.Series, currency: str, start: pd.Timestamp) -> None:
@@ -92,9 +123,15 @@ def _load_series(path: Path, currency: str) -> pd.Series | None:
 
 
 def _load(path: Path) -> pd.DataFrame | None:
-    if not path.exists():
+    """Read a cache file; a missing or unreadable one is treated as absent."""
+    try:
+        with _CACHE_LOCK:
+            if not path.exists():
+                return None
+            return pd.read_csv(path, index_col="date", parse_dates=["date"])
+    except (ValueError, pd.errors.ParserError, UnicodeDecodeError, PermissionError):
+        # A damaged cache must not stop the analysis: the fresh download replaces it.
         return None
-    return pd.read_csv(path, index_col="date", parse_dates=["date"])
 
 
 def _download(
@@ -256,8 +293,9 @@ def update_market_data(
             )
             # Keep currencies cached by earlier runs, so a later fallback with another
             # currency mix still finds them.
-            previous = _load(path)
-            _save(path, fx if previous is None else fx.combine_first(previous))
+            with _CACHE_LOCK:  # read and write as one step: the other download may add columns
+                previous = _load(path)
+                _save(path, fx if previous is None else fx.combine_first(previous))
             statuses.append(SeriesStatus("FX", "ecb", ",".join(needed), f"{fx.index[-1]:%Y-%m-%d}"))
         except (ConnectionError, ValueError) as error:
             cached = _load(path)
