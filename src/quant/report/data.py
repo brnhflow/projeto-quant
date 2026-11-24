@@ -456,6 +456,10 @@ def _factors(
         return None
     markets = sorted({str(p["proxy"]) for p in stress["positions"] if p["proxy"]})
     markets = [m for m in markets if m in proxy_prices.columns]
+    # Global stocks are largely the US and Europe: with either regional index already a
+    # factor, ACWI only adds collinearity (unstable, meaningless betas), so it is left out.
+    if "ACWI" in markets and {"^GSPC", "^STOXX50E", "^FTSE", "^SSMI"} & set(markets):
+        markets.remove("ACWI")
     foreign = sorted({c for c in currencies if c != base and c in fx_rates.columns})
     start, end = pd.Timestamp(value.index[0]), pd.Timestamp(value.index[-1])
     window = slice(start - pd.Timedelta(days=10), end)
