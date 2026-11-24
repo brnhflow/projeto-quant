@@ -69,8 +69,16 @@ from quant.validation import (
     annualized_vol,
     backtest_var,
     bootstrap_interval,
+    evaluate_var,
     sharpe_ratio,
     var_95,
+)
+from quant.var_models import (
+    SEED_DAYS,
+    ewma_var,
+    filtered_historical_var,
+    historical_var,
+    next_day_var,
 )
 
 MIN_DAYS_VAR = 100
@@ -323,7 +331,39 @@ def _validation(value: pd.Series) -> dict[str, Any]:
                 "high": _num(interval.high),
             }
         out["intervals"] = {"level": 0.90, "values": intervals, "start": _iso(value.index[0])}
+    if window is not None and n > window + SEED_DAYS + 60:
+        out["models"] = _var_models(returns, window)
     return out
+
+
+def _var_models(returns: pd.Series, window: int) -> dict[str, Any]:
+    """Historical, EWMA and filtered historical VaR on this portfolio, tested on the same days.
+
+    The research note (docs/research/var-backtest.md) runs the same comparison on seven
+    markets; here it runs on the portfolio, with each model's forecast for the next day.
+    """
+    models = {"HS": historical_var, "EWMA": ewma_var, "FHS": filtered_historical_var}
+    tables = {k: f(returns, window, VAR_LEVEL) for k, f in models.items()}
+    common = tables["HS"].index
+    for t in tables.values():
+        common = common.intersection(t.index)
+    rows: list[dict[str, Any]] = []
+    for key, table in tables.items():
+        b = evaluate_var(table.loc[common], VAR_LEVEL, window)
+        rows.append(
+            {
+                "key": key,
+                "days": b.days,
+                "breaches": b.breaches,
+                "expected": _num(b.expected, 2),
+                "kupiecP": _num(b.kupiec.p_value, 4),
+                "independenceP": _num(b.independence.p_value, 4),
+                "conditionalP": _num(b.conditional_p_value, 4),
+                "zone": b.zone,
+                "next": _num(next_day_var(models[key], returns, window, VAR_LEVEL)),
+            }
+        )
+    return {"level": VAR_LEVEL, "window": window, "start": _iso(common[0]), "items": rows}
 
 
 def _stress(

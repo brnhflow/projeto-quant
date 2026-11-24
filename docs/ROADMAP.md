@@ -16,6 +16,8 @@ Ordered by how useful each step is for managing a real portfolio. A step ships o
 | 6 | Monte Carlo with calibration | Lognormal answer on i.i.d. data; a regime break fails the calibration |
 | — | Factor exposures, benchmark comparison, Ledoit-Wolf, income, signals | See [METHODOLOGY.md](METHODOLOGY.md) |
 | 7 | Transaction log: TWR, MWR, average-cost gains; Brinson attribution; tearsheet | TWR and MWR match a hand-built example with two contributions and one sale |
+| 7c | Historical, EWMA and filtered historical VaR compared on each portfolio, with tomorrow's forecast | The report's comparison uses the same code as the research note |
+| 10 | C++ core for the rolling VaR models and the bootstrap | Matches NumPy (bit for bit / 1e-12) and the speed-up is measured in CI |
 | 11 | English interface | Every string in both languages; no Portuguese left in the English page |
 
 ## Next
@@ -26,13 +28,6 @@ R$20,000 and 15% otherwise; Italy: 26%, 12.5% on government bonds), and a sale p
 picks the lots with the lowest tax.
 
 *Done when:* the tax matches hand-computed cases from each country's rules.
-
-### 7c. Filtered historical VaR in the report
-The [research note](research/var-backtest.md) shows historical simulation clustering its
-breaches on every market tested, and filtered historical simulation holding up best. Show the
-FHS VaR beside the historical one as today's conditional figure, with the same backtest.
-
-*Done when:* the report's FHS backtest matches `research/var_backtest.py` on the same series.
 
 ### 8. Allocation with constraints
 Minimum variance and a mean-variance frontier on the Ledoit-Wolf covariance, long only, with
@@ -46,8 +41,3 @@ a reference QP solver.
 Walk-forward tests of simple rules (calendar rebalancing, bands, risk parity) with costs and
 point-in-time data. It comes late on purpose: this is where overfitting and look-ahead hide
 best.
-
-### 10. C++ core where profiling says so
-Move the measured hot path (the bootstrap and Monte Carlo) to C++ behind the same Python
-interface (CMake, scikit-build-core, nanobind). Results must match Python to a stated
-tolerance, and the speed-up must be measured, not assumed.

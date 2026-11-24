@@ -29,6 +29,8 @@ const INFO = {
     "Each drawdown counted once, from its peak to the first day back at that peak. An open drawdown has no recovery date yet."],
   "Distribution of daily returns": ["Barras: dias da carteira. Linha: o que uma normal com a mesma média e volatilidade daria. Curtose em excesso acima de 0 = caudas mais grossas que a normal.",
     "Bars: the portfolio's days. Line: what a normal with the same mean and volatility would give. Excess kurtosis above 0 means fatter tails than a normal."],
+  "Three VaR models on this portfolio": ["Histórico: quantil dos últimos dias. EWMA: volatilidade que reage rápido, caudas normais. FHS: retornos divididos pela volatilidade do dia, quantil empírico, reescalado pela volatilidade de hoje. Todos testados nos mesmos dias; comparação em 7 mercados na nota de pesquisa do projeto.",
+    "Historical: quantile of recent days. EWMA: fast-reacting volatility with normal tails. FHS: returns divided by their day's volatility, empirical quantile, rescaled by today's volatility. All tested on the same days; the project's research note compares them on 7 markets."],
   "Risk": ["Volatilidade, Sharpe, Sortino e Calmar sem taxa livre de risco. Parcela do risco pela decomposição de Euler: quanto da variância vem de cada ativo.",
     "Volatility, Sharpe, Sortino and Calmar without a risk-free rate. Risk contribution by Euler decomposition: how much of the variance comes from each asset."],
   "What the portfolio really depends on": ["Regressão (OLS) dos retornos semanais contra índices e moedas. A linha fina é a margem de ±2 erros-padrão; o teste fora da amostra refaz o ajuste semana a semana só com o passado.",

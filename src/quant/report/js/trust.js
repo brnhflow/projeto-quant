@@ -73,6 +73,7 @@ function renderTrust() {
       `<span class="key"><span class="swatch" style="background:${cssVar("--neg")}"></span>${L("Dia em que a perda passou da prevista", "Breach")}</span>`;
   }
 
+  renderModels();
   $("intervals-block").hidden = !iv;
   if (iv) {
     const vals = iv.values;
@@ -174,4 +175,31 @@ function renderBacktestChart() {
   hit.addEventListener("pointermove", move);
   hit.addEventListener("pointerdown", move);
   hit.addEventListener("pointerleave", () => { cross.setAttribute("visibility", "hidden"); hideTip(); });
+}
+
+// Historical, EWMA and filtered historical VaR on this portfolio, as in the research note.
+function renderModels() {
+  const m = V.models;
+  $("models-block").hidden = !m;
+  if (!m) return;
+  const names = {
+    HS: L("Histórico", "Historical (HS)"),
+    EWMA: L("EWMA normal", "EWMA normal"),
+    FHS: L("Histórico filtrado", "Filtered historical (FHS)"),
+  };
+  const zoneName = { green: L("verde", "green"), yellow: L("amarela", "yellow"), red: L("vermelha", "red") };
+  const verdictCell = (p) => `<span class="${p >= 0.05 ? "up" : "down"}">${p >= 0.05 ? L("passa", "pass") : L("reprova", "fail")}</span> <small class="muted">p ${pval(p)}</small>`;
+  // Best: passes both tests with the highest conditional-coverage p-value.
+  const best = m.items.slice().sort((a, b) => b.conditionalP - a.conditionalP)[0];
+  const hs = m.items.find((x) => x.key === "HS");
+  $("models-table").innerHTML = `<thead><tr><th>${L("Modelo", "Model")}</th><th class="r">${L("Erros", "Breaches")}</th><th class="r">${L("Esperados", "Expected")}</th>` +
+    `<th>${L("Quantidade (Kupiec)", "Coverage (Kupiec)")}</th><th>${L("Sequência (Christoffersen)", "Independence (Christoffersen)")}</th><th>${L("Zona", "Zone")}</th><th class="r">${L("VaR para amanhã", "VaR for tomorrow")}</th></tr></thead><tbody>` +
+    m.items.map((x) => `<tr${x.key === best.key ? ' class="best"' : ""}><td><strong>${esc(names[x.key])}</strong></td><td class="r">${x.breaches}</td><td class="r">${abs(x.expected, 0)}</td>` +
+      `<td>${verdictCell(x.kupiecP)}</td><td>${verdictCell(x.independenceP)}</td><td><span class="zone-dot z-${x.zone}"></span>${zoneName[x.zone]}</td><td class="r"><strong>${fmt.share(x.next, 2)}</strong></td></tr>`).join("") + "</tbody>";
+  const gap = best.key !== "HS" && hs ? best.next - hs.next : 0;
+  $("models-lede").innerHTML = L(
+    `Mesmos dias de teste (${m.items[0].days}, desde ${dateLong(m.start)}). O que melhor passou nos dois testes foi o <strong>${esc(names[best.key])}</strong>` +
+      (best.key !== "HS" && hs ? `; para amanhã ele prevê ${fmt.share(best.next, 2)}, ${gap >= 0 ? "acima" : "abaixo"} do histórico (${fmt.share(hs.next, 2)}). Dimensionar posições pelo modelo que acerta é o que evita vender no fundo.` : ", o mesmo do quadro de números."),
+    `Same test days (${m.items[0].days}, since ${dateLong(m.start)}). The model that passed both tests best is <strong>${esc(names[best.key])}</strong>` +
+      (best.key !== "HS" && hs ? `; for tomorrow it forecasts ${fmt.share(best.next, 2)}, ${gap >= 0 ? "above" : "below"} the historical model (${fmt.share(hs.next, 2)}). Sizing positions on the model that holds up is what avoids selling at the bottom.` : ", the one in the key figures."));
 }

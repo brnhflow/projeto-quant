@@ -282,3 +282,13 @@ def test_result_without_dates_has_no_xirr() -> None:
 
     assert [p["asset"] for p in result["positions"]] == ["A"]
     assert result["xirr"] is None
+
+
+def test_three_var_models_are_compared_on_the_same_days() -> None:
+    holdings, prices, fx, calendar = _market(700)
+
+    models = build_report_data(holdings, prices, fx, calendar, title="T")["validation"]["models"]
+
+    assert [m["key"] for m in models["items"]] == ["HS", "EWMA", "FHS"]
+    assert len({m["days"] for m in models["items"]}) == 1  # same tested days for all three
+    assert all(m["next"] > 0 for m in models["items"])

@@ -72,6 +72,8 @@ The report is a single self-contained HTML file:
 | Brinson attribution | Effects add up to the active return in every period; style analysis recovers a known regional mix | Brinson, Hood and Beebower (1986); Sharpe (1992) |
 | Portfolio value | Independent pandas recomputation on a live 12-asset, 6-currency portfolio | |
 
+![VaR backtest and the three models on the demo portfolio](docs/images/trust.png)
+
 Unit tests compare against answers known in advance:
 
 - chi-squared critical values;

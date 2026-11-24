@@ -18,6 +18,7 @@ through the same Kupiec, Christoffersen and Basel tests (:func:`quant.validation
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from statistics import NormalDist
 
 import numpy as np
@@ -53,6 +54,19 @@ def ewma_volatility(returns: pd.Series, lam: float = LAMBDA, seed: int = SEED_DA
         out[t] = math.sqrt(variance)
         variance = lam * variance + (1 - lam) * r[t] ** 2
     return pd.Series(out, index=returns.index)
+
+
+def next_day_var(
+    model: Callable[..., pd.DataFrame], returns: pd.Series, window: int, level: float
+) -> float:
+    """Forecast the model's VaR for the next trading day from every return up to the last one.
+
+    A placeholder return is appended for the next business day; each model forecasts it from
+    the returns before it only, so the placeholder's value never enters the forecast.
+    """
+    nxt = pd.Timestamp(returns.index[-1]) + pd.offsets.BDay(1)
+    extended = pd.concat([returns, pd.Series([0.0], index=pd.DatetimeIndex([nxt]))])
+    return float(model(extended, window, level)["var"].iloc[-1])
 
 
 def _table(returns: pd.Series, var: pd.Series) -> pd.DataFrame:
