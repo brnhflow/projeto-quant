@@ -5,7 +5,24 @@ before 1.0 the interface may still change.
 
 ## Unreleased
 
+## 0.5.0 — 2026-11-25
+
 ### Added
+- **C++20 core** (`cpp/`, nanobind): rolling historical, EWMA and filtered historical VaR,
+  stationary bootstrap, Monte Carlo paths and a walk-forward backtest engine. Parallel and
+  reproducible for any thread count, checked against NumPy in CI (bit for bit or 1e-12), with
+  C++ unit tests (CTest) and a benchmark (6-20x). Optional: without a compiler the package falls
+  back to NumPy.
+- **Rebalancing rules, backtested with costs**: buy and hold, monthly, 5% bands and a 10%
+  volatility target, with probabilistic and deflated Sharpe ratios.
+- **Three VaR models compared on each portfolio** with tomorrow's forecast, and
+  **volatility-targeted sizing** on the Risk tab.
+- **Key findings** at the top of the overview, linking to the tab with the detail.
+- Info icons next to section and chart titles, replacing explanatory text; the methodology tab is
+  a searchable glossary.
+- Overview and Performance tabs instead of one long summary; every section on its own card.
+- Author credit in the report, the editor and the README; `docs/APPLICATIONS.md` on where the
+  project creates value.
 - English interface, with a PT/EN switch in the report and the editor (remembered per
   browser). Quantities are read in the page's language.
 - **Tearsheet** tab: statistics against MSCI ACWI, monthly return table with the hit rate,

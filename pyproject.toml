@@ -1,6 +1,6 @@
 [project]
 name = "projeto-quant"
-version = "0.4.0"
+version = "0.5.0"
 description = "Portfolio risk lab: live market data, VaR backtesting, crisis replays, factor exposures, Monte Carlo, income projection and rebalancing, with every number validated."
 readme = "README.md"
 license = "MIT"
