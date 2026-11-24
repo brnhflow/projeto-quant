@@ -1,0 +1,16 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "nanobind>=2.4"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "quant-core"
+version = "0.1.0"
+description = "C++ risk kernels for projeto-quant: rolling VaR, EWMA, filtered historical simulation, drawdown and the stationary bootstrap."
+requires-python = ">=3.11"
+authors = [{ name = "Bernardo Bordignon" }]
+license = "MIT"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+cmake.build-type = "Release"

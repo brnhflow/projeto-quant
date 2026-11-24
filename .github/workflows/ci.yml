@@ -36,3 +36,28 @@ jobs:
         run: uv run --frozen python -m pyright
       - name: Tests
         run: uv run --frozen python -m pytest --cov --cov-report=term-missing
+
+  cpp:
+    name: C++ core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.4.0
+        with:
+          python-version: "3.14"
+          enable-cache: true
+      - name: C++ unit tests (CTest)
+        run: |
+          cmake -S cpp -B build/cpp -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/cpp --parallel
+          ctest --test-dir build/cpp --output-on-failure
+      - name: Build the Python extension
+        run: |
+          uv sync --frozen
+          uv pip install ./cpp
+      - name: C++ against the NumPy reference
+        env:
+          QUANT_REQUIRE_CORE: "1"
+        run: uv run --frozen --no-sync python -m pytest tests/test_core.py tests/test_var_models.py -q
+      - name: Benchmark
+        run: uv run --frozen --no-sync python research/benchmark.py

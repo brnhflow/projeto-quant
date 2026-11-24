@@ -24,6 +24,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from quant import core
 from quant.validation import rolling_var
 
 LAMBDA = 0.94  # RiskMetrics decay for daily data
@@ -43,6 +44,9 @@ def ewma_volatility(returns: pd.Series, lam: float = LAMBDA, seed: int = SEED_DA
     r = returns.to_numpy(dtype=np.float64)
     if len(r) <= seed or seed < 2:
         raise ValueError("need more returns than the seed window")
+    fast = core.ewma_volatility(r, lam, seed)
+    if fast is not None:
+        return pd.Series(fast, index=returns.index)
     out = np.full(len(r), np.nan)
     variance = float((r[:seed] ** 2).mean())
     for t in range(seed, len(r)):
@@ -58,8 +62,11 @@ def _table(returns: pd.Series, var: pd.Series) -> pd.DataFrame:
 
 
 def historical_var(returns: pd.Series, window: int = 250, level: float = 0.95) -> pd.DataFrame:
-    """Historical simulation; see :func:`quant.validation.rolling_var`."""
-    return rolling_var(returns, window, level)
+    """Historical simulation; see :func:`quant.validation.rolling_var` (C++ when built)."""
+    fast = core.historical_var(returns.to_numpy(dtype=np.float64), window, level)
+    if fast is None:
+        return rolling_var(returns, window, level)
+    return _table(returns, pd.Series(fast, index=returns.index))
 
 
 def ewma_var(
@@ -81,6 +88,11 @@ def filtered_historical_var(
     the EWMA forecast for day ``s``; the VaR is ``-q_{1-level}(z) * s_t`` with the same "lower"
     empirical quantile as the historical model.
     """
+    fast = core.filtered_historical_var(
+        returns.to_numpy(dtype=np.float64), window, level, lam, SEED_DAYS
+    )
+    if fast is not None:
+        return _table(returns, pd.Series(fast, index=returns.index))
     sigma = ewma_volatility(returns, lam)
     r = returns.to_numpy(dtype=np.float64)
     s = sigma.to_numpy(dtype=np.float64)
