@@ -6,6 +6,8 @@ is fetched from the public sources in :mod:`quant.data` when the user asks for a
 
 from __future__ import annotations
 
+import base64
+import binascii
 import contextlib
 import json
 import math
@@ -41,12 +43,15 @@ from quant.data.sources import (
 from quant.holdings import asset_labels, load_holdings, save_holdings
 from quant.ledger import check_against_holdings, load_transactions, parse_transactions
 from quant.pipeline import analyse_portfolio
+from quant.workbook import WorkbookError, portfolio_from_file, portfolio_to_xlsx
 
 SYMBOL = re.compile(r"^[A-Za-z0-9.\-=^&]{1,24}$")  # & appears in real tickers (M&M.NS)
 CURRENCY = re.compile(r"^[A-Z]{3}$")
 YEARS = (1, 2, 3, 5)
 PAGE = 25  # lookup results per page
 MAX_BODY = 512 * 1024
+MAX_FILE = 256 * 1024  # an imported spreadsheet; base64 makes it a third larger in the body
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 MAX_POSITIONS = 100
 MAX_TRANSACTIONS = 5000
 MAX_QUANTITY = 1e12
@@ -406,6 +411,48 @@ def saved_positions(config: AppConfig) -> list[dict[str, Any]]:
     ]
 
 
+def export_workbook(body: Any) -> bytes:
+    """Write the editor's current portfolio as an Excel file; nothing is saved on the server."""
+    request = cast(dict[str, Any], body) if isinstance(body, dict) else {}
+    positions: Any = request.get("positions")
+    trades: Any = request.get("transactions") or []
+    if not isinstance(positions, list) or not isinstance(trades, list):
+        raise BadRequestError("Invalid request.", "Pedido inválido.")
+    rows = [cast(dict[str, Any], p) for p in cast(list[Any], positions) if isinstance(p, dict)]
+    log = [cast(dict[str, Any], t) for t in cast(list[Any], trades) if isinstance(t, dict)]
+    if len(rows) > MAX_POSITIONS or len(log) > MAX_TRANSACTIONS:
+        raise BadRequestError("Too many rows.", "Linhas demais.")
+    return portfolio_to_xlsx(rows, log, str(request.get("lang", "pt")))
+
+
+def import_workbook(body: Any) -> dict[str, Any]:
+    """Positions and transactions read from an uploaded .xlsx or .csv (sent as base64)."""
+    request = cast(dict[str, Any], body) if isinstance(body, dict) else {}
+    name, content = str(request.get("name", "")), request.get("content")
+    if not isinstance(content, str):
+        raise BadRequestError("No file was sent.", "Nenhum arquivo foi enviado.")
+    try:
+        data = base64.b64decode(content, validate=True)
+    except (binascii.Error, ValueError) as error:
+        raise BadRequestError(
+            "The file did not arrive whole.", "O arquivo chegou incompleto."
+        ) from error
+    if len(data) > MAX_FILE:
+        raise BadRequestError(
+            f"The file is larger than {MAX_FILE // 1024} KB.",
+            f"O arquivo passa de {MAX_FILE // 1024} KB.",
+        )
+    try:
+        positions, trades = portfolio_from_file(data, name)
+    except WorkbookError as error:
+        raise BadRequestError(str(error), error.pt) from error
+    if len(positions) > MAX_POSITIONS:
+        raise BadRequestError(
+            f"At most {MAX_POSITIONS} assets.", f"No máximo {MAX_POSITIONS} ativos."
+        )
+    return {"positions": positions, "transactions": trades}
+
+
 def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
     """Request handler bound to ``config``."""
 
@@ -556,7 +603,8 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
             if not self._allowed_host():
                 self._error(HTTPStatus.FORBIDDEN, "Host not allowed.", "Host não permitido.")
                 return
-            if urlparse(self.path).path != "/api/report":
+            path = urlparse(self.path).path
+            if path not in {"/api/report", "/api/export", "/api/import"}:
                 self._error(HTTPStatus.NOT_FOUND, "Page not found.", "Página não encontrada.")
                 return
             if self.headers.get(API_HEADER) != "1":
@@ -573,11 +621,24 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
                 return
             try:
                 body = json.loads(raw)
-                holdings, years = parse_positions(body)
-                transactions = parse_transactions_request(body, holdings)
             except json.JSONDecodeError:
                 self._error(HTTPStatus.BAD_REQUEST, "Invalid request.", "Pedido inválido.")
                 return
+            if path == "/api/export":
+                try:
+                    self._send(HTTPStatus.OK, export_workbook(body), XLSX)
+                except BadRequestError as error:
+                    self._error(HTTPStatus.BAD_REQUEST, str(error), error.pt)
+                return
+            if path == "/api/import":
+                try:
+                    self._json(HTTPStatus.OK, import_workbook(body))
+                except BadRequestError as error:
+                    self._error(HTTPStatus.BAD_REQUEST, str(error), error.pt)
+                return
+            try:
+                holdings, years = parse_positions(body)
+                transactions = parse_transactions_request(body, holdings)
             except BadRequestError as error:
                 self._error(HTTPStatus.BAD_REQUEST, str(error), error.pt)
                 return

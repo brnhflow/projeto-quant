@@ -1,3 +1,4 @@
+import base64
 import contextlib
 import http.client
 import json
@@ -536,3 +537,53 @@ def test_transaction_log_is_saved_and_removed(tmp_path: Path) -> None:
     )
     save_transactions(None, path)
     assert not path.exists()
+
+
+# ---------------------------------------------------------------- spreadsheet
+
+
+def test_export_then_import_gives_the_portfolio_back(app: tuple[AppConfig, int]) -> None:
+    rows = [dict(p, kind="instrument") for p in POSITIONS]
+    status, headers, body = _request(
+        app[1], "POST", "/api/export", {"positions": rows, "transactions": [], "lang": "en"}
+    )
+    assert status == 200
+    assert headers["Content-Type"].startswith("application/vnd.openxmlformats")
+
+    content = base64.b64encode(body).decode()
+    status, _, raw = _request(
+        app[1], "POST", "/api/import", {"name": "portfolio.xlsx", "content": content}
+    )
+
+    assert status == 200
+    back = json.loads(raw)
+    assert [(p["symbol"], p["quantity"]) for p in back["positions"]] == [
+        ("PETR4.SA", 100.0),
+        ("ASML.AS", 2.5),
+    ]
+    assert back["transactions"] == []
+    assert not app[0].holdings_path.exists()  # importing does not save anything
+
+
+@pytest.mark.parametrize(
+    ("body", "message"),
+    [
+        ({"name": "x.xlsx"}, "Nenhum arquivo"),
+        ({"name": "x.xlsx", "content": "%%%"}, "incompleto"),
+        ({"name": "x.xlsx", "content": base64.b64encode(b"junk").decode()}, "planilha"),
+        ({"name": "x.pdf", "content": base64.b64encode(b"junk").decode()}, ".xlsx"),
+    ],
+)
+def test_bad_imports_return_a_message(
+    app: tuple[AppConfig, int], body: dict[str, Any], message: str
+) -> None:
+    status, _, raw = _request(app[1], "POST", "/api/import", body)
+
+    assert status == 400
+    assert message in json.loads(raw)["error_pt"]
+
+
+def test_spreadsheet_routes_need_the_app_header(app: tuple[AppConfig, int]) -> None:
+    for path in ("/api/export", "/api/import"):
+        status, _, _ = _request(app[1], "POST", path, {"positions": []}, {"X-Quant-App": "0"})
+        assert status == 403

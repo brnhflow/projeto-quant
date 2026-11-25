@@ -107,6 +107,25 @@
 .opt-tag { font: 500 11px/1 var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin-left: 8px; vertical-align: middle; }
 .ledger-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 4px 0 12px; }
 .file-button { cursor: pointer; }
+.positions-head { display: flex; justify-content: space-between; align-items: center; gap: 12px 20px; flex-wrap: wrap; margin-bottom: 6px; }
+.positions-head h2 { margin-bottom: 0; }
+.sheet-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.icon-button { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; }
+.icon-button svg { flex: none; }
+.icon-button.quiet { color: var(--ink-2); }
+.icon-button.quiet:hover { color: var(--neg); }
+.file-button:focus-within { outline: 2px solid var(--s1); outline-offset: 2px; }
+.sheet-state {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  border: 1px solid var(--rule); border-left: 3px solid var(--pos); border-radius: 8px;
+  padding: 10px 12px 10px 14px; margin: 0 0 14px; font-size: 14px; animation: sheet-in 220ms ease-out;
+}
+.sheet-state[hidden] { display: none; }
+.sheet-state.bad { border-left-color: var(--neg); }
+.sheet-state p { margin: 0; }
+.sheet-state button { min-height: 34px; padding: 4px 12px; }
+@keyframes sheet-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .sheet-state { animation: none; } }
 .ledger-state:empty { display: none; }
 .ledger-state { border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; font-size: 14px; }
 .ledger-state p { margin: 0 0 6px; }

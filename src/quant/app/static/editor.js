@@ -170,6 +170,8 @@
   function refreshButton() {
     const valid = rows.length > 0 && rows.every((r) => r.quantity > 0 && !r.loading && !r.error) && (!trades.length || !mismatches().length);
     $("analyse").disabled = !valid;
+    $("sheet-export").disabled = !rows.some((r) => r.quantity > 0);
+    $("sheet-clear").hidden = rows.length === 0;
   }
 
   $("holdings").addEventListener("input", (ev) => {
@@ -468,6 +470,91 @@
     }
   });
 
+  // ---------------------------------------------------------------- spreadsheet
+  // A position as saved or imported becomes a table row; quotes are fetched afterwards.
+  function fromSaved(p) {
+    return p.kind === "cash" ? cashRow(p.currency || p.symbol, p.quantity)
+      : { symbol: p.symbol, kind: "instrument", type: typeOf({ symbol: p.symbol }), name: "", exchange: "", currency: p.currency || "", price: null, live: false, quantity: p.quantity, cost: p.cost || null, since: p.since || null, loading: true, error: null };
+  }
+  let undo = null;  // what the last import or clear replaced
+  function sheetState(html, bad) {
+    const box = $("sheet-state");
+    box.className = "sheet-state" + (bad ? " bad" : "");
+    box.innerHTML = html;
+    box.hidden = !html;
+  }
+  function replaceAll(nextRows, nextTrades, note) {
+    undo = { rows, trades };
+    rows = nextRows; trades = nextTrades;
+    render();
+    saveDraft();
+    sheetState(`<p>${note}</p><button type="button" class="ghost" id="sheet-undo">${L("Desfazer", "Undo")}</button>`);
+  }
+  $("sheet-state").addEventListener("click", (ev) => {
+    if (!ev.target.closest("#sheet-undo") || !undo) return;
+    rows = undo.rows; trades = undo.trades; undo = null;
+    render();
+    saveDraft();
+    sheetState("");
+  });
+  const asBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.onerror = () => reject(new Error(L("Não foi possível ler o arquivo.", "The file could not be read.")));
+    reader.readAsDataURL(file);
+  });
+  $("sheet-file").addEventListener("change", async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    ev.target.value = "";
+    if (!file) return;
+    try {
+      const data = await api("/api/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name, content: await asBase64(file) }),
+      });
+      const imported = data.positions.map(fromSaved);
+      const n = imported.length, t = data.transactions.length;
+      const dropped = !t && trades.length;
+      replaceAll(imported, data.transactions, L(
+        `<strong>${esc(file.name)}</strong>: ${n} ${n === 1 ? "posição importada" : "posições importadas"}${t ? ` e ${t} ${t === 1 ? "operação" : "operações"}` : ""}.${dropped ? " O registro de operações anterior saiu, porque a planilha não tem um." : ""}`,
+        `<strong>${esc(file.name)}</strong>: ${n} ${n === 1 ? "position" : "positions"} imported${t ? ` with ${t} ${t === 1 ? "trade" : "trades"}` : ""}.${dropped ? " The previous transaction log was removed, as the sheet has none." : ""}`));
+      await Promise.all(imported.map(loadQuote));
+      saveDraft();
+    } catch (e) {
+      sheetState(`<p>${esc(e.message)}</p>`, true);
+    }
+  });
+  $("sheet-export").addEventListener("click", async () => {
+    const button = $("sheet-export");
+    button.disabled = true;
+    try {
+      const positions = rows.filter((r) => r.quantity > 0).map((r) => Object.assign(payload(r), { name: r.name, exchange: r.exchange, price: r.kind === "cash" ? 1 : r.price }));
+      const response = await fetch("/api/export", {
+        method: "POST",
+        headers: { "X-Quant-App": "1", "Content-Type": "application/json" },
+        body: JSON.stringify({ positions, transactions: trades, lang: LANG }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(L(body.error_pt, body.error) || L(`Erro ${response.status}`, `Error ${response.status}`));
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const a = Object.assign(document.createElement("a"), { href: url, download: `${L("carteira", "portfolio")}-${new Date().toISOString().slice(0, 10)}.xlsx` });
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      sheetState(`<p>${esc(e.message)}</p>`, true);
+    }
+    refreshButton();
+  });
+  $("sheet-clear").addEventListener("click", () => {
+    const n = rows.length;
+    replaceAll([], [], L(`${n} ${n === 1 ? "posição retirada" : "posições retiradas"}. A carteira salva só muda quando você analisar de novo.`,
+      `${n} ${n === 1 ? "position" : "positions"} removed. The saved portfolio only changes when you analyse again.`));
+    $("search").focus();
+  });
+
   // ---------------------------------------------------------------- start
   async function start() {
     let saved = [], savedLog = [];
@@ -482,8 +569,7 @@
       document.querySelectorAll("#years button").forEach((x) => x.setAttribute("aria-pressed", String(+x.dataset.years === years)));
     }
     trades = draft && Array.isArray(draft.trades) && draft.rows && draft.rows.length ? draft.trades : (savedLog || []);
-    rows = source.map((p) => p.kind === "cash" ? cashRow(p.currency, p.quantity)
-      : { symbol: p.symbol, kind: "instrument", type: typeOf({ symbol: p.symbol }), name: "", exchange: "", currency: p.currency || "", price: null, live: false, quantity: p.quantity, cost: p.cost || null, since: p.since || null, loading: true, error: null });
+    rows = source.map(fromSaved);
     render();
     await Promise.all(rows.map(loadQuote));
     const r = await fetch("/report", { redirect: "manual" });
