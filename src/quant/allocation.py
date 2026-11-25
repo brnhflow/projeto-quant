@@ -61,7 +61,7 @@ def _start(lo: Vector, hi: Vector) -> Vector:
 def min_variance(cov: Matrix, lower: float = 0.0, upper: float = 1.0) -> Vector:
     """Long-only minimum-variance weights within ``[lower, upper]`` (primal active set)."""
     s = np.asarray(cov, dtype=float)
-    return _active_set(s, np.zeros(s.shape[0]), lower, upper)
+    return _active_set(s, np.zeros(len(s), dtype=float), lower, upper)
 
 
 def mean_variance(
