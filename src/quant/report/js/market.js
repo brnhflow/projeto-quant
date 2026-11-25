@@ -105,7 +105,7 @@ function renderMarketGroups() {
       const v = it.change[mkPeriod];
       return `<div class="mk-row" style="--i:${i}" data-mk-sym="${esc(it.symbol)}"><div class="mk-name"><strong>${esc(mkName(it))}</strong><small>${esc(it.short)}</small></div>` +
         `<span class="mk-level">${mkLevel(it)}</span>${mkSpark(it)}` +
-        `<span class="mk-change ${mkTone(v)}">${mkUnusual(it, mkPeriod) ? `<i class="mk-flag" title="${esc(L("Fora do normal", "Unusual move"))}"></i>` : ""}${arrow(v)}${mkChange(it, v)}</span></div>`;
+        `<span class="mk-change ${mkTone(v)}">${mkUnusual(it, mkPeriod) ? `<i class="mk-flag" title="${esc(L("Fora do normal", "Unusual move"))}"></i>` : ""}<span class="mk-arr">${arrow(v)}</span><span class="v">${mkChange(it, v)}</span></span></div>`;
     }).join("") + `</div>`;
   }).join("");
 }

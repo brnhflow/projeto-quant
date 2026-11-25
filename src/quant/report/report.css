@@ -1070,3 +1070,45 @@ html[data-lang="pt"] .chart[data-source-pt]::after { content: attr(data-source-p
 @media (prefers-reduced-motion: reduce) { .live-dot, .tick-up, .tick-down, .tick-up td, .tick-down td { animation: none; } }
 @media print { .live.block { display: none; } }
 .live-note { caption-side: bottom; text-align: left; font-size: 11.5px; color: var(--ink-3); padding-top: 8px; }
+
+/* ---------------------------------------------------------------- fluidity */
+html { scroll-behavior: smooth; }
+.tip { left: 0; top: 0; transition: transform 110ms cubic-bezier(.2, .7, .2, 1), opacity 120ms ease; will-change: transform; }
+.tip.no-glide { transition: none; }
+.tip.tip-out { opacity: 0; }
+.tip:not([hidden]) { animation: none; }
+/* Sliding underline under the tabs: one element that moves, instead of each tab drawing its own. */
+.tabs-wrap .tabs { position: relative; }
+.tab-ink {
+  position: absolute; left: 0; bottom: 0; height: 3px; width: 0; border-radius: 3px 3px 0 0; background: var(--s1);
+  transition: transform 380ms cubic-bezier(.2, .8, .2, 1), width 380ms cubic-bezier(.2, .8, .2, 1); pointer-events: none;
+}
+.tabs button[aria-selected="true"] { box-shadow: none; }
+/* Segmented controls: a pill that slides behind the pressed option. */
+.segmented { position: relative; }
+.seg-thumb {
+  position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--brand); z-index: 0;
+  transition: transform 320ms cubic-bezier(.2, .8, .2, 1), width 320ms cubic-bezier(.2, .8, .2, 1); pointer-events: none;
+}
+:root[data-theme="dark"] .seg-thumb { background: var(--s1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .seg-thumb { background: var(--s1); } }
+.segmented button { position: relative; z-index: 1; transition: color 220ms ease, background-color 160ms ease; }
+.segmented.has-thumb button[aria-pressed="true"] { background: transparent; }
+.segmented.has-thumb button + button { border-left-color: transparent; }
+:root[data-theme="dark"] .segmented.has-thumb button[aria-pressed="true"] { background: transparent; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .segmented.has-thumb button[aria-pressed="true"] { background: transparent; } }
+/* A page fades up when its tab opens. */
+@keyframes page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.tab-page.entering { animation: page-in 300ms cubic-bezier(.2, .7, .2, 1) both; }
+/* Controls answer the press. */
+button, .chip, .ghost, a.ghost { transition: transform 120ms ease, background-color 160ms ease, color 160ms ease, border-color 160ms ease; }
+button:active:not(:disabled), .ghost:active { transform: scale(0.97); }
+.tabs button:active { transform: none; }
+.insight { transition: transform 180ms cubic-bezier(.2, .7, .2, 1), border-color 180ms ease, box-shadow 180ms ease; }
+.insight:hover { box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10); }
+.tick-num { display: inline-block; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .tab-ink, .seg-thumb, .tip { transition: none; }
+}
+.reb-fig[hidden] { display: none; }

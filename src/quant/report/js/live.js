@@ -9,7 +9,7 @@
 // The report's numbers stay as computed; live prices only move the "now" panel and the market tab.
 
 // ---------------------------------------------------------------- live prices
-const LIVE = { quotes: {}, fx: {}, mode: "static", started: 0, lastTick: 0, dirtyMarket: false, ws: null };
+const LIVE = { quotes: {}, fx: {}, mode: "static", started: 0, lastTick: 0, lastFull: 0, dirtyMarket: false, ws: null };
 const LIVE_BASE = D.base || "EUR";
 const LIVE_HOLD = positions.filter((p) => p.kind !== "cash");
 const LIVE_FX_NEEDED = [...new Set(positions.map((p) => p.currency).filter((c) => c !== LIVE_BASE))];
@@ -143,13 +143,31 @@ function liveMarket() {
     }
   });
   if (onScreen("#mk-groups")) {
-    renderMarket();
+    // Ranking, heat table and summary every 15 s; in between only the rows that moved change.
+    if (Date.now() - LIVE.lastFull > 15000) { LIVE.lastFull = Date.now(); renderMarket(); }
+    else patchMarketRows(Object.keys(moved));
     for (const [sym, dir] of Object.entries(moved)) {
       document.querySelectorAll(`#page-mercado [data-mk-sym="${CSS.escape(sym)}"]`).forEach((row) => {
         row.classList.remove("tick-up", "tick-down"); void row.offsetWidth; row.classList.add(`tick-${dir}`);
       });
     }
   } else LIVE.dirtyMarket = true;
+}
+
+function patchMarketRows(symbols) {
+  symbols.forEach((sym) => {
+    const it = MK_ITEMS.find((i) => i.symbol === sym);
+    const row = document.querySelector(`#mk-groups .mk-row[data-mk-sym="${CSS.escape(sym)}"]`);
+    if (!it || !row) return;
+    const v = it.change[mkPeriod];
+    tween(row.querySelector(".mk-level"), it.last, (x) => mkLevel(Object.assign({}, it, { last: x })));
+    const change = row.querySelector(".mk-change");
+    change.className = `mk-change ${mkTone(v)}`;
+    change.querySelector(".mk-arr").innerHTML = arrow(v);
+    if (v !== null && v !== undefined) tween(change.querySelector(".v"), v, (x) => mkChange(it, x));
+    const spark = row.querySelector(".mk-spark");
+    if (spark) spark.outerHTML = mkSpark(it);
+  });
 }
 
 function renderLive() {
@@ -177,12 +195,29 @@ function renderLive() {
   $("live-lede").innerHTML = L(
     `${liveCount} de ${LIVE_HOLD.length} ativos com preço ao vivo${fxLive.length ? ` e câmbio ao vivo (${fxLive.join(", ")})` : ""}; os demais usam o último fechamento do relatório, de ${dateLong(D.asOf)}. Os números das outras seções continuam os do relatório.`,
     `${liveCount} of ${LIVE_HOLD.length} assets with live prices${fxLive.length ? ` and live exchange rates (${fxLive.join(", ")})` : ""}; the rest use the report's last close, from ${dateLong(D.asOf)}. Numbers in the other sections stay as the report computed them.`);
-  const fig = (label, value, note, cls) => `<div class="reb-fig"><p class="label">${label}</p><p class="value ${cls || ""}">${value}</p>${note ? `<p class="note">${note}</p>` : ""}</div>`;
-  $("live-figs").innerHTML =
-    fig(L("Valor agora", "Value now"), `<span class="live-num">${fmt.eur(now)}</span>`, L(`no relatório: ${fmt.eur(then)}`, `in the report: ${fmt.eur(then)}`)) +
-    fig(L("Desde o relatório", "Since the report"), `${arrow(change, 4)}${fmt.pct(change, 2)}`, fmt.eurSigned(now - then), tone(change)) +
-    (dayRows.length ? fig(L("Hoje, ativos ao vivo", "Today, live assets"), `${arrow(dayPnl, 0)}${fmt.eurSigned(dayPnl)}`, L(`contra o fechamento anterior de ${dayRows.length} ${dayRows.length === 1 ? "ativo" : "ativos"}`, `against the previous close of ${dayRows.length} ${dayRows.length === 1 ? "asset" : "assets"}`), tone(dayPnl)) : "") +
-    fig(L("Atualizado", "Updated"), liveClock(LIVE.lastTick ? new Date(LIVE.lastTick).toISOString() : null), L(LIVE.mode === "app" ? "a cada 20 s, cripto a cada negócio" : "cripto a cada negócio, câmbio a cada minuto", LIVE.mode === "app" ? "every 20 s, crypto on every trade" : "crypto on every trade, FX every minute"));
+  const figs = $("live-figs");
+  if (!figs.dataset.built) {
+    const fig = (key, label) => `<div class="reb-fig" data-k="${key}"><p class="label">${label}</p><p class="value"><span class="arr-slot"></span><span class="num"></span></p><p class="note"></p></div>`;
+    figs.innerHTML = fig("now", L("Valor agora", "Value now")) + fig("since", L("Desde o relatório", "Since the report")) +
+      fig("day", L("Hoje, ativos ao vivo", "Today, live assets")) + fig("time", L("Atualizado", "Updated"));
+    figs.dataset.built = "1";
+  }
+  const setFig = (key, value, format, note, cls, mark) => {
+    const box = figs.querySelector(`[data-k="${key}"]`);
+    box.hidden = value === null;
+    if (value === null) return;
+    box.querySelector(".value").className = `value ${cls || ""}`;
+    box.querySelector(".arr-slot").innerHTML = mark || "";
+    const num = box.querySelector(".num");
+    if (typeof value === "number") tween(num, value, format); else num.textContent = value;
+    box.querySelector(".note").innerHTML = note || "";
+  };
+  setFig("now", now, (x) => fmt.eur(x), L(`no relatório: ${fmt.eur(then)}`, `in the report: ${fmt.eur(then)}`));
+  setFig("since", change, (x) => fmt.pct(x, 2), fmt.eurSigned(now - then), tone(change), arrow(change, 4));
+  setFig("day", dayRows.length ? dayPnl : null, (x) => fmt.eurSigned(x),
+    L(`contra o fechamento anterior de ${dayRows.length} ${dayRows.length === 1 ? "ativo" : "ativos"}`, `against the previous close of ${dayRows.length} ${dayRows.length === 1 ? "asset" : "assets"}`), tone(dayPnl), arrow(dayPnl, 0));
+  setFig("time", liveClock(LIVE.lastTick ? new Date(LIVE.lastTick).toISOString() : null), null,
+    L(LIVE.mode === "app" ? "a cada 20 s, cripto a cada negócio" : "cripto a cada negócio, câmbio a cada minuto", LIVE.mode === "app" ? "every 20 s, crypto on every trade" : "crypto on every trade, FX every minute"));
   const source = (r) => (r.p.kind === "cash" ? (r.p.currency === LIVE_BASE ? "—" : (LIVE.fx[r.p.currency] || {}).source || L("fechamento", "close"))
     : r.q ? `<span class="live-dot${r.q.open ? "" : " closed"}"></span>${r.q.source}${r.q.open ? "" : L(" (fechado)", " (closed)")}` : L("fechamento", "close"));
   $("live-table").innerHTML = `<thead><tr><th>${L("Ativo", "Asset")}</th><th class="r">${L("Preço", "Price")}</th><th class="r">${L("Dia", "Day")}</th><th class="r">${L("Desde o relatório", "Since report")}</th><th class="r">${L("Valor", "Value")}</th><th>${L("Fonte", "Source")}</th><th class="r">${L("Hora", "Time")}</th></tr></thead><tbody>` +

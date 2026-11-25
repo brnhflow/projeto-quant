@@ -39,16 +39,34 @@ const TABS = [...document.querySelectorAll("#tabs [data-tab]")].map((b) => b.dat
 document.querySelectorAll("#tabs .tab-icon").forEach((s) => {
   s.innerHTML = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${TAB_ICONS[s.dataset.icon] || ""}</svg>`;
 });
+// The underline slides from the old tab to the new one.
+const tabInk = document.createElement("span");
+tabInk.className = "tab-ink";
+tabInk.setAttribute("aria-hidden", "true");
+$("tabs").appendChild(tabInk);
+function moveInk() {
+  const on = document.querySelector('#tabs [aria-selected="true"]');
+  if (!on) return;
+  tabInk.style.transform = `translateX(${on.offsetLeft}px)`;
+  tabInk.style.width = `${on.offsetWidth}px`;
+}
+let currentTab = "";
 function showTab(name, push) {
   const tab = TABS.includes(name) ? name : "resumo";
+  const entering = tab !== currentTab;
+  currentTab = tab;
   renderTabIntro(tab);
-  document.querySelectorAll(".tab-page").forEach((p) => { p.hidden = p.dataset.page !== tab; });
+  document.querySelectorAll(".tab-page").forEach((p) => {
+    p.hidden = p.dataset.page !== tab;
+    // The new page fades up; the blocks inside still rise in turn as they come into view.
+    if (!p.hidden && entering && !STILL.matches) { p.classList.remove("entering"); void p.offsetWidth; p.classList.add("entering"); }
+  });
   document.querySelectorAll("#tabs [data-tab]").forEach((b) => {
     const on = b.dataset.tab === tab;
     b.setAttribute("aria-selected", String(on));
     b.tabIndex = on ? 0 : -1;
     // On a phone the bar scrolls sideways: keep the open tab in sight.
-    if (on) { const bar = $("tabs"); bar.scrollLeft = b.offsetLeft - (bar.clientWidth - b.offsetWidth) / 2; }
+    if (on) { const bar = $("tabs"); bar.scrollTo({ left: b.offsetLeft - (bar.clientWidth - b.offsetWidth) / 2, behavior: STILL.matches ? "auto" : "smooth" }); }
   });
   // The period selector only changes the summary and risk pages.
   $("periods").classList.toggle("muted-control", !["resumo", "desempenho", "risco"].includes(tab));
@@ -57,6 +75,7 @@ function showTab(name, push) {
   renderCharts();
   animate($("page-" + tab));
   updateNudges();
+  moveInk();
 }
 $("tabs").addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-tab]");
@@ -80,7 +99,7 @@ function updateNudges() {
   wrap.classList.toggle("more-right", bar.scrollLeft + bar.clientWidth < bar.scrollWidth - 4);
 }
 $("tabs").addEventListener("scroll", updateNudges, { passive: true });
-window.addEventListener("resize", updateNudges);
+window.addEventListener("resize", () => { updateNudges(); moveInk(); });
 $("tabs-left").addEventListener("click", () => $("tabs").scrollBy({ left: -280, behavior: STILL.matches ? "auto" : "smooth" }));
 $("tabs-right").addEventListener("click", () => $("tabs").scrollBy({ left: 280, behavior: STILL.matches ? "auto" : "smooth" }));
 window.addEventListener("popstate", () => showTab(location.hash.slice(1), false));
@@ -182,3 +201,5 @@ function retheme() {
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", retheme);
 themeSwitch($("theme"), retheme);
 startLive();
+watchSegmented();
+requestAnimationFrame(moveInk);

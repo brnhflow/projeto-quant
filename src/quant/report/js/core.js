@@ -99,17 +99,27 @@ function barPath(x0, x1, y, h, r) {
 
 // ---------------------------------------------------------------- tooltip
 const tip = $("tip");
+// The tooltip glides after the pointer (transform, eased) instead of jumping between positions,
+// and appears in place rather than flying in from where it was last shown.
+let tipShown = false;
 function showTip(html, ev) {
-  tip.innerHTML = html;
-  tip.hidden = false;
+  if (tip.innerHTML !== html) tip.innerHTML = html;
+  const fresh = !tipShown;
+  if (fresh) { tip.classList.add("no-glide"); tip.hidden = false; tip.classList.remove("tip-out"); }
+  tipShown = true;
   const r = tip.getBoundingClientRect();
   let x = ev.clientX + 16, y = ev.clientY + 16;
   if (x + r.width > window.innerWidth - 8) x = ev.clientX - r.width - 16;
   if (y + r.height > window.innerHeight - 8) y = ev.clientY - r.height - 16;
-  tip.style.left = Math.max(8, x) + "px";
-  tip.style.top = Math.max(8, y) + "px";
+  tip.style.transform = `translate3d(${Math.round(Math.max(8, x))}px, ${Math.round(Math.max(8, y))}px, 0)`;
+  if (fresh) requestAnimationFrame(() => tip.classList.remove("no-glide"));
 }
-function hideTip() { tip.hidden = true; }
+function hideTip() {
+  if (!tipShown) return;
+  tipShown = false;
+  tip.classList.add("tip-out");
+  setTimeout(() => { if (!tipShown) { tip.hidden = true; tip.classList.remove("tip-out"); } }, 120);
+}
 function tipHtml(head, rows) {
   return `<div class="t-head">${esc(head)}</div>` + rows.map((r) =>
     `<div class="t-row"><span>${r.color ? `<i class="t-swatch" style="background:${r.color}"></i>` : ""}${esc(r.label)}</span><span>${esc(r.value)}</span></div>`
@@ -325,4 +335,66 @@ function countUp(root) {
     };
     requestAnimationFrame(step);
   });
+}
+
+// ---------------------------------------------------------------- fluid numbers and controls
+// A number that changes rolls from the old value to the new one; ``format`` turns a value into
+// text. Reduced motion, or a node not on screen, gets the new text at once.
+const tweens = new WeakMap();
+function tween(node, to, format, ms = 650) {
+  if (!node) return;
+  const from = tweens.has(node) ? tweens.get(node).value : to;
+  if (STILL.matches || from === to || !isFinite(from)) { node.textContent = format(to); tweens.set(node, { value: to, frame: 0 }); return; }
+  const prev = tweens.get(node);
+  if (prev && prev.frame) cancelAnimationFrame(prev.frame);
+  const start = performance.now(), state = { value: from, frame: 0 };
+  tweens.set(node, state);
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / ms), eased = 1 - Math.pow(1 - t, 3);
+    state.value = from + (to - from) * eased;
+    node.textContent = format(state.value);
+    state.frame = t < 1 ? requestAnimationFrame(step) : 0;
+    if (t >= 1) state.value = to;
+  };
+  state.frame = requestAnimationFrame(step);
+}
+
+// Segmented controls get a pill that slides to the pressed option. The pill lives inside the
+// control; when a render replaces the buttons, it is recreated where it was and then moves.
+const thumbAt = new WeakMap();
+function placeThumb(group) {
+  const on = group.querySelector('button[aria-pressed="true"]');
+  let thumb = group.querySelector(":scope > .seg-thumb");
+  if (!on) { if (thumb) thumb.remove(); return; }
+  const target = { x: on.offsetLeft, w: on.offsetWidth };
+  if (!target.w) return;
+  if (!thumb) {
+    thumb = document.createElement("span");
+    thumb.className = "seg-thumb";
+    thumb.setAttribute("aria-hidden", "true");
+    const was = thumbAt.get(group) || target;
+    thumb.style.transform = `translateX(${was.x}px)`;
+    thumb.style.width = `${was.w}px`;
+    group.prepend(thumb);
+    void thumb.offsetWidth;
+  }
+  group.classList.add("has-thumb");
+  thumb.style.transform = `translateX(${target.x}px)`;
+  thumb.style.width = `${target.w}px`;
+  thumbAt.set(group, target);
+}
+function watchSegmented() {
+  const groups = () => document.querySelectorAll(".segmented");
+  const queue = new Set();
+  let frame = 0;
+  const flush = () => { frame = 0; queue.forEach(placeThumb); queue.clear(); };
+  new MutationObserver((records) => {
+    records.forEach((r) => {
+      const group = (r.target.closest ? r.target : r.target.parentElement).closest(".segmented");
+      if (group) queue.add(group);
+    });
+    if (queue.size && !frame) frame = requestAnimationFrame(flush);
+  }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["aria-pressed"] });
+  groups().forEach(placeThumb);
+  window.addEventListener("resize", () => groups().forEach(placeThumb));
 }
