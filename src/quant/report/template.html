@@ -11,7 +11,7 @@
 <div class="page">
 <div class="brand-bar"><span class="brand"><span class="brand-mark"><svg viewBox="0 0 22 22" aria-hidden="true"><rect width="22" height="22" rx="5" fill="currentColor" opacity="0.14"/><path d="M6 15V11M11 15V7M16 15V9.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span>projeto-quant</span><span class="brand-sep"></span>
 <span class="brand-sub"><span data-l="en">Portfolio analytics</span><span data-l="pt">Análise de carteira</span></span>
-<span class="brand-right"><span><span data-l="en">Official sources, tested numbers</span><span data-l="pt">Fontes oficiais, números testados</span></span></span></div>
+<span class="brand-right"><span class="live-status" id="live-status"></span><span class="brand-tag"><span data-l="en">Official sources, tested numbers</span><span data-l="pt">Fontes oficiais, números testados</span></span></span></div>
 
 <header class="masthead">
   <div class="masthead-text">
@@ -50,6 +50,15 @@
 <p class="tab-intro" id="tab-intro" aria-live="polite"></p>
 
 <div class="tab-page" id="page-resumo" data-page="resumo" role="tabpanel" aria-labelledby="tab-resumo">
+<section class="block live" id="live-section" hidden>
+  <div class="mk-title">
+    <h2><span data-l="en">Your portfolio now</span><span data-l="pt">Sua carteira agora</span></h2>
+    <span id="live-pill"></span>
+  </div>
+  <p class="lede" id="live-lede"></p>
+  <div class="reb-summary live-figs" id="live-figs"></div>
+  <div class="table-wrap"><table class="positions compact live-table" id="live-table"></table></div>
+</section>
 <section class="figures" id="figures" aria-label="Key figures" data-pt-aria-label="Números principais"></section>
 
 <section class="block insights" id="insights-section" hidden>

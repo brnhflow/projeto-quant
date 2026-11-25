@@ -6,6 +6,13 @@ before 1.0 the interface may still change.
 ## Unreleased
 
 ### Added
+- **Live prices, free**: a "Your portfolio now" panel and a live market tab. Through the local
+  app, Yahoo quotes every 20 seconds via a new `/api/live` route (cached 15 s); crypto tick by
+  tick from Binance's public WebSocket; exchange rates every minute from Coinbase where the app
+  is not running. Rows flash when a price moves; a pulsing "Live" badge says when data is fresh.
+- **Self-updating demo**: a workflow rebuilds the public site with fresh data every 30 minutes
+  while the main exchanges are open and every 3 hours otherwise, publishing to Pages as an
+  artifact so the history gets no data commits.
 - **Fixed income tab**: government yield curves for Brazil, the US, the euro area, the UK and
   Japan (today, a month and a year ago), policy rates, curve slope with inversion flagged, every
   Tesouro Direto bond on sale with its change, and the inflation Brazil's bonds price in. Official

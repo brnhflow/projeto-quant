@@ -1,0 +1,65 @@
+name: Demo site
+
+# Rebuilds the public demo with fresh market data and publishes it to GitHub Pages, without
+# committing anything: the page is uploaded as a build artifact. Runs on every push to main,
+# every 30 minutes while the main exchanges are open, and every 3 hours otherwise (crypto and
+# rates move at weekends too). In the browser, crypto and exchange rates then update live on top.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "*/30 12-21 * * 1-5"  # São Paulo, New York and the end of the European session (UTC)
+    - cron: "15 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.mode.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v7
+      # Publishing from a workflow needs Pages set to "GitHub Actions" in the repository settings;
+      # until then this job only checks that the site builds.
+      - name: Pages source
+        id: mode
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          kind=$(gh api "repos/${{ github.repository }}/pages" --jq .build_type || echo unknown)
+          echo "Pages build type: $kind"
+          if [ "$kind" = "workflow" ]; then echo "publish=true" >> "$GITHUB_OUTPUT"; else echo "publish=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: astral-sh/setup-uv@v10.4.0
+        with:
+          python-version: "3.14"
+          enable-cache: true
+      - name: Install
+        run: uv sync --frozen
+      - name: Build the demo with today's data
+        # Exit code 1 means a series came from the cache after a failed download: still publish.
+        run: uv run --frozen python scripts/build_site.py || [ $? -eq 1 ]
+      - uses: actions/upload-pages-artifact@v5.0.0
+        if: steps.mode.outputs.publish == 'true'
+        with:
+          path: docs
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5.0.1

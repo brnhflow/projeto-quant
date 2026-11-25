@@ -14,7 +14,9 @@ import math
 import re
 import sys
 import threading
+import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -31,11 +33,14 @@ from quant.data.market import Fetch
 from quant.data.sources import (
     CASH,
     YAHOO,
+    LiveQuote,
     SearchHit,
     merge_hits,
+    parse_yahoo_live,
     parse_yahoo_lookup,
     parse_yahoo_search,
     parse_yahoo_snapshot,
+    yahoo_live_url,
     yahoo_lookup_url,
     yahoo_search_url,
     yahoo_snapshot_url,
@@ -56,6 +61,8 @@ MAX_POSITIONS = 100
 MAX_TRANSACTIONS = 5000
 MAX_QUANTITY = 1e12
 API_HEADER = "X-Quant-App"
+MAX_LIVE = 150  # symbols per live request
+LIVE_TTL = 15.0  # seconds a live quote is reused, so many open tabs do not multiply requests
 STATIC = {
     "/": ("quant.app", "static/editor.html", "text/html; charset=utf-8"),
     "/editor.css": ("quant.app", "static/editor.css", "text/css; charset=utf-8"),
@@ -81,6 +88,8 @@ class AppConfig:
     pause: float = 0.2
     report_html: str | None = None
     lock: threading.Lock = field(default_factory=threading.Lock)
+    live: dict[str, tuple[float, LiveQuote]] = field(default_factory=lambda: {})
+    live_lock: threading.Lock = field(default_factory=threading.Lock)
 
     @property
     def transactions_path(self) -> Path:
@@ -413,6 +422,49 @@ def saved_positions(config: AppConfig) -> list[dict[str, Any]]:
     ]
 
 
+def live_quotes(config: AppConfig, symbols: list[str]) -> dict[str, Any]:
+    """Latest prices for ``symbols``, each reused for :data:`LIVE_TTL` seconds.
+
+    Symbols that fail are listed in ``failed``; the others still come back.
+    """
+    now = time.monotonic()
+    with config.live_lock:
+        fresh = {s: q for s, (t, q) in config.live.items() if s in symbols and now - t < LIVE_TTL}
+    missing = [s for s in symbols if s not in fresh]
+
+    def one(symbol: str) -> LiveQuote | None:
+        try:
+            return parse_yahoo_live(config.fetch(yahoo_live_url(symbol)), config.now())
+        except (ConnectionError, ValueError):
+            return None
+
+    failed: list[str] = []
+    if missing:
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            got = dict(zip(missing, pool.map(one, missing), strict=True))
+        with config.live_lock:
+            for symbol, q in got.items():
+                if q is None:
+                    failed.append(symbol)
+                else:
+                    config.live[symbol] = (now, q)
+                    fresh[symbol] = q
+    return {
+        "asOf": config.now().isoformat(),
+        "quotes": {
+            s: {
+                "price": q.price,
+                "previousClose": q.previous_close,
+                "time": q.time,
+                "currency": q.currency,
+                "open": q.open,
+            }
+            for s, q in fresh.items()
+        },
+        "failed": failed,
+    }
+
+
 def export_workbook(body: Any) -> bytes:
     """Write the editor's current portfolio as an Excel file; nothing is saved on the server."""
     request = cast(dict[str, Any], body) if isinstance(body, dict) else {}
@@ -566,6 +618,17 @@ def make_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
                         f"Search unavailable right now ({error}).",
                         f"Busca indisponível agora ({error}).",
                     )
+            elif url.path == "/api/live":
+                raw = (query.get("symbols") or [""])[0]
+                symbols = list(dict.fromkeys(x for x in raw.split(",") if x))
+                if (
+                    not symbols
+                    or len(symbols) > MAX_LIVE
+                    or not all(SYMBOL.match(x) for x in symbols)
+                ):
+                    self._error(HTTPStatus.BAD_REQUEST, "Invalid symbols.", "Códigos inválidos.")
+                    return
+                self._json(HTTPStatus.OK, live_quotes(config, symbols))
             elif url.path == "/api/quote":
                 symbol = (query.get("symbol") or [""])[0]
                 if not SYMBOL.match(symbol):

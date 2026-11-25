@@ -33,6 +33,9 @@ rebalancing. Every model comes with the test that says whether to trust it.
 - **Beyond stocks.** Yield curves of five countries from their own treasuries and central banks,
   every Tesouro Direto bond with the inflation it prices in, and a fear and greed gauge built
   from public data with its method stated.
+- **Live, for free.** Crypto tick by tick (Binance WebSocket), exchange rates every minute
+  (Coinbase), and every stock and index every 20 seconds through the local app; the public demo
+  rebuilds itself every half hour while markets are open.
 - **Rules backtested with costs.** A 10% volatility target lifts the demo's Sharpe from 1.02 to
   1.34 and cuts its worst drawdown from −19.8% to −12.1%.
 - **What professionals report.** Tearsheet, Brinson attribution, time- and money-weighted returns
@@ -301,6 +304,21 @@ Things that went wrong, and what they changed:
   - The Monte Carlo removes the past trend by default.
   - Projected dividend growth fades out over time.
   - Benchmark price indices are labelled "without dividends".
+
+## Live data
+
+| What | Where it runs | How often | Source |
+|---|---|---|---|
+| Crypto | Browser, demo and app | Every trade | Binance public WebSocket |
+| Exchange rates | Browser, demo | Every minute | Coinbase public rates |
+| Stocks, ETFs, indices, rates, FX | Local app | Every 20 s (exchange delay, usually up to 15 min) | Yahoo Finance via `/api/live` |
+| Everything in the report | Demo site | Every 30 min while markets are open, every 3 h otherwise | GitHub Actions rebuild |
+
+Live prices move the "Your portfolio now" panel and the Markets tab; the risk, performance and
+scenario numbers stay as the report computed them, so every figure still has its test. Stock
+quotes cannot be fetched from a static page (Yahoo does not allow other sites to read them), which
+is why the demo refreshes them by rebuilding rather than in the browser. Truly real-time equity
+data needs a paid exchange feed.
 
 ## Data sources
 

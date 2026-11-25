@@ -56,6 +56,7 @@ def main() -> int:
         title="",
         demo_url="https://github.com/brnhflow/projeto-quant",
         transactions=load_transactions(ROOT / "data" / "transactions.example.csv"),
+        rates_wait=300,  # a fresh machine has no cached rates: wait for the official files
     )
     OUT.parent.mkdir(parents=True, exist_ok=True)
     page = with_preview(analysis.page)

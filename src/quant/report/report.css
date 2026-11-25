@@ -1049,3 +1049,24 @@ html[data-lang="pt"] .chart[data-source-pt]::after { content: attr(data-source-p
   .figures .figure:nth-child(odd) { padding-left: 0; border-left: 0; }
   .figures .figure:nth-child(even) { padding-left: 16px; border-left: 1px solid var(--rule); }
 }
+
+/* ---------------------------------------------------------------- live prices */
+@keyframes live-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pos) 60%, transparent); } 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--pos); margin-right: 7px; vertical-align: 1px; animation: live-pulse 2s ease-out infinite; }
+.live-dot.closed { background: var(--ink-3); animation: none; }
+.live-status { display: inline-flex; align-items: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+.live-status:empty { display: none; }
+.brand-bar .live-dot { background: #3cc384; }
+.live-badge { display: inline-flex; align-items: center; padding: 5px 11px; border-radius: 999px; font: 650 12px/1 var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--pos); background: color-mix(in srgb, var(--pos) 12%, transparent); }
+.live-badge.idle { color: var(--ink-3); background: var(--field); }
+.live.block { border-left: 3px solid var(--pos); }
+.live-figs { margin-bottom: 14px; }
+.live-src { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+@keyframes tick-up { from { background: color-mix(in srgb, var(--pos) 22%, transparent); } to { background: transparent; } }
+@keyframes tick-down { from { background: color-mix(in srgb, var(--neg) 22%, transparent); } to { background: transparent; } }
+.tick-up, .tick-up td { animation: tick-up 1.4s ease-out; }
+.tick-down, .tick-down td { animation: tick-down 1.4s ease-out; }
+@media (max-width: 760px) { .brand-tag { display: none; } }
+@media (prefers-reduced-motion: reduce) { .live-dot, .tick-up, .tick-down, .tick-up td, .tick-down td { animation: none; } }
+@media print { .live.block { display: none; } }
+.live-note { caption-side: bottom; text-align: left; font-size: 11.5px; color: var(--ink-3); padding-top: 8px; }

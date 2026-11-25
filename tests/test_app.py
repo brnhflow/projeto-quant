@@ -592,3 +592,62 @@ def test_spreadsheet_routes_need_the_app_header(app: tuple[AppConfig, int]) -> N
     for path in ("/api/export", "/api/import"):
         status, _, _ = _request(app[1], "POST", path, {"positions": []}, {"X-Quant-App": "0"})
         assert status == 403
+
+
+# ---------------------------------------------------------------- live prices
+
+
+def _live(symbol: str, price: float) -> dict[str, Any]:
+    return {
+        "chart": {
+            "result": [
+                {
+                    "meta": {
+                        "symbol": symbol,
+                        "currency": "BRL",
+                        "regularMarketPrice": price,
+                        "regularMarketTime": 1795611600,
+                        "previousClose": price - 1,
+                        "currentTradingPeriod": {"regular": {"start": 0, "end": 1}},
+                    }
+                }
+            ],
+            "error": None,
+        }
+    }
+
+
+def test_live_prices_come_back_and_are_reused_for_a_few_seconds(tmp_path: Path) -> None:
+    calls: list[str] = []
+
+    def fetch(url: str) -> Any:
+        calls.append(url)
+        if "PETR4.SA" in url:
+            return _live("PETR4.SA", 41.5)
+        raise ConnectionError("not found")
+
+    config = AppConfig(
+        holdings_path=tmp_path / "h.csv",
+        cache_dir=tmp_path,
+        report_path=tmp_path / "r.html",
+        fetch=fetch,
+        fetch_text=no_network,
+    )
+    server = make_server(config)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    port = server.server_address[1]
+    try:
+        status, _, raw = _request(port, "GET", "/api/live?symbols=PETR4.SA,NOPE")
+        again, _, _ = _request(port, "GET", "/api/live?symbols=PETR4.SA")
+        bad, _, _ = _request(port, "GET", "/api/live?symbols=%3Cscript%3E")
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert status == 200 and again == 200 and bad == 400
+    body = json.loads(raw)
+    assert body["quotes"]["PETR4.SA"]["price"] == 41.5
+    assert body["quotes"]["PETR4.SA"]["previousClose"] == 40.5
+    assert body["failed"] == ["NOPE"]
+    assert sum("PETR4.SA" in u for u in calls) == 1  # the second request used the cached quote

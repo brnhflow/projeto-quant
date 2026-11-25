@@ -16,6 +16,7 @@ from quant.data.sources import (
     parse_frankfurter,
     parse_kraken_ohlc,
     parse_yahoo_chart,
+    parse_yahoo_live,
     parse_yahoo_lookup,
     parse_yahoo_search,
     parse_yahoo_snapshot,
@@ -469,3 +470,52 @@ def test_a_damaged_cache_file_is_replaced_by_the_download(tmp_path: Path) -> Non
     assert "BRL" in market.fx.columns
     assert "2020-01-01,1,2,3" not in fx_file.read_text(encoding="utf-8")
     assert not list(tmp_path.glob(".*.tmp"))  # no temporary files left behind
+
+
+# ---------------------------------------------------------------- live quotes
+
+
+def _live_payload(price: float | None, currency: str = "BRL") -> dict[str, Any]:
+    return {
+        "chart": {
+            "result": [
+                {
+                    "meta": {
+                        "symbol": "X",
+                        "currency": currency,
+                        "regularMarketPrice": price,
+                        "regularMarketTime": 1795611600,
+                        "previousClose": 40.0 if currency == "BRL" else 14000.0,
+                        "currentTradingPeriod": {
+                            "regular": {"start": 1795611000, "end": 1795636800}
+                        },
+                    }
+                }
+            ],
+            "error": None,
+        }
+    }
+
+
+def test_live_quote_reads_price_previous_close_and_session() -> None:
+    inside = pd.Timestamp(1795612000, unit="s", tz="UTC")
+    after = pd.Timestamp(1795640000, unit="s", tz="UTC")
+
+    q = parse_yahoo_live(_live_payload(41.0), inside)
+
+    assert (q.price, q.previous_close, q.currency, q.open) == (41.0, 40.0, "BRL", True)
+    assert q.time.startswith("2026-")
+    assert parse_yahoo_live(_live_payload(41.0), after).open is False
+
+
+def test_live_quote_converts_pence_and_refuses_missing_prices() -> None:
+    now = pd.Timestamp(1795612000, unit="s", tz="UTC")
+
+    q = parse_yahoo_live(_live_payload(14046.0, "GBp"), now)
+
+    assert q.currency == "GBP" and q.price == pytest.approx(140.46)
+    assert q.previous_close == pytest.approx(140.0)
+    with pytest.raises(ValueError):
+        parse_yahoo_live(_live_payload(None), now)
+    with pytest.raises(ValueError):
+        parse_yahoo_live({"chart": {"result": None, "error": {"description": "No data"}}}, now)

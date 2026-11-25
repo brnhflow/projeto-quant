@@ -103,6 +103,7 @@ def analyse_portfolio(
     fetch_text: FetchText = fetch_bytes,
     demo_url: str | None = None,
     transactions: pd.DataFrame | None = None,
+    rates_wait: float = RATES_WAIT,
 ) -> Analysis:
     """Download fresh data for ``holdings`` and build the report over ``years`` of history.
 
@@ -189,7 +190,7 @@ def analyse_portfolio(
             sentiment_series = None
     rates: RatesData | None
     try:
-        rates = rates_job.result(timeout=RATES_WAIT)
+        rates = rates_job.result(timeout=rates_wait)
     except FutureTimeout:
         rates = fetch_rates(cache, now=now, offline=True)
     except (ConnectionError, ValueError, OSError):

@@ -17,7 +17,7 @@ import functools
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar, cast
 from urllib.parse import quote, urlencode
 
 import pandas as pd
@@ -514,6 +514,65 @@ def parse_yahoo_snapshot(payload: dict[str, Any], now: pd.Timestamp) -> Snapshot
         in_progress=series.in_progress,
         kind=str(meta.get("instrumentType") or ""),
         detail=_clean(meta.get("shortName") or ""),
+    )
+
+
+@dataclass(frozen=True)
+class LiveQuote:
+    """The latest trade of one instrument, for prices that update on screen."""
+
+    symbol: str
+    price: float
+    previous_close: float | None
+    time: str  # ISO 8601, UTC, of the last trade
+    currency: str
+    open: bool  # inside the regular session right now
+
+
+def yahoo_live_url(symbol: str) -> str:
+    """Chart API URL whose metadata carries the latest price and the previous close."""
+    return (
+        f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol)}"
+        "?range=1d&interval=5m&includePrePost=false"
+    )
+
+
+def parse_yahoo_live(payload: dict[str, Any], now: pd.Timestamp) -> LiveQuote:
+    """Latest price, previous close and session state from a chart response's metadata.
+
+    Prices in minor units (pence, cents) are converted to the major unit, as everywhere else.
+
+    Raises
+    ------
+    ValueError
+        If the response reports an error or has no price.
+
+    """
+    error: Any = _field(payload, "chart", "error")
+    if error:
+        detail = (
+            cast(dict[str, Any], error).get("description") if isinstance(error, dict) else error
+        )
+        raise ValueError(str(detail))
+    meta: Any = _field(payload, "chart", "result", 0, "meta")
+    if not isinstance(meta, dict) or cast(dict[str, Any], meta).get("regularMarketPrice") is None:
+        raise ValueError("no live price in the response")
+    info = cast(dict[str, Any], meta)
+    raw_currency = str(info.get("currency") or "")
+    currency, divisor = MINOR_UNITS.get(raw_currency, (raw_currency, 1.0))
+    previous = info.get("previousClose", info.get("chartPreviousClose"))
+    stamp = int(info.get("regularMarketTime") or 0)
+    period: Any = _field(payload, "chart", "result", 0, "meta", "currentTradingPeriod", "regular")
+    regular = cast(dict[str, Any], period) if isinstance(period, dict) else {}
+    seconds = int(now.timestamp())
+    is_open = int(regular.get("start", 0)) <= seconds < int(regular.get("end", 0))
+    return LiveQuote(
+        symbol=str(info.get("symbol") or ""),
+        price=float(info["regularMarketPrice"]) / divisor,
+        previous_close=None if previous is None else float(previous) / divisor,
+        time=pd.Timestamp(stamp, unit="s", tz="UTC").isoformat(),
+        currency=currency,
+        open=bool(is_open),
     )
 
 

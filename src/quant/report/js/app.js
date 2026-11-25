@@ -110,6 +110,7 @@ const CHARTS = [
   ["#page-desempenho", renderRulesChart],
   ["#chart-stability", renderStabilityChart],
   ["#chart-movers", renderMovers],
+  ["#mk-groups", () => { if (LIVE.dirtyMarket) liveMarket(); }],
   ["#chart-fear", renderFearChart],
   ["#chart-curve", renderCurveChart],
   ["#chart-breakeven", renderBreakevenChart],
@@ -180,3 +181,4 @@ function retheme() {
 }
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", retheme);
 themeSwitch($("theme"), retheme);
+startLive();
