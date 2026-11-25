@@ -5,6 +5,14 @@ before 1.0 the interface may still change.
 
 ## Unreleased
 
+### Added
+- Motion in the report: blocks rise as they come into view, lines draw, bars grow, headline
+  numbers count up. Off when the system asks for reduced motion.
+- A demo GIF and a "Notes from building it" section in the README.
+
+### Changed
+- Charts on hidden tabs are no longer redrawn on every change; switching tabs takes 10–20 ms.
+
 ## 0.5.0 — 2026-11-25
 
 ### Added

@@ -16,7 +16,7 @@ rebalancing. Every model comes with the test that says whether to trust it.
 
 **[Live demo](https://brnhflow.github.io/projeto-quant/)** · [Methodology](docs/METHODOLOGY.md) · [Research note](docs/research/var-backtest.md) · [Where this makes money](docs/APPLICATIONS.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
 
-![Report summary](docs/images/overview.png)
+![The demo report: tabs, charts drawing in, hover on the value chart](docs/images/demo.gif)
 
 **Highlights**
 
@@ -34,7 +34,7 @@ rebalancing. Every model comes with the test that says whether to trust it.
 
 ## Why
 
-Most portfolio dashboards show numbers. Few say how far those numbers can be trusted. Some
+I wanted a portfolio tool that tells me when not to believe it. Most portfolio dashboards show numbers. Few say how far those numbers can be trusted. Some
 estimates look exactly as confident on screen as good ones but are not:
 
 - a 95% VaR that is breached on 9% of days;
@@ -240,6 +240,25 @@ cpp/
 └── tests/test_risk.cpp      C++ unit tests (CTest)
 research/                    research note script and benchmark
 ```
+
+## Notes from building it
+
+Things that went wrong, and what they changed:
+
+- **A claim I had to take back.** I first wrote that the C++ EWMA matched NumPy bit for bit. It
+  did not: NumPy sums with pairwise summation, a plain loop does not, and the last digits drift.
+  The parity tests now use a 1e-12 tolerance and the docs say why.
+- **The first C++ bootstrap was only 1.3× faster.** Copying one value at a time was the
+  bottleneck, not the arithmetic. Copying whole blocks and splitting the samples across threads,
+  each with its own SplitMix64 seed so results do not depend on the thread count, took it to 6×.
+- **Buy and hold showed 32% turnover a year.** The initial purchase was being counted as a trade.
+  It is now excluded in both the Python reference and the C++ engine, with a test on each.
+- **Four download threads corrupted the cache.** Two of them wrote the same exchange-rate file at
+  once. Writes are now atomic, behind a lock, and a damaged file is read as missing instead of
+  crashing the report.
+- **A wrong "exact" value in a test.** The expected maximum of 20 standard normals is 1.8675 by
+  numerical integration; the closed form gives 1.90. The test checks the closed form against the
+  exact value within 2%, instead of against itself.
 
 ## Design decisions
 
