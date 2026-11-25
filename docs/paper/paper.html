@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Testing the estimates a portfolio report shows</title>
+<style>
+@page { size: A4; margin: 22mm 20mm 22mm 20mm; }
+body { font: 10.5pt/1.45 "Cambria", "Georgia", "Times New Roman", serif; color: #111; margin: 0; }
+h1 { font-size: 17pt; line-height: 1.2; text-align: center; margin: 0 0 6pt; }
+.author { text-align: center; font-size: 10.5pt; margin: 0; }
+.affil { text-align: center; font-size: 9.5pt; color: #444; margin: 2pt 0 14pt; }
+.abstract { margin: 0 8mm 14pt; font-size: 9.5pt; }
+.abstract b { font-variant: small-caps; }
+h2 { font-size: 11.5pt; margin: 14pt 0 4pt; }
+h3 { font-size: 10.5pt; font-style: italic; font-weight: normal; margin: 10pt 0 3pt; }
+p { margin: 0 0 6pt; text-align: justify; hyphens: auto; }
+table { border-collapse: collapse; margin: 6pt auto 4pt; font-size: 9pt; break-inside: avoid; }
+th, td { padding: 2pt 7pt; text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+thead tr { border-top: 1.2pt solid #111; border-bottom: 0.6pt solid #111; }
+tbody tr:last-child { border-bottom: 1.2pt solid #111; }
+.caption { font-size: 9pt; text-align: center; margin: 2pt 6mm 10pt; color: #222; }
+.caption b { font-weight: bold; }
+figure { margin: 8pt 0; text-align: center; break-inside: avoid; }
+figure img { max-width: 100%; }
+.refs p { font-size: 9pt; text-indent: -12pt; padding-left: 12pt; text-align: left; margin-bottom: 3pt; }
+math { font-size: 10.5pt; }
+.eq { text-align: center; margin: 6pt 0; }
+.small { font-size: 9pt; color: #333; }
+a { color: #1e3a6e; }
+</style>
+</head>
+<body>
+
+<h1>Testing the estimates a portfolio report shows:<br>VaR timing, a sentiment gauge and the efficient frontier</h1>
+<p class="author">Bernardo Bordignon</p>
+<p class="affil">University of Trento, Department of Information Engineering and Computer Science<br>November 2026 · Code and data: github.com/brnhflow/projeto-quant</p>
+
+<div class="abstract">
+<p><b>Abstract.</b> Portfolio reports usually show risk and return estimates without saying how
+far to trust them. This note applies standard out-of-sample tests to three estimates such a
+report shows. First, one-day historical-simulation VaR keeps its promised breach rate on seven
+equity and crypto series from 2008 to 2026, but its breaches cluster on all seven; filtered
+historical simulation removes most of the clustering. Second, a five-part fear and greed gauge
+rebuilt from public prices has no detectable relation with S&amp;P 500 returns over the next
+week, month or quarter from 2007 to 2026, and the best of ten timing rules chosen on the first
+half of the sample underperforms holding the index in the second. Third, re-estimating a
+long-only efficient frontier on bootstrap resamples of the same history moves the return it
+promises at a given risk by tens of percentage points. All results are reproducible from the
+public repository.</p>
+</div>
+
+<h2>1. Introduction</h2>
+<p>A risk figure on a screen looks equally confident whether it rests on a good model or on
+noise. This project, a portfolio analysis tool written for my own use, treats every estimate it
+shows as a claim to be tested on data it did not see. This note collects the three tests whose
+results changed what the tool shows: whether historical VaR fails at the right times
+(Section 3), whether a sentiment gauge carries information about future returns (Section 4),
+and how much of an estimated efficient frontier survives estimation error (Section 5).</p>
+
+<h2>2. Data and implementation</h2>
+<p>Prices are daily closes from Yahoo Finance; index levels are in local currency, and exchange
+rates, where needed, are the European Central Bank reference rates. Every forecast for day
+<i>t</i> uses only data up to <i>t</i> − 1, and the software checks this by changing future
+data and asserting that past results do not move. The analysis is written in Python with a
+C++20 core for the resampling and rolling-window computations; both implementations are run
+against each other on every change, to 1e-12 or by the optimality conditions of the problem.</p>
+
+<h2>3. Does historical VaR fail at the right times?</h2>
+<p>A one-day VaR at level <i>α</i> makes two promises: losses beyond it occur on a fraction
+1 − <i>α</i> of days, and they occur independently. The Kupiec (1995) test checks the first,
+the Christoffersen (1998) test the second, and the Basel (1996) traffic light counts breaches in
+each rolling year at 99%. I compare three models with a 250-day window: historical simulation
+(HS), an exponentially weighted volatility with normal tails (EWMA, <i>λ</i> = 0.94), and
+filtered historical simulation (FHS), which takes the empirical quantile of returns standardised
+by their own day's EWMA volatility and rescales it by today's. The series are the Ibovespa,
+S&amp;P 500, Euro Stoxx 50, FTSE 100, SMI, MSCI ACWI and Bitcoin, tested from July 2008 on
+4,171 to 4,642 days each.</p>
+
+<table>
+<thead><tr><th>Level, model</th><th>Breach rate</th><th>Kupiec pass</th><th>Christoffersen pass</th><th>Both</th><th>Years in red zone</th></tr></thead>
+<tbody>
+<tr><td>95%, HS</td><td>5.25%</td><td>7 / 7</td><td>0 / 7</td><td>1 / 7</td><td></td></tr>
+<tr><td>95%, EWMA</td><td>5.54%</td><td>3 / 7</td><td>4 / 7</td><td>1 / 7</td><td></td></tr>
+<tr><td>95%, FHS</td><td>5.20%</td><td>7 / 7</td><td>3 / 7</td><td>3 / 7</td><td></td></tr>
+<tr><td>99%, HS</td><td>1.33%</td><td>3 / 7</td><td>1 / 7</td><td>1 / 7</td><td>2.4%</td></tr>
+<tr><td>99%, EWMA</td><td>2.15%</td><td>0 / 7</td><td>5 / 7</td><td>0 / 7</td><td>4.9%</td></tr>
+<tr><td>99%, FHS</td><td>1.26%</td><td>4 / 7</td><td>4 / 7</td><td>4 / 7</td><td>0%</td></tr>
+</tbody>
+</table>
+<p class="caption"><b>Table 1.</b> Series passing each test at the 5% level, out of seven, and the share of rolling 250-day years in the Basel red zone at 99%.</p>
+
+<p>Historical simulation keeps its coverage at 95% on every series but fails independence on all
+seven: a 250-day window needs several extreme days before its 1% quantile moves, so breaches
+arrive in runs. In the 2020 crash the S&amp;P 500 broke its 99% HS VaR 8 times between 20 February
+and 31 March. EWMA reacts within days but its normal tails are too thin, with a 99% breach rate
+between 1.6% and 2.4% on every series. FHS combines the two and is the only model with no rolling
+year in the red zone. Its cost is a larger VaR right after a shock: 10.9% on average on the
+S&amp;P 500 from April to June 2020, against 7.6% for HS.</p>
+
+<figure><img src="../research/var-covid.svg" alt="S&amp;P 500 daily returns and each model's 99% VaR in early 2020"></figure>
+<p class="caption"><b>Figure 1.</b> S&amp;P 500 daily returns and each model's 99% VaR, early 2020.</p>
+
+<h2>4. Does a fear and greed gauge predict returns?</h2>
+<p>The gauge averages five parts, each the percentile of today's value among the previous 504
+trading days: S&amp;P 500 momentum (level over its 125-day average) and strength (distance from
+the 52-week high), the VIX over its 50-day average (inverted), and the 20-day return of stocks
+and of high-yield bonds against 7–10 year Treasuries. It is available from 2 July 2007, giving
+4,882 days to 24 November 2026. The outcome is the SPY total return over the next <i>h</i>
+trading days, <i>h</i> ∈ {5, 21, 63}. Because consecutive <i>h</i>-day windows overlap, standard
+errors are Newey and West (1987) with <i>h</i> − 1 lags, and p-values are adjusted with Holm
+(1979) within each family of tests.</p>
+
+<table>
+<thead><tr><th>Horizon</th><th>Slope per 10 points</th><th><i>t</i></th><th>Holm <i>p</i></th><th><i>R</i>²</th></tr></thead>
+<tbody>
+<tr><td>5 days</td><td>−0.014 pp</td><td>−0.40</td><td>1.00</td><td>0.02%</td></tr>
+<tr><td>21 days</td><td>−0.051 pp</td><td>−0.46</td><td>1.00</td><td>0.06%</td></tr>
+<tr><td>63 days</td><td>−0.002 pp</td><td>−0.01</td><td>1.00</td><td>0.00%</td></tr>
+<tr><td>63 days, from 2010</td><td>−0.44 pp</td><td>−2.38</td><td>0.051</td><td>2.3%</td></tr>
+</tbody>
+</table>
+<p class="caption"><b>Table 2.</b> Forward SPY return regressed on the gauge. The last row leaves out 2007–2009; it was examined after the full-sample result.</p>
+
+<p>Over the full sample the slopes have the contrarian sign but no statistical weight. Without
+the 2008–09 crisis the three-month slope becomes larger (<i>t</i> = −2.38), but on a subsample
+chosen after seeing the data and with a Holm-adjusted p-value of 0.051. Forward 21-day returns by
+band tell the same story: +1.31% after extreme-fear days against +0.96% on all days, with a
+difference of +0.43 points and <i>t</i> = 0.62.</p>
+
+<figure><img src="../research/fear-greed.svg" alt="Forward 21-day return by gauge band"></figure>
+<p class="caption"><b>Figure 2.</b> Mean SPY return over the next 21 trading days by gauge band, with 95% intervals.</p>
+
+<p>The practical test is out of sample. Ten rules, five that leave the market above a greed
+threshold and five that hold half the position except below a fear threshold, were compared on
+July 2007 to December 2017 with 5 basis points per unit traded. The best of them, out of the
+market above 80, had an in-sample Sharpe ratio of 0.51 against 0.47 for holding. From January
+2018 it returned 13.1% a year against 15.6% for holding, at the same volatility; the
+probabilistic Sharpe ratio of its excess return is 0.001 and the deflated one (Bailey and López
+de Prado, 2014) is 0.00.</p>
+
+<h2>5. How much of the efficient frontier is estimation noise?</h2>
+<p>The long-only mean-variance problem, min ½ <i>w</i>′Σ<i>w</i> − <i>γ</i> <i>μ</i>′<i>w</i>
+subject to 1′<i>w</i> = 1 and 0 ≤ <i>w</i> ≤ 1, is solved with two independent methods, a
+primal active set and accelerated projected gradient (FISTA; Beck and Teboulle, 2009), which
+agree to 1e-7 and pass the Karush-Kuhn-Tucker conditions. <i>μ</i> and the Ledoit-Wolf (2004)
+covariance Σ are estimated on the daily returns of the project's example portfolio. Repeating
+the estimate on 60 stationary-bootstrap resamples (Politis and Romano, 1994; mean block of 20
+days) gives 60 frontiers.</p>
+
+<figure><img src="frontier.png" alt="Efficient frontier with 60 resampled frontiers"></figure>
+<p class="caption"><b>Figure 3.</b> Full-sample frontier (thick) and 60 resampled frontiers on the example portfolio, data to 25 November 2026.</p>
+
+<p>On the example portfolio, at its own volatility of 16.5%, the full-sample frontier promises
+21.6% a year; across resamples the promised return runs from 14% to 47% (5th to 95th
+percentile). Most resampled frontiers lie above the full-sample one, which is the optimiser's
+in-sample optimism described by Michaud (1989): each resample takes its own noise for signal
+and concentrates on the asset that happened to do best in it. The report therefore draws the
+frontier inside this cloud rather than as a single line.</p>
+
+<h2>6. Conclusion</h2>
+<p>Each of the three estimates looks precise on a screen and is not. Historical VaR is right on
+average and wrong exactly when losses arrive together; a widely quoted kind of sentiment gauge
+carries no usable timing information on nineteen years of data; and the efficient frontier
+estimated from a few years of returns is a wide band, not a line. None of these findings is new
+to the literature; the contribution is to apply the tests where the estimates are shown, so the
+reader of the report sees the test beside the number.</p>
+
+<h2>Limitations</h2>
+<p class="small">The seven VaR series are correlated, so they are not independent experiments.
+The gauge is a reconstruction, not the proprietary index it resembles, and its design follows an
+index published after many of the sample's events. The S&amp;P 500 rose over most of the sample,
+which penalises any rule that leaves the market. The frontier result is shown for one portfolio.
+Free data have gaps and adjustment errors.</p>
+
+<h2>References</h2>
+<div class="refs">
+<p>Bailey, D., López de Prado, M. (2014). The deflated Sharpe ratio. <i>Journal of Portfolio Management</i>, 40(5), 94–107.</p>
+<p>Barone-Adesi, G., Giannopoulos, K., Vosper, L. (1999). VaR without correlations for portfolios of derivative securities. <i>Journal of Futures Markets</i>, 19(5), 583–602.</p>
+<p>Basel Committee on Banking Supervision (1996). <i>Supervisory framework for the use of "backtesting" in conjunction with the internal models approach to market risk capital requirements.</i></p>
+<p>Beck, A., Teboulle, M. (2009). A fast iterative shrinkage-thresholding algorithm for linear inverse problems. <i>SIAM Journal on Imaging Sciences</i>, 2(1), 183–202.</p>
+<p>Christoffersen, P. (1998). Evaluating interval forecasts. <i>International Economic Review</i>, 39(4), 841–862.</p>
+<p>Holm, S. (1979). A simple sequentially rejective multiple test procedure. <i>Scandinavian Journal of Statistics</i>, 6(2), 65–70.</p>
+<p>Hull, J., White, A. (1998). Incorporating volatility updating into the historical simulation method for value-at-risk. <i>Journal of Risk</i>, 1(1), 5–19.</p>
+<p>Kupiec, P. (1995). Techniques for verifying the accuracy of risk measurement models. <i>Journal of Derivatives</i>, 3(2), 73–84.</p>
+<p>Ledoit, O., Wolf, M. (2004). A well-conditioned estimator for large-dimensional covariance matrices. <i>Journal of Multivariate Analysis</i>, 88(2), 365–411.</p>
+<p>Michaud, R. (1989). The Markowitz optimization enigma: is "optimized" optimal? <i>Financial Analysts Journal</i>, 45(1), 31–42.</p>
+<p>Newey, W., West, K. (1987). A simple, positive semi-definite, heteroskedasticity and autocorrelation consistent covariance matrix. <i>Econometrica</i>, 55(3), 703–708.</p>
+<p>Politis, D., Romano, J. (1994). The stationary bootstrap. <i>Journal of the American Statistical Association</i>, 89(428), 1303–1313.</p>
+<p>RiskMetrics (1996). <i>Technical Document</i>, 4th edition. J.P. Morgan and Reuters.</p>
+</div>
+
+</body>
+</html>

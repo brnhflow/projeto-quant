@@ -11,7 +11,7 @@ on the page comes with the test that says how far to trust it.
 ![Types](https://img.shields.io/badge/pyright-strict-7b5cc4)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-**[Live demo](https://brnhflow.github.io/projeto-quant/)** · [Methodology](docs/METHODOLOGY.md) · [Research](docs/research/) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
+**[Live demo](https://brnhflow.github.io/projeto-quant/)** · [Methodology](docs/METHODOLOGY.md) · [Research](docs/research/) · [Paper (PDF)](docs/paper/projeto-quant-notes.pdf) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
 
 ![The demo report: tabs, charts drawing in, hover on the value chart](docs/images/demo.gif)
 
@@ -80,7 +80,7 @@ When a model fails its test, the report says so in plain language.
 | ![Scenarios](docs/images/scenarios.png) | **Scenarios.** Eight real crises applied to today's positions: 2008, euro debt, Brazil 2015, Brexit, Joesley Day, Covid, 2022 rates and FTX. Assets that did not exist yet are estimated from their closest index, with a Vasicek-shrunk beta. Sliders build any custom scenario, and a 2,000-path block-bootstrap fan shows 1 to 5 years ahead. |
 | ![Income](docs/images/income.png) | **Income.** Dividends expected month by month for the next year. Income over 25 years, with monthly contributions, reinvestment and a monthly goal. |
 | ![Opportunities](docs/images/opportunities.png) | **Opportunities.** Fixed, stated rules that flag things worth investigating: far below the 52-week high, yield above its own history, indices that would lower volatility, positions below target, concentration. These are signals, never advice. |
-| ![Rebalance](docs/images/rebalance.png) | **Rebalance.** Units to buy and sell to reach target weights: current, equal, risk parity, long-only minimum variance or your own. Includes costs, tolerance bands, whole-unit rounding and an "only add new money" mode. Every plan pays for itself. |
+| ![Rebalance](docs/images/rebalance.png) | **Rebalance.** Units to buy and sell to reach target weights: current, equal, risk parity, long-only minimum variance or your own. Includes costs, tolerance bands, whole-unit rounding and an "only add new money" mode. The plan is funded by its own sales plus any new money, and its costs are shown before any trade. |
 
 The report is a single self-contained HTML file:
 
@@ -119,6 +119,9 @@ The JavaScript maths in the page is tested with Node, and CI syntax-checks the a
 script. Formulas and details are in [docs/METHODOLOGY.md](docs/METHODOLOGY.md).
 
 ## Research
+
+The three findings are written up together as a short paper: [Testing the estimates a portfolio
+report shows](docs/paper/projeto-quant-notes.pdf) (5 pages, PDF; source in `docs/paper/`).
 
 **[Does a 95% VaR hold up? Three models on seven markets, 2008 to 2026](docs/research/var-backtest.md)**
 
@@ -190,17 +193,6 @@ uv pip install ./cpp                                    # build the extension (C
 cmake -S cpp -B build/cpp && cmake --build build/cpp && ctest --test-dir build/cpp
 uv run python research/benchmark.py
 ```
-
-## Where this makes money
-
-Firms build risk tools to make or keep money. [docs/APPLICATIONS.md](docs/APPLICATIONS.md) maps
-each part of the project to how it creates value:
-
-- **Not losing it.** Risk numbers that hold up in a crisis, and volatility-targeted sizing.
-- **Not wasting it.** Costs, taxes and currency drag, measured before any trade.
-- **Finding an edge.** Out of sample, after costs and against chance.
-
-It also covers who would pay for it as a product, and where the claims stop.
 
 ## Quick start
 
@@ -282,25 +274,18 @@ research/                    research note script and benchmark
 
 Things that went wrong, and what they changed:
 
-- **A claim I had to take back.** I first wrote that the C++ EWMA matched NumPy bit for bit. It
-  did not: NumPy sums with pairwise summation, a plain loop does not, and the last digits drift.
-  The parity tests now use a 1e-12 tolerance and the docs say why.
-- **The first C++ bootstrap was only 1.3× faster.** Copying one value at a time was the
-  bottleneck, not the arithmetic. Copying whole blocks and splitting the samples across threads,
-  each with its own SplitMix64 seed so results do not depend on the thread count, took it to 6×.
-- **Buy and hold showed 32% turnover a year.** The initial purchase was being counted as a trade.
-  It is now excluded in both the Python reference and the C++ engine, with a test on each.
-- **Four download threads corrupted the cache.** Two of them wrote the same exchange-rate file at
-  once. Writes are now atomic, behind a lock, and a damaged file is read as missing instead of
-  crashing the report.
-- **Not everything belongs in C++.** Ledoit-Wolf looked like a C++ job: the noise term built a
-  p x p matrix for every day in a Python loop. Rewriting ||xx' - S||² as (x'x)² − 2x'Sx + ||S||²
-  made NumPy 13 to 40 times faster on its own, and after that BLAS matched my C++ loop at
-  10 assets and beat it 5× at 50. The report uses NumPy; the C++ kernel stays as a tested
-  reference, and the benchmark prints both.
-- **A wrong "exact" value in a test.** The expected maximum of 20 standard normals is 1.8675 by
-  numerical integration; the closed form gives 1.90. The test checks the closed form against the
-  exact value within 2%, instead of against itself.
+- **A claim I had to take back.** The C++ EWMA was first documented as matching NumPy bit for
+  bit. It does not: NumPy sums pairwise, a plain loop does not, and the last digits drift. The
+  parity tests use a 1e-12 tolerance and the docs say why.
+- **Parallel downloads corrupted the cache.** Two threads wrote the same exchange-rate file at
+  once. Writes are now atomic and behind a lock, and a damaged file is read as missing.
+- **Not everything belongs in C++.** Rewriting the Ledoit-Wolf noise term as
+  (x'x)² − 2x'Sx + ||S||² made the NumPy version fast enough that BLAS beat my C++ loop at 50
+  assets. The report uses NumPy; the C++ kernel stays as a tested reference and the benchmark
+  prints both.
+- **A test that checked a formula against itself.** The expected maximum of 20 standard normals
+  is 1.8675 by numerical integration; the closed-form approximation used for the deflated Sharpe
+  ratio gives 1.90. The test now compares the two, within 2%.
 
 ## Design decisions
 
@@ -370,9 +355,8 @@ browser); code, tests and documentation are in English.
 
 ## Author
 
-**Bernardo Bordignon** — Computer Science at the University of Trento, working towards quantitative
-research and trading. I designed and built this project end to end: the data pipeline, the
-statistics and their tests, the C++ core, the research note and the interface.
+**Bernardo Bordignon**, Computer Science at the University of Trento. Interested in quantitative
+research and trading; feedback and questions are welcome through the links below.
 
 [LinkedIn](https://www.linkedin.com/in/bernardobordignon/) · [GitHub](https://github.com/brnhflow)
 

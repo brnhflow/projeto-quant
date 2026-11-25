@@ -1,23 +1,20 @@
-# Where this makes money
+# How the parts would be used in practice
 
-Trading firms and asset managers build tools like this for one reason: to make or keep more
-money than they spend. This page maps each part of the project to the way it creates value,
-what it would take to turn that into an edge or a business, and where the claims stop.
+Notes on how each part of the project relates to what risk and portfolio teams do with tools
+like it, what would be needed to use it beyond a personal portfolio, and where its claims stop.
+They are a student's reading of the field, not a description of any firm's practice.
 
-## The principle
-
-Money in markets comes from three places, and only the third is hard:
+## Three kinds of value
 
 | Source | What it means | Where it is in this project |
 |---|---|---|
-| **Not losing it** | Sizing positions so a bad month cannot end the strategy; knowing when a risk model is wrong | VaR with backtests, filtered historical VaR, stress tests, Monte Carlo calibration |
-| **Not wasting it** | Paying less in costs, taxes and currency drag | Rebalancing with tolerance bands, "new money only" mode, cost estimates, FX attribution |
-| **Finding an edge** | A signal that predicts returns after costs, out of sample | Rule-based signals, walk-forward testing, the research pipeline |
+| **Avoiding losses** | Sizing positions so a bad month does not end a strategy; knowing when a risk model is wrong | VaR with backtests, filtered historical VaR, stress tests, Monte Carlo calibration |
+| **Avoiding waste** | Paying less in costs, taxes and currency drag | Rebalancing with tolerance bands, "new money only" mode, cost estimates, FX attribution |
+| **Finding an edge** | A signal that predicts returns after costs, out of sample | Walk-forward rule tests, the research notes (one of which finds no edge) |
 
-Most strategies that fail do not fail because their signal was wrong. They fail because they
-were sized on a risk number that was too small. The [research note](research/var-backtest.md)
-shows exactly this: the historical VaR most tools use was broken 8 times in 29 days in March
-2020 on the S&P 500. A fund sized on it would have run out of risk budget in the crash.
+The [VaR note](research/var-backtest.md) is the clearest example of the first: the historical VaR
+most tools show was broken 8 times in 29 days in March 2020 on the S&P 500, so a position sized on
+it would have been far riskier than it looked.
 
 ## 1. Risk that holds up in a crisis (what keeps a strategy alive)
 
