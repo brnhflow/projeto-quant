@@ -294,8 +294,12 @@ def _stability(base_prices: pd.DataFrame, risky: list[str]) -> dict[str, Any] | 
     if len(returns) < MIN_DAYS_COVARIANCE:
         return None
     x = returns.to_numpy(dtype=float)
-    point = min_variance(ledoit_wolf(returns)[0].to_numpy(dtype=float))
-    draws = resampled_weights(x, STABILITY_SAMPLES, STABILITY_BLOCK, seed=7)
+    try:
+        point = min_variance(ledoit_wolf(returns)[0].to_numpy(dtype=float))
+        draws = resampled_weights(x, STABILITY_SAMPLES, STABILITY_BLOCK, seed=7)
+    except (RuntimeError, np.linalg.LinAlgError):
+        # A degenerate sample (e.g. an asset that never moved) should cost this section only.
+        return None
     ordered = draws.copy()
     ordered.sort(axis=0)
     lo, mid, hi = (ordered[int(q * (len(draws) - 1))] for q in (0.05, 0.5, 0.95))
