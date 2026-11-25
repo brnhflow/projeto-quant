@@ -86,6 +86,12 @@ function onScreen(selector) {
 function renderCharts() {
   for (const [selector, draw] of CHARTS) if (onScreen(selector)) draw();
 }
+// The PDF prints every tab: show them all and draw every chart at its real width first.
+window.addEventListener("beforeprint", () => {
+  document.querySelectorAll(".tab-page").forEach((p) => { p.hidden = false; });
+  for (const [, draw] of CHARTS) draw();
+});
+window.addEventListener("afterprint", () => showTab(location.hash.slice(1), false));
 function renderPeriod() {
   document.querySelectorAll("#periods button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.key === current.key)));
   renderFigures(current);

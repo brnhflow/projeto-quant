@@ -524,6 +524,8 @@ h2 .num {
   .page { padding: 0; max-width: none; }
   .block { break-inside: avoid; }
   body { font-size: 12px; }
+  /* Never print a block halfway through its opening animation. */
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 .reb-fig .value.up { color: var(--pos); }
 .reb-fig .value.down { color: var(--neg); }
