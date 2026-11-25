@@ -167,7 +167,7 @@ function timeChart(host, cfg, group) {
   cfg.series.forEach((s) => {
     const pts = s.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
     if (s.area) el("path", { class: "area", d: `M${x(0)},${y(0)}L${pts.join("L")}L${x(n - 1)},${y(0)}Z`, fill: s.area }, svg);
-    el("path", Object.assign({ class: "line", d: "M" + pts.join("L"), stroke: s.color }, s.dash ? { "stroke-dasharray": "6 4", "stroke-width": 1.6 } : {}), svg);
+    el("path", Object.assign({ class: "line", d: "M" + pts.join("L"), stroke: s.color }, s.dash ? { "stroke-dasharray": "6 4", "stroke-width": 1.6 } : { pathLength: 1 }), svg);
   });
 
   if (cfg.annotate) {
@@ -217,7 +217,9 @@ function rowChart(host, rows, cfg) {
     const g = el("g", {}, svg);
     const hit = el("rect", { class: "row-hit", x: 0, y: top, width, height: rowH, rx: 4 }, g);
     text(g, m.left - 12, top + rowH / 2 + 4, row.label, { class: "row-label", "text-anchor": "end" });
-    cfg.draw(g, row, top, x);
+    // Bars grow out of the zero line when the tab opens (see .anim in the stylesheet).
+    const bars = el("g", { class: "bars", style: `transform-origin: ${x(0)}px 0; animation-delay: ${k * 35}ms` }, g);
+    cfg.draw(bars, row, top, x);
     text(g, width - 4, top + rowH / 2 + 4, cfg.value(row), { class: "row-value", "text-anchor": "end" });
     hit.addEventListener("pointermove", (ev) => showTip(cfg.tooltip(row), ev));
     hit.addEventListener("pointerleave", hideTip);
@@ -240,5 +242,58 @@ function stacked(g, parts, x, y, h) {
     if (!outer) b -= s.p.v >= 0 ? 1 : -1;
     const d = outer ? barPath(a, b, y, h, 4) : barPath(a, b, y, h, 0);
     if (d) el("path", { d, fill: s.p.color }, g);
+  });
+}
+
+// ---------------------------------------------------------------- motion
+const STILL = window.matchMedia("(prefers-reduced-motion: reduce)");
+// Each block of a tab animates once, when it first comes into view after the tab opens: lines draw,
+// bars grow, the block rises. Blocks already on screen go in turn, 60 ms apart.
+const seen = "IntersectionObserver" in window ? new IntersectionObserver((entries) => {
+  let k = 0;
+  entries.forEach((e) => {
+    if (!e.isIntersecting) return;
+    seen.unobserve(e.target);
+    play(e.target, k++ * 60);
+  });
+}, { rootMargin: "0px 0px -40px 0px" }) : null;
+function play(block, delay) {
+  block.style.animationDelay = `${delay}ms`;
+  block.classList.add("anim");
+  setTimeout(() => { block.classList.remove("anim"); block.style.animationDelay = ""; }, 1400 + delay);
+}
+function animate(page) {
+  if (STILL.matches || !page || !seen) return;
+  let k = 0;
+  page.querySelectorAll(":scope > .block, :scope > .figures").forEach((block) => {
+    if (block.hidden) return;
+    block.classList.remove("anim");
+    seen.unobserve(block);
+    // On screen now: start at once (waiting for the observer shows the block, then hides it).
+    if (block.getBoundingClientRect().top < window.innerHeight - 40) play(block, k++ * 60);
+    else seen.observe(block);
+  });
+}
+// Count the numbers in the headline figures up from zero, keeping their format.
+function countUp(root) {
+  if (STILL.matches) return;
+  const sep = (1000).toLocaleString(LOCALE).charAt(1), group = /\d/.test(sep) ? "\u0000" : sep, decimal = (1.5).toLocaleString(LOCALE).charAt(1);
+  root.querySelectorAll(".figure .value").forEach((node) => {
+    const original = node.textContent;
+    const match = original.match(/\d[\d.,\s]*\d|\d/);
+    if (!match) return;
+    const raw = match[0];
+    const digits = raw.includes(decimal) ? raw.length - raw.lastIndexOf(decimal) - 1 : 0;
+    const target = Number(raw.split(group).join("").replace(decimal, "."));
+    if (!isFinite(target) || target === 0) return;
+    const start = performance.now(), length = 650;
+    const step = (now) => {
+      if (!node.isConnected) return;
+      const t = Math.min(1, (now - start) / length), eased = 1 - Math.pow(1 - t, 3);
+      const shown = (target * eased).toLocaleString(LOCALE, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+      node.textContent = t < 1 ? original.replace(raw, shown) : original;
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   });
 }

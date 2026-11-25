@@ -34,6 +34,7 @@ function showTab(name, push) {
   if (push && location.hash !== "#" + tab) history.pushState(null, "", "#" + tab);
   hideTip();
   renderCharts();
+  animate($("page-" + tab));
 }
 $("tabs").addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-tab]");
@@ -59,24 +60,36 @@ function setBadge(tab, count) {
 }
 
 // ---------------------------------------------------------------- orchestration
+// Charts on hidden tabs are skipped: they would be drawn at the wrong width and redrawn on the
+// way in anyway. Each entry names an element the chart lives in.
+const CHARTS = [
+  ["#chart-value", () => renderPerformance(current)],
+  ["#chart-attribution", () => renderAttribution(current)],
+  ["#chart-risk", () => renderRisk(current)],
+  ["#chart-factors", renderFactorChart],
+  ["#chart-future", renderFutureChart],
+  ["#chart-income-months", renderIncomeMonths],
+  ["#chart-income-future", renderIncomeFuture],
+  [".sc-bar", renderScenarioBars],
+  ["#chart-backtest", renderBacktestChart],
+  [".iv-bar", renderIntervalBars],
+  ["#page-desempenho", renderTearsheetCharts],
+  ["#page-desempenho", renderLedgerChart],
+  ["#page-desempenho", renderRulesChart],
+];
+function onScreen(selector) {
+  const node = document.querySelector(selector);
+  if (!node) return false;
+  const page = node.closest(".tab-page") || node;
+  return !page.hidden;
+}
 function renderCharts() {
-  renderPerformance(current);
-  renderAttribution(current);
-  renderRisk(current);
-  renderFactorChart();
-  renderFutureChart();
-  renderIncomeMonths();
-  renderIncomeFuture();
-  renderScenarioBars();
-  renderBacktestChart();
-  renderIntervalBars();
-  renderTearsheetCharts();
-  renderLedgerChart();
-  renderRulesChart();
+  for (const [selector, draw] of CHARTS) if (onScreen(selector)) draw();
 }
 function renderPeriod() {
   document.querySelectorAll("#periods button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.key === current.key)));
   renderFigures(current);
+  countUp($("figures"));
   renderResult();
   renderBenchmark(current);
   renderBrinson(current);
