@@ -6,8 +6,6 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from quant import core
-
 TRADING_DAYS = 252
 
 
@@ -235,12 +233,9 @@ def ledoit_wolf(returns: pd.DataFrame) -> tuple[pd.DataFrame, float]:
     """
     if returns.isna().to_numpy().any() or len(returns) < 2:
         raise ValueError("need at least two rows without missing values")
-    raw = returns.to_numpy(dtype=float)
-    fast = core.ledoit_wolf(raw)
-    if fast is not None:
-        shrunk, shrinkage = fast
-    else:
-        shrunk, shrinkage = _ledoit_wolf_numpy(raw)
+    # NumPy on purpose: with the identity below its BLAS matrix products beat the C++ loop
+    # (quant.core.ledoit_wolf) at 50 assets and tie at 10, so the extension is not used here.
+    shrunk, shrinkage = _ledoit_wolf_numpy(returns.to_numpy(dtype=float))
     return pd.DataFrame(shrunk, index=returns.columns, columns=returns.columns), shrinkage
 
 

@@ -140,13 +140,15 @@ CI builds it on every push, runs the C++ unit tests (CTest), checks every kernel
 
 | Kernel | NumPy | C++ | Speed-up |
 |---|---|---|---|
-| Rolling historical VaR, 20,000 days, 250-day window | 18.4 ms | 2.6 ms | 7.1× |
-| Filtered historical simulation VaR, 20,000 days | 53.2 ms | 2.7 ms | 19.5× |
-| Stationary bootstrap, 2,000 resamples of 2,500 days | 144 ms | 24 ms | 5.9× |
-| Monte Carlo, 2,000 paths of 5 years | 131 ms | 9.1 ms | 14.3× |
+| Rolling historical VaR, 20,000 days, 250-day window | 12.1 ms | 2.2 ms | 5.6× |
+| Filtered historical simulation VaR, 20,000 days | 29.8 ms | 2.2 ms | 13.4× |
+| Stationary bootstrap, 2,000 resamples of 2,500 days | 145 ms | 18.8 ms | 7.7× |
+| Monte Carlo, 2,000 paths of 5 years | 123 ms | 7.4 ms | 16.7× |
+| Ledoit-Wolf, 300 days x 50 assets | 0.1 ms | 0.5 ms | 0.2× (NumPy is used) |
 | Walk-forward rule backtest | reference in Python | C++ engine | checked to 1e-12 |
 
-*Measured on a GitHub Actions runner (4 vCPU); see the "Benchmark" step of any CI run.*
+*Measured on a GitHub Actions runner (4 vCPU); timings move 20–30% between runs. See the
+"Benchmark" step of any CI run.*
 
 ```bash
 uv pip install ./cpp                                    # build the extension (C++20 compiler)
@@ -256,6 +258,11 @@ Things that went wrong, and what they changed:
 - **Four download threads corrupted the cache.** Two of them wrote the same exchange-rate file at
   once. Writes are now atomic, behind a lock, and a damaged file is read as missing instead of
   crashing the report.
+- **Not everything belongs in C++.** Ledoit-Wolf looked like a C++ job: the noise term built a
+  p x p matrix for every day in a Python loop. Rewriting ||xx' - S||² as (x'x)² − 2x'Sx + ||S||²
+  made NumPy 13 to 40 times faster on its own, and after that BLAS matched my C++ loop at
+  10 assets and beat it 5× at 50. The report uses NumPy; the C++ kernel stays as a tested
+  reference, and the benchmark prints both.
 - **A wrong "exact" value in a test.** The expected maximum of 20 standard normals is 1.8675 by
   numerical integration; the closed form gives 1.90. The test checks the closed form against the
   exact value within 2%, instead of against itself.

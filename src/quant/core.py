@@ -128,7 +128,11 @@ def simulate_growth(
 
 
 def ledoit_wolf(returns: npt.NDArray[np.float64]) -> tuple[npt.NDArray[np.float64], float] | None:
-    """C++ Ledoit-Wolf covariance and shrinkage from an ``n x p`` matrix, or None without it."""
+    """C++ Ledoit-Wolf covariance and shrinkage from an ``n x p`` matrix, or None without it.
+
+    Kept as a tested kernel, but quant.risk.ledoit_wolf uses NumPy: once the noise term is
+    rewritten as matrix products, BLAS is as fast at 10 assets and faster at 50.
+    """
     if _core is None:
         return None
     matrix, shrinkage = _core.ledoit_wolf(np.ascontiguousarray(returns, dtype=np.float64))

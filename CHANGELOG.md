@@ -11,6 +11,9 @@ before 1.0 the interface may still change.
 - A demo GIF and a "Notes from building it" section in the README.
 
 ### Changed
+- Ledoit-Wolf noise term rewritten as matrix products: 13–40× faster in NumPy. A C++ kernel
+  was added and benchmarked; BLAS is faster at 50 assets, so the report keeps NumPy.
+- Finding cards jump to the section they come from and ring it briefly.
 - Charts on hidden tabs are no longer redrawn on every change; switching tabs takes 10–20 ms.
 
 ## 0.5.0 — 2026-11-25
