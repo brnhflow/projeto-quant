@@ -68,6 +68,11 @@ def main() -> int:
         finally:
             core._core = saved  # pyright: ignore[reportPrivateUsage]
 
+    from quant.risk import _ledoit_wolf_numpy  # pyright: ignore[reportPrivateUsage]
+
+    small = np.ascontiguousarray(x[:7500].reshape(750, 10))
+    wide = np.ascontiguousarray(x[:15000].reshape(300, 50))
+
     cases = [
         (
             "rolling historical VaR (250d)",
@@ -88,6 +93,16 @@ def main() -> int:
             "Monte Carlo, 2,000 paths x 5 years",
             numpy_simulation,
             lambda: simulate_growth(x[:2500], 1260, 2000, demean=True),
+        ),
+        (
+            "Ledoit-Wolf, 750 days x 10 assets",
+            lambda: _ledoit_wolf_numpy(small),
+            lambda: core.ledoit_wolf(small),
+        ),
+        (
+            "Ledoit-Wolf, 300 days x 50 assets",
+            lambda: _ledoit_wolf_numpy(wide),
+            lambda: core.ledoit_wolf(wide),
         ),
     ]
     for name, slow, fast in cases:

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "quant/backtest.hpp"
+#include "quant/covariance.hpp"
 #include "quant/risk.hpp"
 
 namespace {
@@ -127,7 +128,32 @@ void simulation_of_a_constant_log_return_is_exact() {
 
 }  // namespace
 
+// Two assets, four days, worked by hand: demeaned columns (1,-1,1,-1) and (2,0,-2,0) give
+// S = [[1,0],[0,2]], mu = 1.5, distance 0.25 and noise 32 / 32 = 1, so the shrinkage is capped at 1.
+void ledoit_wolf_matches_a_hand_computed_case() {
+    const std::vector<double> x = {1, 2, -1, 0, 1, -2, -1, 0};
+    const auto r = quant::ledoit_wolf(x, 4, 2);
+    check(near(r.shrinkage, 1.0), "noise above distance: full shrinkage");
+    check(near(r.covariance[0], 1.5) && near(r.covariance[3], 1.5) && near(r.covariance[1], 0.0),
+          "full shrinkage gives mu * I");
+}
+
+void ledoit_wolf_keeps_a_well_estimated_matrix() {
+    // Many days of two independent assets with very different variances: little noise
+    // relative to the distance from the target, so the shrinkage is small.
+    std::mt19937_64 rng(7);
+    std::normal_distribution<double> z(0.0, 1.0);
+    const std::size_t n = 5000;
+    std::vector<double> x(n * 2);
+    for (std::size_t i = 0; i < n; ++i) { x[2 * i] = 0.01 * z(rng); x[2 * i + 1] = 0.03 * z(rng); }
+    const auto r = quant::ledoit_wolf(x, n, 2);
+    check(r.shrinkage > 0.0 && r.shrinkage < 0.01, "long sample: shrinkage close to zero");
+    check(near(r.covariance[1], r.covariance[2]), "symmetric");
+}
+
 int main() {
+    ledoit_wolf_matches_a_hand_computed_case();
+    ledoit_wolf_keeps_a_well_estimated_matrix();
     simulation_of_a_constant_log_return_is_exact();
     buy_and_hold_never_trades_and_tracks_prices();
     calendar_rebalance_pays_its_costs();

@@ -125,3 +125,11 @@ def simulate_growth(
         return None
     out = _core.simulate_growth(_vector(logs), days, paths, mean_block, seed)
     return np.asarray(out, dtype=np.float64)
+
+
+def ledoit_wolf(returns: npt.NDArray[np.float64]) -> tuple[npt.NDArray[np.float64], float] | None:
+    """C++ Ledoit-Wolf covariance and shrinkage from an ``n x p`` matrix, or None without it."""
+    if _core is None:
+        return None
+    matrix, shrinkage = _core.ledoit_wolf(np.ascontiguousarray(returns, dtype=np.float64))
+    return np.asarray(matrix, dtype=np.float64), float(shrinkage)

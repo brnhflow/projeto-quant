@@ -10,6 +10,7 @@
 #include <nanobind/ndarray.h>
 
 #include "quant/backtest.hpp"
+#include "quant/covariance.hpp"
 #include "quant/risk.hpp"
 
 namespace nb = nanobind;
@@ -36,7 +37,7 @@ Output to_numpy(std::vector<double>&& v, std::size_t cols = 0) {
 }  // namespace
 
 NB_MODULE(quant_core, m) {
-    m.doc() = "C++ risk kernels for projeto-quant: rolling VaR, EWMA, FHS, drawdown, bootstrap.";
+    m.doc() = "C++ risk kernels for projeto-quant: rolling VaR, EWMA, FHS, drawdown, bootstrap, Ledoit-Wolf.";
 
     m.def(
         "historical_var",
@@ -112,4 +113,17 @@ NB_MODULE(quant_core, m) {
         },
         nb::arg("logs"), nb::arg("days"), nb::arg("paths"), nb::arg("mean_block"), nb::arg("seed"),
         "Monte Carlo growth of 1 unit: paths x days, stationary bootstrap of log returns.");
+
+    m.def(
+        "ledoit_wolf",
+        [](const Matrix& x) {
+            const std::size_t n = x.shape(0), p = x.shape(1);
+            quant::Shrunk out;
+            {
+                nb::gil_scoped_release release;
+                out = quant::ledoit_wolf({x.data(), n * p}, n, p);
+            }
+            return nb::make_tuple(to_numpy(std::move(out.covariance), p), out.shrinkage);
+        },
+        nb::arg("returns"), "Ledoit-Wolf covariance (p x p) and the shrinkage, from an n x p matrix of returns.");
 }

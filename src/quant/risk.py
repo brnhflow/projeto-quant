@@ -3,7 +3,10 @@
 import math
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
+
+from quant import core
 
 TRADING_DAYS = 252
 
@@ -232,17 +235,32 @@ def ledoit_wolf(returns: pd.DataFrame) -> tuple[pd.DataFrame, float]:
     """
     if returns.isna().to_numpy().any() or len(returns) < 2:
         raise ValueError("need at least two rows without missing values")
-    x = returns.to_numpy(dtype=float)
-    x = x - x.mean(axis=0)
+    raw = returns.to_numpy(dtype=float)
+    fast = core.ledoit_wolf(raw)
+    if fast is not None:
+        shrunk, shrinkage = fast
+    else:
+        shrunk, shrinkage = _ledoit_wolf_numpy(raw)
+    return pd.DataFrame(shrunk, index=returns.columns, columns=returns.columns), shrinkage
+
+
+def _ledoit_wolf_numpy(raw: npt.NDArray[np.float64]) -> tuple[npt.NDArray[np.float64], float]:
+    """NumPy reference of the C++ kernel (cpp/include/quant/covariance.hpp).
+
+    The noise term sums ``||x x' - S||^2`` over days; expanding the square,
+    ``(x'x)^2 - 2 x'Sx + ||S||^2``, avoids building a p x p matrix per day.
+    """
+    x = raw - raw.mean(axis=0)
     n, p = x.shape
     sample = (x.T @ x) / n
     mu = float(sample.trace()) / p
     target = mu * np.eye(p)
     distance = float(((sample - target) ** 2).sum()) / p
-    noise = sum(float(((np.outer(row, row) - sample) ** 2).sum()) for row in x) / (n * n * p)
+    norms = np.einsum("ij,ij->i", x, x)
+    quads = ((x @ sample) * x).sum(axis=1)
+    noise = float((norms**2 - 2 * quads).sum() + n * (sample**2).sum()) / (n * n * p)
     shrinkage = 0.0 if distance <= 0 else min(noise, distance) / distance
-    shrunk = shrinkage * target + (1 - shrinkage) * sample
-    return pd.DataFrame(shrunk, index=returns.columns, columns=returns.columns), shrinkage
+    return shrinkage * target + (1 - shrinkage) * sample, shrinkage
 
 
 def risk_adjusted_ratios(value: pd.Series) -> dict[str, float | None]:

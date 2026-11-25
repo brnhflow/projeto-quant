@@ -110,3 +110,40 @@ def test_simulation_agrees_with_numpy_in_distribution() -> None:
     q_slow = pd.Series(slow[:, -1]).quantile([0.05, 0.5, 0.95]).to_numpy()
     assert fast.shape == slow.shape == (3000, 252)
     assert np.abs(q_fast - q_slow).max() < 0.1 * (q_slow[2] - q_slow[0])
+
+
+def _matrix(n: int, p: int, seed: int = 3) -> np.ndarray:
+    rng = np.random.default_rng(seed)
+    mix = rng.normal(size=(p, p)) / p
+    return rng.standard_t(5, size=(n, p)) @ (np.eye(p) + mix) * 0.01
+
+
+def test_ledoit_wolf_numpy_matches_the_definition() -> None:
+    from quant.risk import _ledoit_wolf_numpy  # pyright: ignore[reportPrivateUsage]
+
+    x = _matrix(120, 6)
+    cov, shrinkage = _ledoit_wolf_numpy(x)
+
+    # The noise term written as in the paper: one outer product per day.
+    d = x - x.mean(axis=0)
+    n, p = d.shape
+    sample = d.T @ d / n
+    mu = float(sample.trace()) / p
+    distance = ((sample - mu * np.eye(p)) ** 2).sum() / p
+    noise = sum(((np.outer(r, r) - sample) ** 2).sum() for r in d) / (n * n * p)
+    expected = min(noise, distance) / distance
+    assert shrinkage == pytest.approx(expected, rel=1e-10)
+    assert cov == pytest.approx(expected * mu * np.eye(p) + (1 - expected) * sample, rel=1e-10)
+
+
+@needs_core
+def test_ledoit_wolf_matches_numpy() -> None:
+    from quant.risk import _ledoit_wolf_numpy  # pyright: ignore[reportPrivateUsage]
+
+    x = _matrix(750, 12)
+    fast = core.ledoit_wolf(x)
+    cov, shrinkage = _ledoit_wolf_numpy(x)
+
+    assert fast is not None
+    assert fast[1] == pytest.approx(shrinkage, rel=1e-10)
+    np.testing.assert_allclose(fast[0], cov, rtol=1e-10, atol=1e-16)
