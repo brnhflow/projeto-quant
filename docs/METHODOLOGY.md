@@ -623,8 +623,9 @@ distributions do not read as losses. Bands: below 25 extreme fear, 25–45 fear,
 55–75 greed, above 75 extreme greed.
 
 A percentile says where sentiment stands against the last two years, not whether prices will
-rise. Extreme readings are often treated as contrarian signals; that is not tested here and the
-page says so. The crypto gauge is alternative.me's index, shown as published.
+rise. Extreme readings are often treated as contrarian signals; the research note
+[fear-greed.md](research/fear-greed.md) tests that on 2007-2026 data and finds no predictive
+power, and the page says so. The crypto gauge is alternative.me's index, shown as published.
 
 ## References
 

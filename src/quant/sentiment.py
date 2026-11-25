@@ -15,7 +15,8 @@ Each part is scored 0-100 as the percentile of today's value among the previous 
 that same measure (inverted for volatility), so a score of 80 means "greedier than 80% of the
 last two years". The gauge is the average of the parts available. Being a rank, it says where
 sentiment stands against recent history, not whether the market will rise or fall: at extremes
-it has been read as a contrarian signal, but that is a hypothesis, not something tested here.
+it is often read as a contrarian signal, and docs/research/fear-greed.md tests that reading on
+2007-2026 data without finding predictive power.
 """
 
 from __future__ import annotations
@@ -68,18 +69,34 @@ def _num(x: float, digits: int = 2) -> float | None:
     return round(x, digits) if math.isfinite(x) else None
 
 
-def fear_greed(series: dict[str, Series]) -> dict[str, Any] | None:
-    """Gauge today, its parts, and its daily history; None without enough data."""
-    prices = {s: v.prices.dropna().astype(float) for s, v in series.items() if s in SYMBOLS}
+def part_scores(prices: dict[str, pd.Series]) -> tuple[dict[str, pd.Series], pd.DataFrame]:
+    """Raw measures and their 0-100 scores (one column per part), from price series."""
     raw = components(prices)
     scores = {
         k: (100 - _rank(v) if k == "volatility" else _rank(v)).dropna() for k, v in raw.items()
     }
     scores = {k: v for k, v in scores.items() if not v.empty}
-    if len(scores) < 3:
-        return None
-    table = pd.concat(scores, axis=1, sort=True).ffill(limit=3)
-    gauge = table.mean(axis=1, skipna=True)[table.count(axis=1) >= 3].dropna()
+    table = pd.concat(scores, axis=1, sort=True).ffill(limit=3) if scores else pd.DataFrame()
+    return raw, table
+
+
+def gauge_series(prices: dict[str, pd.Series]) -> pd.Series:
+    """Average the part scores on every day that has at least three of them.
+
+    Every score is a rank against the previous two years only, so a day's value uses no later
+    data; the research note tests it as a predictor on that basis.
+    """
+    _, table = part_scores(prices)
+    if table.shape[1] < 3:
+        return pd.Series(dtype=float)
+    return table.mean(axis=1, skipna=True)[table.count(axis=1) >= 3].dropna()
+
+
+def fear_greed(series: dict[str, Series]) -> dict[str, Any] | None:
+    """Gauge today, its parts, and its daily history; None without enough data."""
+    prices = {s: v.prices.dropna().astype(float) for s, v in series.items() if s in SYMBOLS}
+    raw, table = part_scores(prices)
+    gauge = gauge_series(prices)
     if gauge.empty:
         return None
     last = pd.Timestamp(gauge.index[-1])

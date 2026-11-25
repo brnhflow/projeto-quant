@@ -272,7 +272,7 @@ function renderFear() {
   const parts = [FG_STOCKS && describe(L("ações", "stocks"), FG_STOCKS), FG_CRYPTO && describe(L("cripto", "crypto"), FG_CRYPTO)].filter(Boolean);
   const month = FG_STOCKS && FG_STOCKS.month !== null ? L(` Há um mês, as ações marcavam ${fmt.num(FG_STOCKS.month, 0)}.`, ` A month ago stocks read ${fmt.num(FG_STOCKS.month, 0)}.`) : "";
   const contrarian = [FG_STOCKS, FG_CRYPTO].some((g) => g && (g.label === "extreme_fear" || g.label === "extreme_greed"))
-    ? L(" Leituras extremas costumam ser lidas ao contrário (\"compre no medo\"), mas isso é uma hipótese, não uma regra testada aqui.", " Extreme readings are often read the other way (\"buy the fear\"), but that is a hypothesis, not a rule tested here.") : "";
+    ? L(` Leituras extremas costumam ser lidas ao contrário ("compre no medo"); <a href="https://github.com/brnhflow/projeto-quant/blob/main/docs/research/fear-greed.md" target="_blank" rel="noopener">a pesquisa do projeto</a> testou isso de 2007 a 2026 e não encontrou poder de previsão.`, ` Extreme readings are often read the other way ("buy the fear"); <a href="https://github.com/brnhflow/projeto-quant/blob/main/docs/research/fear-greed.md" target="_blank" rel="noopener">the project's research note</a> tested that from 2007 to 2026 and found no predictive power.`) : "";
   $("mk-fear-lede").innerHTML = L(`Hoje o humor está assim: ${parts.join("; ")}.`, `Mood today: ${parts.join("; ")}.`).replace(/^(.)/, (c) => c.toUpperCase()) + month + contrarian;
   $("fg-grid").innerHTML = (FG_STOCKS ? fgCard(L("Ações (EUA)", "Stocks (US)"), L("Termômetro do projeto, 5 medidas", "This project's gauge, 5 measures"), FG_STOCKS) : "") +
     (FG_CRYPTO ? fgCard(L("Cripto", "Crypto"), "alternative.me", FG_CRYPTO) : "");
