@@ -25,6 +25,11 @@ on the page comes with the test that says how far to trust it.
   it shows no relation with the S&P 500's next week, month or quarter (all |t| < 0.5, Newey-West),
   and the best timing rule chosen on 2007-2017 lost to holding the index from 2018.
   [Note](docs/research/fear-greed.md)
+- **Brazil's breakeven inflation is a rough forecast with no measurable premium.** The inflation
+  priced into Tesouro Direto explains about 15% of the variation in the IPCA that followed, at
+  one to three years; its premium over realised inflation cannot be told from zero, and it sits
+  0.24 points above the Central Bank's Focus survey. How the curve is interpolated matters.
+  [Note](docs/research/breakeven.md)
 - **The efficient frontier is mostly estimation noise.** Re-estimated on bootstrap resamples of
   the same history, the return it promises at a given risk moves by tens of percentage points;
   the report draws the frontier inside that cloud instead of as a single line.
@@ -120,8 +125,8 @@ script. Formulas and details are in [docs/METHODOLOGY.md](docs/METHODOLOGY.md).
 
 ## Research
 
-The three findings are written up together as a short paper: [Testing the estimates a portfolio
-report shows](docs/paper/projeto-quant-notes.pdf) (5 pages, PDF; source in `docs/paper/`).
+The four findings are written up together as a short paper: [Testing the estimates a portfolio
+report shows](docs/paper/projeto-quant-notes.pdf) (6 pages, PDF; source in `docs/paper/`).
 
 **[Does a 95% VaR hold up? Three models on seven markets, 2008 to 2026](docs/research/var-backtest.md)**
 
@@ -157,6 +162,26 @@ rules chosen in one period and judged in the next.
 ![Forward 21-day return by gauge band](docs/research/fear-greed.svg)
 
 Reproduce with `uv run python research/fear_greed.py`.
+
+**[Does the inflation priced into Tesouro Direto predict Brazil's IPCA? 2005 to 2024](docs/research/breakeven.md)**
+
+The breakeven between Prefixado and IPCA+ bonds at 1, 2 and 3 years, rebuilt every month from
+the Treasury's own rate file, against the IPCA that followed, with Mincer-Zarnowitz tests,
+Newey-West errors and the Central Bank's Focus survey as a benchmark.
+
+- Built from bonds close to each horizon, the breakeven explains 14% to 16% of the variation in
+  realised inflation, with slopes of 0.5 to 0.7; an unbiased forecast is not rejected after a
+  Holm correction.
+- The inflation risk premium cannot be measured against realised inflation: breakeven minus
+  realised is -0.20, -0.07 and -0.17 points a year, each with a 95% interval of roughly ±0.6.
+  Against the Focus survey the breakeven sits 0.24 points higher (95% interval +0.02 to +0.46).
+- With the report's looser interpolation, which reaches across four-year gaps from bonds a few
+  months from maturity, the two- and three-year relation disappears. That rule was used first
+  and is reported as a robustness check.
+
+![Two-year breakeven against the IPCA of the following two years](docs/research/breakeven.svg)
+
+Reproduce with `uv run python research/breakeven.py`.
 
 ## C++ core
 

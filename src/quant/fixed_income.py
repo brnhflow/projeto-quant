@@ -61,14 +61,48 @@ def _row_points(row: pd.Series) -> Points:
     return sorted((float(str(m)), float(v)) for m, v in clean.items())
 
 
-def _tesouro_points(rows: pd.DataFrame, kinds: tuple[str, ...]) -> Points:
+def _tesouro_points(rows: pd.DataFrame, kinds: tuple[str, ...], min_years: float = 0.25) -> Points:
     chosen = rows[rows["kind"].isin(kinds)]
     years = (chosen["maturity"] - chosen["date"]).dt.days / 365.25
     pairs: dict[float, list[float]] = {}
     for y, r in zip(years, chosen["rate"], strict=True):
-        if y > 0.25:  # a bond about to mature quotes an erratic rate
+        if y > min_years:  # a bond about to mature quotes an erratic rate
             pairs.setdefault(round(float(y), 2), []).append(float(r))
     return [(y, sum(v) / len(v)) for y, v in sorted(pairs.items())]
+
+
+def _bracket_gap(points: Points, years: float) -> float:
+    """Distance between the two curve points around ``years`` (0 on an exact point)."""
+    xs = [p[0] for p in points]
+    if any(abs(x - years) < 1e-9 for x in xs):
+        return 0.0
+    below = max((x for x in xs if x < years), default=-math.inf)
+    above = min((x for x in xs if x > years), default=math.inf)
+    return above - below
+
+
+def breakeven(
+    rows: pd.DataFrame,
+    years: float,
+    *,
+    min_years: float = 0.25,
+    max_gap: float = math.inf,
+) -> float | None:
+    """Inflation priced in at ``years`` (% a year) from one day's Tesouro Direto rows.
+
+    The Prefixado and IPCA+ curves are each interpolated linearly at ``years``, and the
+    breakeven is (1 + nominal) / (1 + real) - 1. Bonds with ``min_years`` or less to maturity
+    are left out, and a curve whose two points around ``years`` are more than ``max_gap`` years
+    apart counts as not reaching it. None when either curve does not reach ``years``.
+    """
+    curves = [_tesouro_points(rows, kinds, min_years) for kinds in (NOMINAL, REAL)]
+    values = [interpolate(points, years) for points in curves]
+    nominal, real = values
+    if nominal is None or real is None:
+        return None
+    if any(_bracket_gap(points, years) > max_gap for points in curves):
+        return None
+    return ((1 + nominal / 100) / (1 + real / 100) - 1) * 100
 
 
 def _snapshot(date: pd.Timestamp, points: Points) -> dict[str, Any]:

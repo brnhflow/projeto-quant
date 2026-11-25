@@ -32,13 +32,13 @@ a { color: #1e3a6e; }
 </head>
 <body>
 
-<h1>Testing the estimates a portfolio report shows:<br>VaR timing, a sentiment gauge and the efficient frontier</h1>
+<h1>Testing the estimates a portfolio report shows:<br>VaR timing, a sentiment gauge, the efficient frontier<br>and Brazil's breakeven inflation</h1>
 <p class="author">Bernardo Bordignon</p>
 <p class="affil">University of Trento, Department of Information Engineering and Computer Science<br>November 2026 · Code and data: github.com/brnhflow/projeto-quant</p>
 
 <div class="abstract">
 <p><b>Abstract.</b> Portfolio reports usually show risk and return estimates without saying how
-far to trust them. This note applies standard out-of-sample tests to three estimates such a
+far to trust them. This note applies standard out-of-sample tests to four estimates such a
 report shows. First, one-day historical-simulation VaR keeps its promised breach rate on seven
 equity and crypto series from 2008 to 2026, but its breaches cluster on all seven; filtered
 historical simulation removes most of the clustering. Second, a five-part fear and greed gauge
@@ -46,17 +46,22 @@ rebuilt from public prices has no detectable relation with S&amp;P 500 returns o
 week, month or quarter from 2007 to 2026, and the best of ten timing rules chosen on the first
 half of the sample underperforms holding the index in the second. Third, re-estimating a
 long-only efficient frontier on bootstrap resamples of the same history moves the return it
-promises at a given risk by tens of percentage points. All results are reproducible from the
+promises at a given risk by tens of percentage points. Fourth, the inflation priced into
+Brazil's Tesouro Direto bonds explains about 15% of the variation in the IPCA of the next one to
+three years over 2005–2024; its inflation risk premium cannot be told from zero against realised
+inflation, and it sits a quarter of a point above the central bank's survey. All results are reproducible from the
 public repository.</p>
 </div>
 
 <h2>1. Introduction</h2>
 <p>A risk figure on a screen looks equally confident whether it rests on a good model or on
 noise. This project, a portfolio analysis tool written for my own use, treats every estimate it
-shows as a claim to be tested on data it did not see. This note collects the three tests whose
+shows as a claim to be tested on data it did not see. This note collects the four tests whose
 results changed what the tool shows: whether historical VaR fails at the right times
 (Section 3), whether a sentiment gauge carries information about future returns (Section 4),
-and how much of an estimated efficient frontier survives estimation error (Section 5).</p>
+how much of an estimated efficient frontier survives estimation error (Section 5), and whether
+the inflation priced into Brazilian government bonds forecasts the inflation that followed
+(Section 6).</p>
 
 <h2>2. Data and implementation</h2>
 <p>Prices are daily closes from Yahoo Finance; index levels are in local currency, and exchange
@@ -64,7 +69,10 @@ rates, where needed, are the European Central Bank reference rates. Every foreca
 <i>t</i> uses only data up to <i>t</i> − 1, and the software checks this by changing future
 data and asserting that past results do not move. The analysis is written in Python with a
 C++20 core for the resampling and rolling-window computations; both implementations are run
-against each other on every change, to 1e-12 or by the optimality conditions of the problem.</p>
+against each other on every change, to 1e-12 or by the optimality conditions of the problem.
+Section 6 uses official Brazilian sources instead: Tesouro Direto rates from Tesouro
+Transparente, IPCA from the Central Bank's SGS (series 433) and the Focus survey from its Olinda
+API.</p>
 
 <h2>3. Does historical VaR fail at the right times?</h2>
 <p>A one-day VaR at level <i>α</i> makes two promises: losses beyond it occur on a fraction
@@ -158,11 +166,61 @@ in-sample optimism described by Michaud (1989): each resample takes its own nois
 and concentrates on the asset that happened to do best in it. The report therefore draws the
 frontier inside this cloud rather than as a single line.</p>
 
-<h2>6. Conclusion</h2>
-<p>Each of the three estimates looks precise on a screen and is not. Historical VaR is right on
+<h2>6. Does the inflation priced into Tesouro Direto predict the IPCA?</h2>
+<p>Brazil's Treasury sells fixed-rate (Prefixado) and inflation-linked (IPCA+) bonds to the
+public at overlapping maturities. On the last trading day of each month both curves are
+interpolated linearly at <i>h</i> ∈ {1, 2, 3} years from the buy rates of the zero-coupon and
+coupon bonds of each kind, and the breakeven is (1 + nominal)/(1 + real) − 1. Bonds with half a
+year or less to maturity are left out, and a curve reaches <i>h</i> only if its two bonds around
+<i>h</i> are at most two years apart; months that fail are left out. These two limits were
+added after a first run, which used the report's looser rule and produced a negative two-year
+breakeven in April 2020 from a bond 3.5 months from maturity. The outcome is the IPCA
+compounded over the 12<i>h</i> months after the observation month, annualised; the last
+forecast that can be scored is from January 2024. Each test is a Mincer and Zarnowitz (1969)
+regression of realised inflation on the breakeven with a joint Wald test of intercept 0 and
+slope 1, Newey-West errors with 12<i>h</i> − 1 lags and Holm correction across horizons; the
+premium is estimated as the mean of breakeven minus realised.</p>
+
+<table>
+<thead><tr><th>Horizon</th><th>Months</th><th>Windows</th><th>Slope (se)</th><th><i>R</i>²</th><th>Holm <i>p</i></th><th>Breakeven − realised [95%]</th></tr></thead>
+<tbody>
+<tr><td>1 year</td><td>51</td><td>~18</td><td>0.66 (0.30)</td><td>0.16</td><td>0.38</td><td>−0.20 pp [−0.75, +0.35]</td></tr>
+<tr><td>2 years</td><td>155</td><td>~9</td><td>0.52 (0.28)</td><td>0.16</td><td>0.13</td><td>−0.07 pp [−0.74, +0.61]</td></tr>
+<tr><td>3 years</td><td>148</td><td>~6</td><td>0.59 (0.27)</td><td>0.14</td><td>0.13</td><td>−0.17 pp [−0.86, +0.52]</td></tr>
+<tr><td>2 years, report's rule</td><td>200</td><td>~10</td><td>0.18 (0.30)</td><td>0.02</td><td>0.006*</td><td>−0.20 pp [−0.90, +0.51]</td></tr>
+</tbody>
+</table>
+<p class="caption"><b>Table 3.</b> Realised IPCA regressed on the Tesouro Direto breakeven. Windows: span of the sample divided by the horizon, the number of non-overlapping observations. Holm <i>p</i> is for the joint test of intercept 0 and slope 1. *Unadjusted; the looser rule was the first one run.</p>
+
+<p>With the stricter rule the breakeven carries some information at every horizon, with slopes
+between one and two standard errors below one, and an unbiased forecast is not rejected after
+correction. No premium over realised inflation can be detected: the estimates are slightly
+negative and their intervals are about ±0.6 points wide. Single episodes move the mean by more
+than a plausible premium; the two-year breakeven observed in 2014 was 2.3 points too low ahead
+of the 10.7% inflation of 2015. Under the report's looser rule the two- and three-year relation
+disappears. Much of that difference comes from forecasts made in 2018–2020, when no IPCA+ bonds
+near two years were on sale; the stricter two-year sample has no forecasts from 2019 to 2021,
+and so also misses the 2021–22 inflation surge.</p>
+
+<figure><img src="../research/breakeven.svg" alt="Two-year breakeven against realised IPCA"></figure>
+<p class="caption"><b>Figure 4.</b> Two-year Tesouro Direto breakeven (stricter rule) and the IPCA of the following two years, by month of observation.</p>
+
+<p>The Central Bank's Focus survey (median forecast for the next twelve months) underpredicted by
+0.69 points on average over 251 months. On the 51 months it shares with the one-year breakeven,
+the breakeven had the lower root mean squared error, 1.37 points against 1.50, a difference a
+Diebold and Mariano (1995) test does not find significant (<i>t</i> = −1.73, <i>p</i> = 0.083).
+The gap between breakeven and survey, which does not depend on the outcome, averaged +0.24 points
+(95% interval +0.02 to +0.46): the sign and rough size an inflation risk premium predicts, though
+on few and scattered months.</p>
+
+<h2>7. Conclusion</h2>
+<p>Each of the four estimates looks precise on a screen and is not. Historical VaR is right on
 average and wrong exactly when losses arrive together; a widely quoted kind of sentiment gauge
-carries no usable timing information on nineteen years of data; and the efficient frontier
-estimated from a few years of returns is a wide band, not a line. None of these findings is new
+carries no usable timing information on nineteen years of data; the efficient frontier
+estimated from a few years of returns is a wide band, not a line; and Brazil's breakeven
+inflation is a rough forecast whose risk premium is too small to measure against the inflation
+surprises of the last two decades, and whose forecasting record depends on how the curve is
+built. None of these findings is new
 to the literature; the contribution is to apply the tests where the estimates are shown, so the
 reader of the report sees the test beside the number.</p>
 
@@ -171,6 +229,9 @@ reader of the report sees the test beside the number.</p>
 The gauge is a reconstruction, not the proprietary index it resembles, and its design follows an
 index published after many of the sample's events. The S&amp;P 500 rose over most of the sample,
 which penalises any rule that leaves the market. The frontier result is shown for one portfolio.
+The breakeven uses retail buy rates and yields of coupon bonds rather than a fitted zero-coupon
+curve, its interpolation rule was tightened after a first run, and at three years the sample
+holds only about six non-overlapping windows.
 Free data have gaps and adjustment errors.</p>
 
 <h2>References</h2>
@@ -180,11 +241,13 @@ Free data have gaps and adjustment errors.</p>
 <p>Basel Committee on Banking Supervision (1996). <i>Supervisory framework for the use of "backtesting" in conjunction with the internal models approach to market risk capital requirements.</i></p>
 <p>Beck, A., Teboulle, M. (2009). A fast iterative shrinkage-thresholding algorithm for linear inverse problems. <i>SIAM Journal on Imaging Sciences</i>, 2(1), 183–202.</p>
 <p>Christoffersen, P. (1998). Evaluating interval forecasts. <i>International Economic Review</i>, 39(4), 841–862.</p>
+<p>Diebold, F., Mariano, R. (1995). Comparing predictive accuracy. <i>Journal of Business and Economic Statistics</i>, 13(3), 253–263.</p>
 <p>Holm, S. (1979). A simple sequentially rejective multiple test procedure. <i>Scandinavian Journal of Statistics</i>, 6(2), 65–70.</p>
 <p>Hull, J., White, A. (1998). Incorporating volatility updating into the historical simulation method for value-at-risk. <i>Journal of Risk</i>, 1(1), 5–19.</p>
 <p>Kupiec, P. (1995). Techniques for verifying the accuracy of risk measurement models. <i>Journal of Derivatives</i>, 3(2), 73–84.</p>
 <p>Ledoit, O., Wolf, M. (2004). A well-conditioned estimator for large-dimensional covariance matrices. <i>Journal of Multivariate Analysis</i>, 88(2), 365–411.</p>
 <p>Michaud, R. (1989). The Markowitz optimization enigma: is "optimized" optimal? <i>Financial Analysts Journal</i>, 45(1), 31–42.</p>
+<p>Mincer, J., Zarnowitz, V. (1969). The evaluation of economic forecasts. In J. Mincer (ed.), <i>Economic Forecasts and Expectations</i>, 3–46. NBER.</p>
 <p>Newey, W., West, K. (1987). A simple, positive semi-definite, heteroskedasticity and autocorrelation consistent covariance matrix. <i>Econometrica</i>, 55(3), 703–708.</p>
 <p>Politis, D., Romano, J. (1994). The stationary bootstrap. <i>Journal of the American Statistical Association</i>, 89(428), 1303–1313.</p>
 <p>RiskMetrics (1996). <i>Technical Document</i>, 4th edition. J.P. Morgan and Reuters.</p>

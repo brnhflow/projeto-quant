@@ -191,8 +191,8 @@ function renderBreakeven() {
   $("fi-breakeven").hidden = !be.length;
   if (!be.length) return;
   const avg = be.reduce((s, b) => s + b.implied, 0) / be.length;
-  $("fi-be-lede").innerHTML = L(`Comparando o prefixado com o IPCA+ do mesmo prazo, o mercado embute uma inflação de <strong>${fiPct(avg)}</strong> ao ano em média. É um teto: inclui um prêmio pelo risco de a inflação surpreender.`,
-    `Comparing fixed-rate with IPCA+ bonds of the same maturity, the market prices in inflation of <strong>${fiPct(avg)}</strong> a year on average. It is an upper estimate: it includes a premium for the risk of inflation surprises.`);
+  $("fi-be-lede").innerHTML = L(`Comparando o prefixado com o IPCA+ do mesmo prazo, o mercado embute uma inflação de <strong>${fiPct(avg)}</strong> ao ano em média. Em tese inclui um prêmio pelo risco de a inflação surpreender; <a href="https://github.com/brnhflow/projeto-quant/blob/main/docs/research/breakeven.md" target="_blank" rel="noopener">a pesquisa do projeto</a> achou esse número uma previsão grosseira de 2005 a 2024 e não conseguiu medir o prêmio.`,
+    `Comparing fixed-rate with IPCA+ bonds of the same maturity, the market prices in inflation of <strong>${fiPct(avg)}</strong> a year on average. In theory it includes a premium for the risk of inflation surprises; <a href="https://github.com/brnhflow/projeto-quant/blob/main/docs/research/breakeven.md" target="_blank" rel="noopener">the project's research note</a> found it a rough forecast from 2005 to 2024 and could not measure the premium.`);
   const fails = FI.failed.length;
   $("fi-source").textContent = L("Fontes oficiais: Tesouro dos EUA, BCE, Banco da Inglaterra, Ministério das Finanças do Japão, Tesouro Nacional, Banco Central do Brasil, Fed de Nova York.",
     "Official sources: US Treasury, ECB, Bank of England, Japan Ministry of Finance, Tesouro Nacional, Banco Central do Brasil, New York Fed.") +

@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -102,3 +103,71 @@ def test_brazil_curve_tesouro_table_and_breakeven() -> None:
 def test_nothing_downloaded_gives_none() -> None:
     assert fixed_income(None) is None
     assert fixed_income(RatesData()) is None
+
+
+def test_breakeven_interpolates_both_curves_and_needs_both_to_reach() -> None:
+    from quant.fixed_income import breakeven
+
+    day = pd.Timestamp("2020-01-02")
+    items = [
+        ("Tesouro Prefixado", "2021-01-02", 10.0),
+        ("Tesouro Prefixado com Juros Semestrais", "2025-01-02", 12.0),
+        ("Tesouro IPCA+", "2022-01-02", 4.0),
+        ("Tesouro IPCA+ com Juros Semestrais", "2024-01-02", 5.0),
+        ("Tesouro Selic", "2023-01-02", 0.1),
+    ]
+    rows = pd.DataFrame(
+        {
+            "date": day,
+            "kind": [k for k, _, _ in items],
+            "maturity": pd.to_datetime([m for _, m, _ in items]),
+            "rate": [r for _, _, r in items],
+        }
+    )
+    years = (pd.Timestamp("2023-01-02") - day).days / 365.25
+    nominal = float(np.interp(years, [366 / 365.25, 1827 / 365.25], [10.0, 12.0]))
+    real = float(np.interp(years, [731 / 365.25, 1461 / 365.25], [4.0, 5.0]))
+
+    expected = ((1 + nominal / 100) / (1 + real / 100) - 1) * 100
+    # Maturities are rounded to 0.01 years before interpolating.
+    assert breakeven(rows, years) == pytest.approx(expected, abs=0.005)
+    # The IPCA+ curve starts at two years, so one year is out of reach.
+    assert breakeven(rows, 1.0) is None
+
+
+def test_breakeven_can_skip_bonds_near_maturity_and_wide_gaps() -> None:
+    from quant.fixed_income import breakeven
+
+    day = pd.Timestamp("2020-04-30")
+    items = [
+        ("Tesouro Prefixado", "2021-04-30", 3.0),
+        ("Tesouro Prefixado", "2023-04-30", 5.0),
+        ("Tesouro IPCA+ com Juros Semestrais", "2020-08-15", 6.0),  # 3.5 months left
+        ("Tesouro IPCA+", "2024-08-15", 3.0),
+    ]
+    rows = pd.DataFrame(
+        {
+            "date": day,
+            "kind": [k for k, _, _ in items],
+            "maturity": pd.to_datetime([m for _, m, _ in items]),
+            "rate": [r for _, _, r in items],
+        }
+    )
+    # The default rule interpolates the real curve between the two IPCA+ bonds, 4 years apart.
+    assert breakeven(rows, 2.0) is not None
+    # Without the bond near maturity the real curve no longer reaches two years.
+    assert breakeven(rows, 2.0, min_years=0.5) is None
+    # Keeping it but refusing gaps wider than two years also leaves the month out.
+    assert breakeven(rows, 2.0, max_gap=2.0) is None
+    # A real bond at two years restores it; the nominal bonds two years apart are within limit.
+    near = pd.DataFrame(
+        {
+            "date": [day],
+            "kind": ["Tesouro IPCA+"],
+            "maturity": [pd.Timestamp("2022-04-30")],
+            "rate": [3.5],
+        }
+    )
+    both = pd.concat([rows, near], ignore_index=True)
+    strict = breakeven(both, 2.0, min_years=0.5, max_gap=2.0)
+    assert strict == pytest.approx((1.04 / 1.035 - 1) * 100, abs=0.01)

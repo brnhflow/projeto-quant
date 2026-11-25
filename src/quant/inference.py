@@ -81,6 +81,37 @@ def ols_hac(
     return Regression(float(beta[0]), slope, se, t, 2 * normal_sf(abs(t)), r2, n, matrix)
 
 
+def mean_hac(y: Sequence[float] | FloatArray, lags: int) -> tuple[float, float, int]:
+    """Mean of ``y``, its Newey-West standard error and the number of observations used.
+
+    The error is the long-run standard deviation over the square root of n, with Bartlett
+    weights on ``lags`` autocovariances. Missing values are dropped.
+    """
+    yv = np.asarray(y, dtype=float)
+    yv = yv[np.isfinite(yv)]
+    n = len(yv)
+    if n < 2 or lags < 0:
+        raise ValueError("need at least 2 observations and lags >= 0")
+    mean = float(yv.mean())
+    e = yv - mean
+    variance = float(e @ e) / n
+    for lag in range(1, min(lags, n - 1) + 1):
+        variance += 2 * (1 - lag / (lags + 1)) * float(e[lag:] @ e[:-lag]) / n
+    return mean, math.sqrt(max(variance, 0.0) / n), n
+
+
+def wald_joint(fit: Regression, intercept: float, slope: float) -> tuple[float, float]:
+    """Wald test that the intercept and slope equal the given values, with the fit's covariance.
+
+    Returns the statistic and its p-value from a chi-squared with 2 degrees of freedom, whose
+    upper tail is exp(-w / 2). The Mincer-Zarnowitz test of an unbiased forecast uses (0, 1).
+    """
+    d = np.array([fit.intercept - intercept, fit.slope - slope])
+    cov = np.array(fit.cov, dtype=float)
+    stat = float(d @ np.linalg.solve(cov, d))
+    return stat, math.exp(-stat / 2)
+
+
 def holm(p_values: Sequence[float]) -> list[float]:
     """Holm-adjusted p-values, in the order given (each capped at 1, monotone in rank)."""
     m = len(p_values)
