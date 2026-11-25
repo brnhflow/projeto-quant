@@ -1112,3 +1112,13 @@ button:active:not(:disabled), .ghost:active { transform: scale(0.97); }
   .tab-ink, .seg-thumb, .tip { transition: none; }
 }
 .reb-fig[hidden] { display: none; }
+
+/* ---------------------------------------------------------------- chart polish */
+.x-tag rect { fill: var(--ink); }
+.x-tag text { fill: var(--paper); font: 600 10.5px var(--sans); }
+@keyframes redraw { from { opacity: 0.35; } to { opacity: 1; } }
+.chart.redraw svg { animation: redraw 380ms ease-out; }
+.pin-sentinel { height: 1px; margin-bottom: -1px; }
+.tabs-wrap { transition: box-shadow 200ms ease; }
+.tabs-wrap.stuck { box-shadow: 0 6px 16px -10px rgba(15, 23, 42, 0.35); }
+@media (prefers-reduced-motion: reduce) { .chart.redraw svg { animation: none; } }

@@ -230,13 +230,24 @@ function timeChart(host, cfg, group) {
   hit.addEventListener("pointerdown", (ev) => group.hover(index(ev), ev));
   hit.addEventListener("pointerleave", () => group.leave());
 
+  // A date tag rides the crosshair along the time axis, as on a terminal chart.
+  const dateTag = el("g", { class: "x-tag", visibility: "hidden" }, svg);
+  const dateBox = el("rect", { y: height - m.bottom + 4, height: 18, rx: 4 }, dateTag);
+  const dateText = text(dateTag, 0, height - m.bottom + 17, "", { "text-anchor": "middle" });
   group.add({
     mark(i) {
       const vis = i === null ? "hidden" : "visible";
       cross.setAttribute("visibility", vis);
       dots.forEach((d) => d.setAttribute("visibility", vis));
+      dateTag.setAttribute("visibility", vis);
       if (i === null) return;
       cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i));
+      dateText.textContent = dateLong(cfg.dates[i]);
+      const w = dateText.getComputedTextLength() + 14;
+      const cx = Math.max(m.left + w / 2, Math.min(width - m.right - w / 2, x(i)));
+      dateText.setAttribute("x", cx);
+      dateBox.setAttribute("x", cx - w / 2);
+      dateBox.setAttribute("width", w);
       cfg.series.forEach((s, k) => { dots[k].setAttribute("cx", x(i)); dots[k].setAttribute("cy", y(s.values[i])); });
     },
   });
@@ -313,7 +324,8 @@ function animate(page) {
     else seen.observe(block);
   });
 }
-// Count the numbers in the headline figures up from zero, keeping their format.
+// Count the numbers in the headline figures up, keeping their format.
+const lastFigure = new Map();
 function countUp(root) {
   if (STILL.matches) return;
   const sep = (1000).toLocaleString(LOCALE).charAt(1), group = /\d/.test(sep) ? "\u0000" : sep, decimal = (1.5).toLocaleString(LOCALE).charAt(1);
@@ -325,11 +337,17 @@ function countUp(root) {
     const digits = raw.includes(decimal) ? raw.length - raw.lastIndexOf(decimal) - 1 : 0;
     const target = Number(raw.split(group).join("").replace(decimal, "."));
     if (!isFinite(target) || target === 0) return;
+    // After the first time, a figure rolls from what it showed before, not from zero.
+    const key = (node.closest(".figure, .reb-fig, .fg-card") || node).querySelector(".label, header strong");
+    const label = key ? key.textContent : "";
+    const from = label && lastFigure.has(label) ? lastFigure.get(label) : 0;
+    if (label) lastFigure.set(label, target);
+    if (from === target) return;
     const start = performance.now(), length = 650;
     const step = (now) => {
       if (!node.isConnected) return;
       const t = Math.min(1, (now - start) / length), eased = 1 - Math.pow(1 - t, 3);
-      const shown = (target * eased).toLocaleString(LOCALE, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+      const shown = (from + (target - from) * eased).toLocaleString(LOCALE, { minimumFractionDigits: digits, maximumFractionDigits: digits });
       node.textContent = t < 1 ? original.replace(raw, shown) : original;
       if (t < 1) requestAnimationFrame(step);
     };

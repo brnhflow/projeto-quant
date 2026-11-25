@@ -150,6 +150,8 @@ window.addEventListener("beforeprint", () => {
 });
 window.addEventListener("afterprint", () => showTab(location.hash.slice(1), false));
 function renderPeriod() {
+  // Charts redrawn for a new period fade in, so the change reads as one movement.
+  if (!STILL.matches) document.querySelectorAll("#chart-value, #chart-drawdown, #chart-risk, #chart-attribution").forEach((c) => { c.classList.remove("redraw"); void c.offsetWidth; c.classList.add("redraw"); });
   document.querySelectorAll("#periods button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.key === current.key)));
   renderFigures(current);
   countUp($("figures"));
@@ -203,3 +205,10 @@ themeSwitch($("theme"), retheme);
 startLive();
 watchSegmented();
 requestAnimationFrame(moveInk);
+// The tab bar casts a shadow once it is pinned to the top of the window.
+if ("IntersectionObserver" in window) {
+  const pin = document.createElement("div");
+  pin.className = "pin-sentinel";
+  $("tabs-wrap").before(pin);
+  new IntersectionObserver(([e]) => $("tabs-wrap").classList.toggle("stuck", !e.isIntersecting)).observe(pin);
+}
