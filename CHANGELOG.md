@@ -34,6 +34,11 @@ before 1.0 the interface may still change.
 - A demo GIF and a "Notes from building it" section in the README.
 
 ### Changed
+- **Institutional redesign** of the report and the editor: brand bar, navy palette, sans-serif
+  headings, panels on a tinted page, underlined tabs, small-caps table headers over a strong
+  rule, quiet axes, value tags at the end of the main lines, and a source line under every key
+  chart. A light/dark switch in the header (remembered per browser; the system theme otherwise)
+  and a one-line "In this tab" explanation under the tabs.
 - Ledoit-Wolf noise term rewritten as matrix products: 13–40× faster in NumPy. A C++ kernel
   was added and benchmarked; BLAS is faster at 50 assets, so the report keeps NumPy.
 - Finding cards jump to the section they come from and ring it briefly.

@@ -17,12 +17,31 @@ const TAB_ICONS = {
   rebalancear: '<path d="M10 3v14M6 17h8"/><path d="M4 6.5h12"/><path d="M4 6.5 2 11.5h4zM16 6.5l-2 5h4z"/>',
   metodo: '<path d="M4 4.5c2-1 4-1 6 .5v12c-2-1.5-4-1.5-6-.5z"/><path d="M16 4.5c-2-1-4-1-6 .5v12c2-1.5 4-1.5 6-.5z"/>',
 };
+// One line under the tabs saying what the open tab answers, for readers new to the terms.
+const TAB_INTRO = {
+  resumo: L("quanto a carteira vale, quanto rendeu e o que mais chama atenção agora.", "what the portfolio is worth, what it returned and what stands out now."),
+  mercado: L("bolsas, moedas, juros, commodities e cripto, o humor do mercado e o que fugiu do normal.", "indices, currencies, rates, commodities and crypto, market mood and what moved unusually."),
+  juros: L("juros dos títulos de governo de cinco países, os títulos do Tesouro Direto e a inflação que o mercado espera.", "government bond yields in five countries, Tesouro Direto bonds and the inflation markets price in."),
+  desempenho: L("de onde veio o resultado: comparação com índices, contribuição de cada ativo e regras testadas.", "where the result came from: against indices, by asset, and rules backtested."),
+  semana: L("ativos da carteira que se mexeram fora do normal e as notícias que ajudam a explicar.", "holdings that moved more than usual, with the headlines that help explain why."),
+  risco: L("quanto a carteira pode oscilar e perder, de onde vem o risco e se as medidas acertaram no passado.", "how much the portfolio can swing and lose, where the risk comes from, and whether the measures held up."),
+  cenarios: L("o que aconteceria numa crise como as do passado, e os caminhos possíveis para os próximos anos.", "what past crises would do today, and the range of paths for the next few years."),
+  renda: L("dividendos e juros que a carteira paga, mês a mês, e quanto pode render no futuro.", "dividends and interest the portfolio pays, month by month, and what it could pay later."),
+  oportunidades: L("sinais de regras fixas que merecem uma olhada. Não são recomendação.", "signals from fixed rules worth a look. Not advice."),
+  rebalancear: L("quanto comprar ou vender de cada ativo para chegar aos pesos que você quer.", "how much to buy or sell of each asset to reach the weights you want."),
+  metodo: L("como cada número é calculado, as premissas e um glossário.", "how each number is computed, the assumptions, and a glossary."),
+};
+function renderTabIntro(tab) {
+  const text = TAB_INTRO[tab];
+  $("tab-intro").innerHTML = text ? `<strong>${L("Nesta aba:", "In this tab:")}</strong><span>${text}</span>` : "";
+}
 const TABS = [...document.querySelectorAll("#tabs [data-tab]")].map((b) => b.dataset.tab);
 document.querySelectorAll("#tabs .tab-icon").forEach((s) => {
   s.innerHTML = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${TAB_ICONS[s.dataset.icon] || ""}</svg>`;
 });
 function showTab(name, push) {
   const tab = TABS.includes(name) ? name : "resumo";
+  renderTabIntro(tab);
   document.querySelectorAll(".tab-page").forEach((p) => { p.hidden = p.dataset.page !== tab; });
   document.querySelectorAll("#tabs [data-tab]").forEach((b) => {
     const on = b.dataset.tab === tab;
@@ -155,4 +174,9 @@ new ResizeObserver(() => {
   cancelAnimationFrame(pending);
   pending = requestAnimationFrame(renderCharts);
 }).observe(document.body);
-window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { renderMix(); renderTrust(); renderStress(); renderFactors(); renderTearsheet(); renderPeriod(); });
+// Colours are read from the stylesheet when a chart is drawn, so a theme change redraws everything.
+function retheme() {
+  renderMix(); renderTrust(); renderStress(); renderFactors(); renderTearsheet(); renderMarket(); renderFear(); renderFixedIncome(); renderPeriod();
+}
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", retheme);
+themeSwitch($("theme"), retheme);

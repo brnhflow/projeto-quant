@@ -154,7 +154,7 @@ function timeTicks(dates, width) {
 function timeChart(host, cfg, group) {
   const height = +host.dataset.height || 240;
   const { svg, width } = svgFor(host, height);
-  const m = { left: cfg.left || 64, right: 12, top: 10, bottom: 26 };
+  const m = { left: cfg.left || 64, right: cfg.endLabel ? 78 : 12, top: 10, bottom: 26 };
   const n = cfg.dates.length;
   const all = cfg.series.flatMap((s) => s.values);
   let lo = Math.min(...all), hi = Math.max(...all);
@@ -174,11 +174,30 @@ function timeChart(host, cfg, group) {
     text(axis, x(t.i), height - 6, t.label, { "text-anchor": "middle" });
   });
 
-  cfg.series.forEach((s) => {
+  cfg.series.forEach((s, k) => {
     const pts = s.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
     if (s.area) el("path", { class: "area", d: `M${x(0)},${y(0)}L${pts.join("L")}L${x(n - 1)},${y(0)}Z`, fill: s.area }, svg);
+    if (s.fade) {
+      // A soft fill from the line down to the floor of the chart, fading out.
+      const id = `fade-${host.id}-${k}`, floor = height - m.bottom;
+      const grad = el("linearGradient", { id, x1: 0, y1: 0, x2: 0, y2: 1 }, el("defs", {}, svg));
+      el("stop", { offset: "0%", "stop-color": s.fade, "stop-opacity": 0.22 }, grad);
+      el("stop", { offset: "100%", "stop-color": s.fade, "stop-opacity": 0 }, grad);
+      el("path", { class: "area", d: `M${x(0)},${floor}L${pts.join("L")}L${x(n - 1)},${floor}Z`, fill: `url(#${id})` }, svg);
+    }
     el("path", Object.assign({ class: "line", d: "M" + pts.join("L"), stroke: s.color }, s.dash ? { "stroke-dasharray": "6 4", "stroke-width": 1.6 } : { pathLength: 1 }), svg);
   });
+
+  if (cfg.endLabel) {
+    // The last value of each line in a tag at the right edge, kept apart when they would overlap.
+    const tags = cfg.series.map((s) => ({ s, v: s.values[n - 1], y: y(s.values[n - 1]) })).sort((a, b) => a.y - b.y);
+    for (let k = 1; k < tags.length; k++) if (tags[k].y - tags[k - 1].y < 20) tags[k].y = tags[k - 1].y + 20;
+    tags.forEach((t) => {
+      const g = el("g", { class: "end-tag" }, svg);
+      el("rect", { x: width - m.right + 6, y: t.y - 9, width: m.right - 8, height: 18, rx: 4, fill: t.s.dash ? cssVar("--ink-3") : t.s.color }, g);
+      text(g, width - m.right + 6 + (m.right - 8) / 2, t.y + 4, cfg.endLabel(t.v), { "text-anchor": "middle" });
+    });
+  }
 
   if (cfg.annotate) {
     const a = cfg.annotate;

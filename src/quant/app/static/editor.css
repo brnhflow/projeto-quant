@@ -23,12 +23,8 @@
   background: color-mix(in srgb, var(--tc, var(--ink-2)) 14%, transparent);
 }
 .results .type-badge, .holdings .type-badge { width: 26px; height: 26px; margin-right: 8px; }
-.t-acao { --tc: #2a78d6; } .t-fii { --tc: #b0662c; } .t-etf { --tc: #2f8f6b; } .t-bdr { --tc: #7b5cc4; }
-.t-fundo { --tc: #8a7a2e; } .t-cripto { --tc: #c4562f; } .t-caixa { --tc: #5f6f7a; } .t-all { --tc: var(--ink-2); }
-@media (prefers-color-scheme: dark) {
-  .t-acao { --tc: #5b9cf0; } .t-fii { --tc: #e0955a; } .t-etf { --tc: #5cc59b; } .t-bdr { --tc: #a68cf0; }
-  .t-fundo { --tc: #c9b45a; } .t-cripto { --tc: #f08a62; } .t-caixa { --tc: #9fb0bb; }
-}
+.t-acao { --tc: var(--t-acao); } .t-fii { --tc: var(--t-fii); } .t-etf { --tc: var(--t-etf); } .t-bdr { --tc: var(--t-bdr); }
+.t-fundo { --tc: var(--t-fundo); } .t-cripto { --tc: var(--t-cripto); } .t-caixa { --tc: var(--t-caixa); } .t-all { --tc: var(--ink-2); }
 .asset-cell { display: inline-flex; align-items: center; }
 .results .sym { display: inline-flex; align-items: center; }
 
@@ -204,3 +200,9 @@
 .flash { animation: flash 1s ease-out; border-radius: 4px; }
 #analyse:not(:disabled):active { transform: translateY(1px); }
 @media (prefers-reduced-motion: reduce) { .row-new, .flash { animation: none; } .row-gone { transition: none; } }
+
+/* Same panels as the report. */
+.editor .block { background: var(--card); border: 1px solid var(--card-rule); border-radius: 10px; box-shadow: var(--shadow); padding: 22px 26px 18px; margin-top: 14px; }
+.editor .masthead { border-bottom: 0; }
+.search input, .qty, .since, select { background: var(--card); }
+.type-option { background: var(--card); }

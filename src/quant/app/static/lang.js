@@ -91,3 +91,18 @@ function languageSwitch(host) {
 }
 
 if (typeof module !== "undefined") module.exports = { L, T, LANG, LOCALE, PT_TEXT };
+
+/** Light or dark: follows the system until the reader picks one; ``onChange`` redraws charts. */
+function themeSwitch(button, onChange) {
+  if (!button) return;
+  const dark = () => {
+    const set = document.documentElement.getAttribute("data-theme");
+    return set ? set === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  };
+  button.addEventListener("click", () => {
+    const next = dark() ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("quant.theme", next); } catch { /* storage blocked: this visit only */ }
+    if (onChange) onChange();
+  });
+}

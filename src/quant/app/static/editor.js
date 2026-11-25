@@ -3,6 +3,7 @@
 
   const $ = (id) => document.getElementById(id);
   languageSwitch($("lang"));
+  themeSwitch($("theme"));
   const DRAFT = "quant.portfolio.draft";
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 

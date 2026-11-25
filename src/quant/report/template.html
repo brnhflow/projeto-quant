@@ -4,10 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{TITLE}}</title>
+<script>try{var t=localStorage.getItem("quant.theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <style>{{CSS}}</style>
 </head>
 <body>
 <div class="page">
+<div class="brand-bar"><span class="brand"><span class="brand-mark"><svg viewBox="0 0 22 22" aria-hidden="true"><rect width="22" height="22" rx="5" fill="currentColor" opacity="0.14"/><path d="M6 15V11M11 15V7M16 15V9.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span>projeto-quant</span><span class="brand-sep"></span>
+<span class="brand-sub"><span data-l="en">Portfolio analytics</span><span data-l="pt">Análise de carteira</span></span>
+<span class="brand-right"><span><span data-l="en">Official sources, tested numbers</span><span data-l="pt">Fontes oficiais, números testados</span></span></span></div>
 
 <header class="masthead">
   <div class="masthead-text">
@@ -19,6 +23,7 @@
     <div class="segmented" id="periods" role="group" aria-label="Period" data-pt-aria-label="Período"></div>
     <a class="ghost link-button" id="edit" hidden><span data-l="en">Edit portfolio</span><span data-l="pt">Editar carteira</span></a>
     <button type="button" class="ghost" id="print"><span data-l="en">Save PDF</span><span data-l="pt">Salvar PDF</span></button>
+    <button type="button" class="ghost theme-toggle" id="theme" aria-label="Light or dark theme" data-pt-aria-label="Tema claro ou escuro"><svg class="sun" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.6"/><path d="M10 2.5v1.8M10 15.7v1.8M2.5 10h1.8M15.7 10h1.8M4.7 4.7l1.3 1.3M14 14l1.3 1.3M4.7 15.3 6 14M14 6l1.3-1.3"/></svg><svg class="moon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M15.8 12.6A6.5 6.5 0 0 1 7.4 4.2a6.5 6.5 0 1 0 8.4 8.4z"/></svg></button>
     <div class="segmented lang-switch" id="lang" role="group" aria-label="Language" data-pt-aria-label="Idioma"></div>
   </div>
 </header>
@@ -42,6 +47,7 @@
 </nav>
 <button type="button" class="tabs-nudge right" id="tabs-right" tabindex="-1" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 </div>
+<p class="tab-intro" id="tab-intro" aria-live="polite"></p>
 
 <div class="tab-page" id="page-resumo" data-page="resumo" role="tabpanel" aria-labelledby="tab-resumo">
 <section class="figures" id="figures" aria-label="Key figures" data-pt-aria-label="Números principais"></section>
@@ -59,10 +65,10 @@
     <div class="segmented" id="bench-picker" role="group" aria-labelledby="bench-label"></div>
   </div>
   <div class="legend" id="perf-legend"></div>
-  <div class="chart" id="chart-value" data-height="300"></div>
+  <div class="chart" id="chart-value" data-source-en="Yahoo Finance prices, ECB exchange rates (Frankfurter). Today's quantities held through the period." data-source-pt="Preços do Yahoo Finance, câmbio do BCE (Frankfurter). Quantidades de hoje em todo o período." data-height="300"></div>
   <div class="reb-summary bench-stats" id="bench-stats" hidden></div>
   <h3 class="chart-title"><span data-l="en">Drawdown from the previous peak</span><span data-l="pt">Queda desde o pico anterior</span></h3>
-  <div class="chart" id="chart-drawdown" data-height="130"></div>
+  <div class="chart" id="chart-drawdown" data-source-en="Calculated from the daily value above." data-source-pt="Calculado a partir do valor diário acima." data-height="130"></div>
 </section>
 
 <section class="block">
@@ -101,7 +107,7 @@
   <div class="fg-parts" id="fg-parts"></div>
   <h3 class="chart-title"><span data-l="en">The last year</span><span data-l="pt">O último ano</span></h3>
   <div class="legend" id="fg-legend"></div>
-  <div class="chart" id="chart-fear" data-height="210"></div>
+  <div class="chart" id="chart-fear" data-source-en="Stocks: projeto-quant gauge from S&P 500, VIX, HYG and IEF (Yahoo Finance). Crypto: alternative.me." data-source-pt="Ações: termômetro do projeto com S&P 500, VIX, HYG e IEF (Yahoo Finance). Cripto: alternative.me." data-height="210"></div>
 </section>
 
 <section class="block" id="mk-unusual-section">
@@ -114,7 +120,7 @@
   <h2><span data-l="en">Biggest stock moves</span><span data-l="pt">Maiores altas e quedas</span></h2>
   <p class="lede" id="mk-movers-lede"></p>
   <div class="presets" id="mk-regions" role="group" aria-label="Market" data-pt-aria-label="Mercado"></div>
-  <div class="chart" id="chart-movers"></div>
+  <div class="chart" id="chart-movers" data-source-en="Yahoo Finance closes, price change in each stock's own currency." data-source-pt="Fechamentos do Yahoo Finance, variação do preço na moeda de cada ação."></div>
 </section>
 
 <section class="block" id="mk-heat-section">
@@ -133,7 +139,7 @@
   </div>
   <p class="lede" id="fi-lede"></p>
   <div class="legend" id="fi-legend"></div>
-  <div class="chart" id="chart-curve" data-height="300"></div>
+  <div class="chart" id="chart-curve" data-source-en="US Treasury, ECB, Bank of England, Japan Ministry of Finance, Tesouro Nacional." data-source-pt="Tesouro dos EUA, BCE, Banco da Inglaterra, Ministério das Finanças do Japão, Tesouro Nacional." data-height="300"></div>
 </section>
 
 <section class="block" id="fi-rates-section">
@@ -152,7 +158,7 @@
 <section class="block" id="fi-breakeven" hidden>
   <h2><span data-l="en">Inflation priced in</span><span data-l="pt">Inflação implícita</span></h2>
   <p class="lede" id="fi-be-lede"></p>
-  <div class="chart" id="chart-breakeven"></div>
+  <div class="chart" id="chart-breakeven" data-source-en="Tesouro Nacional (Tesouro Direto buy rates). Calculation: projeto-quant." data-source-pt="Tesouro Nacional (taxas de compra do Tesouro Direto). Cálculo: projeto-quant."></div>
   <p class="caption" id="fi-source"></p>
 </section>
 </div>
@@ -175,7 +181,7 @@
   <h2><span data-l="en">Return attribution</span><span data-l="pt">De onde veio o resultado</span></h2>
   <p class="lede" id="attr-lede"></p>
   <div class="legend" id="attr-legend"></div>
-  <div class="chart" id="chart-attribution"></div>
+  <div class="chart" id="chart-attribution" data-source-en="Calculated from daily prices and exchange rates; the parts add up to the total." data-source-pt="Calculado com preços e câmbio diários; as partes somam o total."></div>
 </section>
 
 <section class="block" id="brinson" hidden>
@@ -189,7 +195,7 @@
   <h2><span data-l="en">Rebalancing rules, backtested</span><span data-l="pt">Regras de rebalanceamento, testadas</span></h2>
   <p class="lede" id="rules-lede"></p>
   <div class="legend" id="rules-legend"></div>
-  <div class="chart" id="chart-rules" data-height="260"></div>
+  <div class="chart" id="chart-rules" data-source-en="Walk-forward backtest in C++, 0.1% cost per trade." data-source-pt="Backtest sem olhar o futuro, em C++, custo de 0,1% por operação." data-height="260"></div>
   <div class="table-wrap"><table class="positions compact" id="rules-table"></table></div>
 </section>
 
@@ -254,7 +260,7 @@
     <div>
       <h3 class="chart-title"><span data-l="en">Weight and share of risk</span><span data-l="pt">Peso na carteira e parcela do risco</span></h3>
       <div class="legend" id="risk-legend"></div>
-      <div class="chart" id="chart-risk"></div>
+      <div class="chart" id="chart-risk" data-source-en="Euler decomposition of the last year's covariance." data-source-pt="Decomposição de Euler da covariância do último ano."></div>
     </div>
     <div>
       <h3 class="chart-title"><span data-l="en">Correlation of daily returns</span><span data-l="pt">Correlação dos retornos diários</span></h3>
@@ -335,7 +341,7 @@
     </div>
   </div>
   <div class="legend" id="future-legend"></div>
-  <div class="chart" id="chart-future" data-height="280"></div>
+  <div class="chart" id="chart-future" data-source-en="2,000 block-bootstrap paths of the portfolio's own history. Not a forecast." data-source-pt="2.000 caminhos por bootstrap em blocos do histórico da carteira. Não é previsão." data-height="280"></div>
   <div class="reb-summary" id="future-figures"></div>
   <div class="verdict-inline" id="future-check"></div>
 </section>

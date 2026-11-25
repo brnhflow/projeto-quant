@@ -184,13 +184,13 @@ function renderPerformance(p) {
     `The value ${up ? "rose" : "fell"} <strong>${fmt.share(Math.abs(p.totalReturn))}</strong> ${PHRASE[p.key]}, from ${fmt.eur(values[0])} to ${fmt.eur(values[values.length - 1])}.`);
   valueGroup.reset();
   timeChart($("chart-value"), {
-    dates, left: 72, tick: (t) => fmt.eur(t),
-    series: [{ name: "value", values, color: cssVar("--s1") }].concat(
+    dates, left: 72, tick: (t) => fmt.eur(t), endLabel: (v) => fmt.eur(v),
+    series: [{ name: "value", values, color: cssVar("--s1"), fade: cssVar("--s1") }].concat(
       benchLine(p) ? [{ name: "index", values: benchLine(p).values, color: cssVar("--ink-3"), dash: true }] : []),
   }, valueGroup);
   const trough = p.drawdown.indexOf(Math.min(...p.drawdown));
   timeChart($("chart-drawdown"), {
-    dates, left: 72, ceilZero: true, tickCount: 3, tick: (t) => fmt.pct(t, 0),
+    dates, left: 72, ceilZero: true, tickCount: 3, tick: (t) => fmt.pct(t, 0), endLabel: (v) => fmt.pct(v, 1),
     series: [{ name: "drawdown", values: p.drawdown, color: cssVar("--s1"), area: cssVar("--s1-soft") }],
     annotate: p.maxDrawdown.value < 0 ? { i: trough, v: p.drawdown[trough], label: L(`pior: ${fmt.pct(p.maxDrawdown.value)}`, `worst: ${fmt.pct(p.maxDrawdown.value)}`) } : null,
   }, valueGroup);
