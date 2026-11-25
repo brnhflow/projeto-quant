@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,9 +20,11 @@ from quant.data.market import (
     update_market_data,
 )
 from quant.data.news import Headline, google_news_url, news_query, parse_google_news
+from quant.data.rates import RatesData, fetch_rates
 from quant.ledger import check_against_holdings
 from quant.overview import overview_symbols
 from quant.report import build_report
+from quant.sentiment import SYMBOLS as SENTIMENT_SYMBOLS
 from quant.stress import HISTORY_START, PROXIES
 
 
@@ -53,6 +56,8 @@ def proxy_holdings() -> pd.DataFrame:
 
 FetchText = Callable[[str], bytes]
 OVERVIEW_DAYS = 420  # a year of history plus room for the typical-move estimate
+SENTIMENT_DAYS = 1250  # two years for the percentile plus a year of gauge history
+RATES_WAIT = 20.0  # seconds; past this the report uses the rates saved last time
 NO_NEWS_KINDS = {"ETF", "MUTUALFUND"}  # funds rarely make news of their own
 
 
@@ -120,7 +125,25 @@ def analyse_portfolio(
     start = (now - pd.Timedelta(days=round(years * 365.25))).tz_convert(None).normalize()
     long_start = min(start, HISTORY_START)
     # The indices download while the holdings do; news starts as soon as names are known.
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    # Rates come from slow official files (Tesouro Direto's is 15 MB): they download on their own
+    # thread, and if they are not in by the time the rest is, the cached copies are used and the
+    # download finishes in the background for next time.
+    rates_pool = ThreadPoolExecutor(max_workers=1)
+    rates_job = rates_pool.submit(fetch_rates, cache, fetch=fetch_text, now=now, offline=offline)
+    rates_pool.shutdown(wait=False)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        sentiment_job = pool.submit(
+            fetch_series,
+            list(SENTIMENT_SYMBOLS),
+            (now - pd.Timedelta(days=SENTIMENT_DAYS)).tz_convert(None).normalize(),
+            cache,
+            fetch=fetch,
+            now=now,
+            offline=offline,
+            pause=pause,
+            adjusted=True,
+            prefix="sentiment",
+        )
         overview_job = pool.submit(
             fetch_series,
             overview_symbols(),
@@ -159,6 +182,18 @@ def analyse_portfolio(
             market_series = overview_job.result()
         except (ConnectionError, ValueError, OSError):
             market_series = None  # the overview is optional; the portfolio report still builds
+        sentiment_series: dict[str, Series] | None
+        try:
+            sentiment_series = sentiment_job.result()
+        except (ConnectionError, ValueError, OSError):
+            sentiment_series = None
+    rates: RatesData | None
+    try:
+        rates = rates_job.result(timeout=RATES_WAIT)
+    except FutureTimeout:
+        rates = fetch_rates(cache, now=now, offline=True)
+    except (ConnectionError, ValueError, OSError):
+        rates = None
 
     # Cash is worth 1 every business day up to today; the report must end on the last day
     # a real asset has a price, or the latest move would show as a 0% "phantom" day.
@@ -179,5 +214,7 @@ def analyse_portfolio(
         demo_url=demo_url,
         transactions=transactions,
         market=market_series,
+        sentiment=sentiment_series,
+        bonds=rates,
     )
     return Analysis(page, market.status)

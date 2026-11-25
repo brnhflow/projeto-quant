@@ -30,6 +30,9 @@ rebalancing. Every model comes with the test that says whether to trust it.
   check each other.
 - **The market at a glance.** 63 series, from the Ibovespa to the 10-year Treasury, ranked by
   how unusual their move was rather than how large, with each one's link to your portfolio.
+- **Beyond stocks.** Yield curves of five countries from their own treasuries and central banks,
+  every Tesouro Direto bond with the inflation it prices in, and a fear and greed gauge built
+  from public data with its method stated.
 - **Rules backtested with costs.** A 10% volatility target lifts the demo's Sharpe from 1.02 to
   1.34 and cuts its worst drawdown from −19.8% to −12.1%.
 - **What professionals report.** Tearsheet, Brinson attribution, time- and money-weighted returns
@@ -64,6 +67,7 @@ When a model fails its test, the report says so in plain language.
 | ![Your result](docs/images/ledger.png) | **Your result.** Import a CSV of every buy and sell. The report gives the time-weighted return (what GIPS requires of fund managers), the money-weighted return of your own cash (XIRR), and realised and unrealised gains by average cost, at each trade date's exchange rate. A Brinson-Fachler attribution splits the gap to MSCI ACWI into allocation, selection and interaction by market, with the index's regional mix estimated by returns-based style analysis. |
 | ![Rules](docs/images/rules.png) | **Rebalancing rules, backtested in C++.** Buy and hold, a monthly calendar, 5% bands and a 10% volatility target, run walk-forward on the portfolio with 0.1% costs on every trade. On the demo the volatility target lifts the Sharpe from 1.02 to 1.34 and cuts the worst drawdown from −19.8% to −12.1%, at the price of a lower return. The Risk tab sizes the portfolio for any target volatility. |
 | ![Markets](docs/images/markets.png) | **Markets.** Stock indices, currencies, Treasury yields, commodities, crypto and the largest stocks in Brazil, the US and Europe, over a day, a week, a month, the year and 12 months. The moves that stood out are ranked by size against each series' own typical move, so a jump in a bond yield is not drowned by bitcoin's everyday swings, and each series shows how closely your portfolio follows it. |
+| ![Fixed income](docs/images/fixed-income.png) | **Fixed income.** Government yield curves for Brazil, the US, the euro area, the UK and Japan, today against a month and a year ago, with the policy rate, the 2- and 10-year yields and the slope (an inverted curve is flagged). For Brazil, every Tesouro Direto bond on sale with its rate change, and the inflation the market prices in from fixed-rate against inflation-linked bonds. A fear and greed gauge for stocks, rebuilt from five public measures, sits next to the crypto index on the Markets tab. |
 | ![This week](docs/images/week.png) | **This week.** Assets whose last day or week moved more than 2.5 standard deviations of their own history are flagged, next to the headlines that explain the move. |
 | ![Risk](docs/images/risk.png) | **Risk.** Volatility, drawdown, historical VaR and ES, Sharpe, Sortino and Calmar. How much each asset adds to total risk (Euler decomposition) and the correlation matrix. A factor model of what the portfolio really depends on, with error bands and an out-of-sample check. |
 | ![Scenarios](docs/images/scenarios.png) | **Scenarios.** Eight real crises applied to today's positions: 2008, euro debt, Brazil 2015, Brexit, Joesley Day, Covid, 2022 rates and FTX. Assets that did not exist yet are estimated from their closest index, with a Vasicek-shrunk beta. Sliders build any custom scenario, and a 2,000-path block-bootstrap fan shows 1 to 5 years ahead. |
@@ -306,6 +310,10 @@ Things that went wrong, and what they changed:
 | Search | Yahoo search and lookup APIs | Lookup lists every match, paged |
 | Crypto (alternative) | Kraken public API | Official, no key, at most 720 days |
 | Exchange rates | ECB reference rates via [Frankfurter](https://frankfurter.dev) | One rate per TARGET business day |
+| Yield curves | US Treasury, ECB Data Portal, Bank of England, Ministry of Finance Japan | Official; no key |
+| Tesouro Direto, Selic, CDI | Tesouro Transparente, Banco Central do Brasil (SGS) | Official; the 15 MB Tesouro file is fetched once a day |
+| Fed funds | Federal Reserve Bank of New York | Official API |
+| Crypto fear and greed | alternative.me | The index crypto media quote |
 | Headlines | Google News RSS | B3 stocks searched by ticker in Portuguese, others by name in English |
 
 The interface is in English and Portuguese (switch in the top corner, remembered per

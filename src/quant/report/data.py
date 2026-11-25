@@ -20,8 +20,10 @@ from quant.benchmark import compare
 from quant.brinson import brinson_fachler, style_r2, style_weights
 from quant.data.market import Series, SeriesStatus
 from quant.data.news import Headline
+from quant.data.rates import RatesData
 from quant.data.sources import Quote
 from quant.factors import factor_exposure
+from quant.fixed_income import fixed_income
 from quant.fx import to_base_currency
 from quant.income import outlook
 from quant.ledger import analyse_ledger
@@ -38,6 +40,7 @@ from quant.risk import (
     risk_contributions,
 )
 from quant.rules import RULES, RuleParams, backtest_rule
+from quant.sentiment import crypto_fear, fear_greed
 from quant.sharpe import deflated_sharpe, probabilistic_sharpe
 from quant.signals import (
     CONCENTRATION_RISK,
@@ -1428,6 +1431,8 @@ def build_report_data(
     demo_url: str | None = None,
     transactions: pd.DataFrame | None = None,
     market: dict[str, Series] | None = None,
+    sentiment: dict[str, Series] | None = None,
+    bonds: RatesData | None = None,
 ) -> dict[str, Any]:
     """Assemble the report content as plain JSON-ready data.
 
@@ -1470,6 +1475,11 @@ def build_report_data(
     market : dict, optional
         Market overview series by symbol (:func:`quant.data.market.fetch_series`); adds the
         market tab, with each series' correlation to this portfolio.
+    sentiment : dict, optional
+        S&P 500, VIX, HYG and IEF prices for the fear and greed gauge (:mod:`quant.sentiment`).
+    bonds : RatesData, optional
+        Yield curves, policy rates, Tesouro Direto and the crypto index
+        (:func:`quant.data.rates.fetch_rates`); adds the fixed income tab.
 
     Returns
     -------
@@ -1588,6 +1598,11 @@ def build_report_data(
         ),
         "moves": unusual_moves(local),
         "market": market_overview(market, value) if market else None,
+        "sentiment": {
+            "stocks": fear_greed(sentiment) if sentiment else None,
+            "crypto": crypto_fear(bonds.crypto_fear) if bonds else None,
+        },
+        "fixedIncome": fixed_income(bonds),
         "result": _result(
             holdings, local, fx_rates, position_value, base, pd.Timestamp(value.index[-1])
         ),

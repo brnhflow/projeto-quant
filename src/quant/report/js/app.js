@@ -7,6 +7,7 @@
 const TAB_ICONS = {
   resumo: '<rect x="3" y="3" width="6" height="6" rx="1.3"/><rect x="11" y="3" width="6" height="6" rx="1.3"/><rect x="3" y="11" width="6" height="6" rx="1.3"/><rect x="11" y="11" width="6" height="6" rx="1.3"/>',
   mercado: '<circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3c2.2 2 3 4.4 3 7s-.8 5-3 7c-2.2-2-3-4.4-3-7s.8-5 3-7z"/>',
+  juros: '<path d="M5 15 15 5"/><circle cx="6" cy="6" r="2.2"/><circle cx="14" cy="14" r="2.2"/>',
   desempenho: '<rect x="3.5" y="2.5" width="13" height="15" rx="1.6"/><path d="M6.5 6.5h7M6.5 9.5h7"/><path d="M6.5 14.5l2-2 1.6 1.2 3.4-3"/>',
   semana: '<rect x="3" y="4.5" width="14" height="12.5" rx="1.8"/><path d="M3 8.5h14M7 3v3M13 3v3"/><path d="M6 13l2-2 2 1.5 3.5-3"/>',
   risco: '<path d="M10 2.8 4 5.2v4.6c0 3.6 2.5 6.3 6 7.4 3.5-1.1 6-3.8 6-7.4V5.2z"/><path d="M10 7v3.6M10 13.2v.1"/>',
@@ -36,12 +37,13 @@ function showTab(name, push) {
   hideTip();
   renderCharts();
   animate($("page-" + tab));
+  updateNudges();
 }
 $("tabs").addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-tab]");
   if (!b) return;
   showTab(b.dataset.tab, true);
-  window.scrollTo({ top: $("tabs").offsetTop - 8, behavior: "smooth" });
+  window.scrollTo({ top: $("tabs-wrap").offsetTop - 8, behavior: "smooth" });
 });
 $("tabs").addEventListener("keydown", (ev) => {
   if (ev.key !== "ArrowRight" && ev.key !== "ArrowLeft") return;
@@ -52,6 +54,16 @@ $("tabs").addEventListener("keydown", (ev) => {
   document.getElementById("tab-" + next).focus();
   ev.preventDefault();
 });
+// More tabs than fit: arrows and a fade at the edge that has more, both hidden when it does not.
+function updateNudges() {
+  const bar = $("tabs"), wrap = $("tabs-wrap");
+  wrap.classList.toggle("more-left", bar.scrollLeft > 4);
+  wrap.classList.toggle("more-right", bar.scrollLeft + bar.clientWidth < bar.scrollWidth - 4);
+}
+$("tabs").addEventListener("scroll", updateNudges, { passive: true });
+window.addEventListener("resize", updateNudges);
+$("tabs-left").addEventListener("click", () => $("tabs").scrollBy({ left: -280, behavior: STILL.matches ? "auto" : "smooth" }));
+$("tabs-right").addEventListener("click", () => $("tabs").scrollBy({ left: 280, behavior: STILL.matches ? "auto" : "smooth" }));
 window.addEventListener("popstate", () => showTab(location.hash.slice(1), false));
 function setBadge(tab, count) {
   const badge = $("badge-" + tab);
@@ -79,6 +91,9 @@ const CHARTS = [
   ["#page-desempenho", renderRulesChart],
   ["#chart-stability", renderStabilityChart],
   ["#chart-movers", renderMovers],
+  ["#chart-fear", renderFearChart],
+  ["#chart-curve", renderCurveChart],
+  ["#chart-breakeven", renderBreakevenChart],
 ];
 function onScreen(selector) {
   const node = document.querySelector(selector);
@@ -116,6 +131,8 @@ renderStress();
 renderFactors();
 renderWatch();
 renderMarket();
+renderFear();
+renderFixedIncome();
 renderFuture();
 renderIncome();
 renderOpportunities();

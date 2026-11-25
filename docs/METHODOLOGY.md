@@ -553,6 +553,57 @@ because Tokyo, São Paulo and New York close hours apart, and daily returns of m
 close together understate their correlation (the asynchronous-trading bias of Scholes and
 Williams, 1977).
 
+## 23. Fixed income around the world
+
+`quant.data.rates`, `quant.fixed_income`. Each country's curve comes from its own treasury or
+central bank: US Treasury par yields, the ECB's euro area AAA spot curve, Bank of England gilt
+par yields (5, 10 and 20 years), Japan's Ministry of Finance JGB yields and, for Brazil, the buy
+rates of Tesouro Direto's fixed-rate (Prefixado) bonds, with years to maturity counted from each
+day. Bonds within three months of maturity are left out of the curve: their quoted rate is
+erratic.
+
+Each curve is shown today, a month ago and a year ago (the last observation on or before each
+date, at most 10 days earlier). The 2- and 10-year yields are linearly interpolated on the curve
+and never extrapolated beyond it. The slope is 10-year minus 2-year; an inverted curve (negative
+slope) has preceded most US recessions since the 1970s (Estrella and Mishkin, 1998), with lags
+of one to two years and false alarms, so it is flagged, not used as a forecast.
+
+**Inflation priced in.** For each inflation-linked (IPCA+) bond, the fixed-rate curve is
+interpolated at the same maturity and the breakeven is (1 + nominal) / (1 + real) − 1. It also
+contains an inflation risk premium, so it overstates expected inflation by that premium.
+
+**Rate changes are not coloured.** A rise in yields loses money for whoever holds the bond and
+offers more to whoever buys now, so rate changes carry an arrow for direction but no good or bad
+colour.
+
+**Sources fail one at a time.** Every file is saved as downloaded; a source that fails is read
+from its last copy, and one with neither is left out and named in the caption. Tesouro Direto's
+history (15 MB) and Japan's (1 MB) are downloaded at most once a day. The report waits 20 seconds
+for the rates; past that it uses the saved copies and the download finishes for the next run.
+
+## 24. Fear and greed
+
+`quant.sentiment`. CNN's Fear & Greed Index has no public data feed, so the stock gauge is
+rebuilt from the same kind of evidence, each part from a series anyone can download:
+
+| Part | Measure | Greed when |
+|---|---|---|
+| Momentum | S&P 500 / 125-day average − 1 | above the average |
+| Strength | S&P 500 / 52-week high − 1 | close to the high |
+| Volatility | VIX / 50-day average − 1 | low |
+| Safe haven | 20-day return of the S&P 500 minus IEF (7–10 year Treasuries) | stocks ahead |
+| Junk bonds | 20-day return of HYG (high yield) minus IEF | junk ahead |
+
+Each part is scored 0–100 as the percentile of today's value among the previous 504 trading days
+of the same measure (inverted for volatility); the gauge is the average of the parts available,
+needing at least three. Total-return prices are used for the bond funds, so their monthly
+distributions do not read as losses. Bands: below 25 extreme fear, 25–45 fear, 45–55 neutral,
+55–75 greed, above 75 extreme greed.
+
+A percentile says where sentiment stands against the last two years, not whether prices will
+rise. Extreme readings are often treated as contrarian signals; that is not tested here and the
+page says so. The crypto gauge is alternative.me's index, shown as published.
+
 ## References
 
 - Bailey, D., López de Prado, M. (2012). The Sharpe ratio efficient frontier. *Journal of Risk*, 15(2), 3–44.
@@ -563,6 +614,7 @@ Williams, 1977).
 - Brinson, G., Hood, L. R., Beebower, G. (1986). Determinants of portfolio performance. *Financial Analysts Journal*, 42(4), 39–44.
 - Christoffersen, P. (1998). Evaluating interval forecasts. *International Economic Review*, 39(4), 841–862.
 - Duchi, J., Shalev-Shwartz, S., Singer, Y., Chandra, T. (2008). Efficient projections onto the l1-ball for learning in high dimensions. *ICML 2008*.
+- Estrella, A., Mishkin, F. (1998). Predicting U.S. recessions: financial variables as leading indicators. *Review of Economics and Statistics*, 80(1), 45–61.
 - Griveau-Billion, T., Richard, J.-C., Roncalli, T. (2013). A fast algorithm for computing high-dimensional risk parity portfolios. *SSRN 2325255.*
 - Jorion, P. (2007). *Value at Risk: The New Benchmark for Managing Financial Risk*, 3rd ed. McGraw-Hill.
 - Kupiec, P. (1995). Techniques for verifying the accuracy of risk measurement models. *Journal of Derivatives*, 3(2), 73–84.

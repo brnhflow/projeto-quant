@@ -26,7 +26,7 @@ from urllib.parse import parse_qs, urlparse
 import pandas as pd
 
 from quant.data import DataConfigError
-from quant.data.http import fetch_json
+from quant.data.http import fetch_bytes, fetch_json
 from quant.data.market import Fetch
 from quant.data.sources import (
     CASH,
@@ -76,6 +76,7 @@ class AppConfig:
     report_path: Path
     title: str = ""  # empty: the page shows "My portfolio" in its own language
     fetch: Fetch = fetch_json
+    fetch_text: Callable[[str], bytes] = fetch_bytes  # news feeds and official rate files
     now: Callable[[], pd.Timestamp] = lambda: pd.Timestamp.now(tz="UTC")
     pause: float = 0.2
     report_html: str | None = None
@@ -345,6 +346,7 @@ def analyse(
         now=config.now(),
         pause=config.pause,
         edit_url="/",
+        fetch_text=config.fetch_text,
         transactions=transactions,
     )
     page = result.page

@@ -6,6 +6,17 @@ before 1.0 the interface may still change.
 ## Unreleased
 
 ### Added
+- **Fixed income tab**: government yield curves for Brazil, the US, the euro area, the UK and
+  Japan (today, a month and a year ago), policy rates, curve slope with inversion flagged, every
+  Tesouro Direto bond on sale with its change, and the inflation Brazil's bonds price in. Official
+  sources only (Treasury, ECB, Bank of England, Japan's Ministry of Finance, Tesouro Nacional,
+  BCB, New York Fed); the slow files download in the background and never hold up the report.
+- **Fear and greed**: a stock gauge rebuilt from public prices with a stated method (momentum,
+  strength, VIX, safe-haven and junk-bond demand, each a two-year percentile), next to the crypto
+  index, with dials, the five parts and a year of history.
+- Drawn arrows beside every change, a tab bar that scrolls with arrows when the tabs do not fit,
+  and more motion: rows rise in turn, gauge needles sweep, curves draw, numbers fade when the
+  period changes. All of it off under reduced motion.
 - **Markets tab**: stock indices, currencies, US Treasury yields, commodities, crypto and the
   39 largest stocks in Brazil, the US and Europe, over a day, week, month, year to date and 12
   months. Moves are ranked by how unusual they were (the change over the series' own typical

@@ -99,7 +99,8 @@ function renderSources() {
 }
 
 function figure(label, value, note, cls) {
-  return `<div class="figure"><p class="label">${label}</p><p class="value ${cls || ""}">${value}</p><p class="note">${note}</p></div>`;
+  const mark = cls === "up" ? `<span class="arr up">${ARROWS.up}</span>` : cls === "down" ? `<span class="arr down">${ARROWS.down}</span>` : "";
+  return `<div class="figure"><p class="label">${label}</p><p class="value ${cls || ""}">${mark}<span class="num">${value}</span></p><p class="note">${note}</p></div>`;
 }
 
 function renderFigures(p) {

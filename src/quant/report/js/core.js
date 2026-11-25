@@ -46,6 +46,16 @@ const fmt = {
 };
 const parseDate = (iso) => { const [y, m, d] = iso.split("-").map(Number); return { y, m, d, t: Date.UTC(y, m - 1, d) }; };
 const dateLong = (iso) => { const p = parseDate(iso); return `${p.d} ${MONTHS[p.m - 1]} ${p.y}`; };
+// Drawn arrows beside a change: up, down, nothing for no change.
+const ARROWS = {
+  up: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 10V2.6M2.8 5.6 6 2.4l3.2 3.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  down: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v7.4M2.8 6.4 6 9.6l3.2-3.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+const arrow = (v, digits = 6) => {
+  if (v === null || v === undefined) return "";
+  const r = rnd(v, digits);
+  return r > 0 ? `<span class="arr up">${ARROWS.up}</span>` : r < 0 ? `<span class="arr down">${ARROWS.down}</span>` : "";
+};
 const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 // ---------------------------------------------------------------- svg helpers
@@ -278,7 +288,7 @@ function animate(page) {
 function countUp(root) {
   if (STILL.matches) return;
   const sep = (1000).toLocaleString(LOCALE).charAt(1), group = /\d/.test(sep) ? "\u0000" : sep, decimal = (1.5).toLocaleString(LOCALE).charAt(1);
-  root.querySelectorAll(".figure .value").forEach((node) => {
+  root.querySelectorAll(".figure .num, .count-up").forEach((node) => {
     const original = node.textContent;
     const match = original.match(/\d[\d.,\s]*\d|\d/);
     if (!match) return;

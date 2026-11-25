@@ -47,6 +47,10 @@ def fake_fetch(url: str) -> Any:
     raise ConnectionError(f"HTTP 404 from {url}")
 
 
+def no_network(url: str) -> bytes:
+    raise ConnectionError(f"no network in tests: {url}")
+
+
 @pytest.fixture
 def app(tmp_path: Path) -> Iterator[tuple[AppConfig, int]]:
     config = AppConfig(
@@ -54,6 +58,7 @@ def app(tmp_path: Path) -> Iterator[tuple[AppConfig, int]]:
         cache_dir=tmp_path / "cache",
         report_path=tmp_path / "reports" / "carteira.html",
         fetch=fake_fetch,
+        fetch_text=no_network,
         now=lambda: NOW,
         pause=0,
     )

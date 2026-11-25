@@ -11,6 +11,7 @@ import pandas as pd
 
 from quant.data.market import Series, SeriesStatus
 from quant.data.news import Headline
+from quant.data.rates import RatesData
 from quant.data.sources import Quote
 from quant.report.data import PERIODS, Period, build_report_data, period_start
 
@@ -93,6 +94,8 @@ def build_report(
     demo_url: str | None = None,
     transactions: pd.DataFrame | None = None,
     market: dict[str, Series] | None = None,
+    sentiment: dict[str, Series] | None = None,
+    bonds: RatesData | None = None,
 ) -> str:
     """Compute the report data and render it; see :func:`build_report_data` for arguments."""
     data = build_report_data(
@@ -111,5 +114,7 @@ def build_report(
         demo_url=demo_url,
         transactions=transactions,
         market=market,
+        sentiment=sentiment,
+        bonds=bonds,
     )
     return render_html(data)

@@ -25,9 +25,12 @@
 
 <div class="notice" id="notice" role="status" hidden></div>
 
+<div class="tabs-wrap" id="tabs-wrap">
+<button type="button" class="tabs-nudge left" id="tabs-left" tabindex="-1" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 <nav class="tabs" id="tabs" role="tablist" aria-label="Report sections" data-pt-aria-label="Seções do relatório">
   <button type="button" role="tab" id="tab-resumo" data-tab="resumo" aria-controls="page-resumo" aria-selected="false"><span class="tab-icon" data-icon="resumo"></span><span data-l="en">Overview</span><span data-l="pt">Visão geral</span><span class="tab-badge" id="badge-resumo" hidden></span></button>
   <button type="button" role="tab" id="tab-mercado" data-tab="mercado" aria-controls="page-mercado" aria-selected="false"><span class="tab-icon" data-icon="mercado"></span><span data-l="en">Markets</span><span data-l="pt">Mercado</span><span class="tab-badge" id="badge-mercado" hidden></span></button>
+  <button type="button" role="tab" id="tab-juros" data-tab="juros" aria-controls="page-juros" aria-selected="false"><span class="tab-icon" data-icon="juros"></span><span data-l="en">Fixed income</span><span data-l="pt">Renda fixa</span><span class="tab-badge" id="badge-juros" hidden></span></button>
   <button type="button" role="tab" id="tab-desempenho" data-tab="desempenho" aria-controls="page-desempenho" aria-selected="false"><span class="tab-icon" data-icon="desempenho"></span><span data-l="en">Performance</span><span data-l="pt">Desempenho</span><span class="tab-badge" id="badge-desempenho" hidden></span></button>
   <button type="button" role="tab" id="tab-semana" data-tab="semana" aria-controls="page-semana" aria-selected="false"><span class="tab-icon" data-icon="semana"></span><span data-l="en">This week</span><span data-l="pt">Esta semana</span><span class="tab-badge" id="badge-semana" hidden></span></button>
   <button type="button" role="tab" id="tab-risco" data-tab="risco" aria-controls="page-risco" aria-selected="false"><span class="tab-icon" data-icon="risco"></span><span data-l="en">Risk</span><span data-l="pt">Risco</span><span class="tab-badge" id="badge-risco" hidden></span></button>
@@ -37,6 +40,8 @@
   <button type="button" role="tab" id="tab-rebalancear" data-tab="rebalancear" aria-controls="page-rebalancear" aria-selected="false"><span class="tab-icon" data-icon="rebalancear"></span><span data-l="en">Rebalance</span><span data-l="pt">Rebalancear</span><span class="tab-badge" id="badge-rebalancear" hidden></span></button>
   <button type="button" role="tab" id="tab-metodo" data-tab="metodo" aria-controls="page-metodo" aria-selected="false"><span class="tab-icon" data-icon="metodo"></span><span data-l="en">Methodology</span><span data-l="pt">Como ler</span><span class="tab-badge" id="badge-metodo" hidden></span></button>
 </nav>
+<button type="button" class="tabs-nudge right" id="tabs-right" tabindex="-1" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+</div>
 
 <div class="tab-page" id="page-resumo" data-page="resumo" role="tabpanel" aria-labelledby="tab-resumo">
 <section class="figures" id="figures" aria-label="Key figures" data-pt-aria-label="Números principais"></section>
@@ -88,6 +93,17 @@
   <div class="mk-groups" id="mk-groups"></div>
 </section>
 
+<section class="block" id="mk-fear-section" hidden>
+  <h2><span data-l="en">Fear and greed</span><span data-l="pt">Medo e ganância</span></h2>
+  <p class="lede" id="mk-fear-lede"></p>
+  <div class="fg-grid" id="fg-grid"></div>
+  <h3 class="chart-title" id="fg-parts-title"><span data-l="en">What the stock gauge is made of</span><span data-l="pt">Do que o termômetro das ações é feito</span></h3>
+  <div class="fg-parts" id="fg-parts"></div>
+  <h3 class="chart-title"><span data-l="en">The last year</span><span data-l="pt">O último ano</span></h3>
+  <div class="legend" id="fg-legend"></div>
+  <div class="chart" id="chart-fear" data-height="210"></div>
+</section>
+
 <section class="block" id="mk-unusual-section">
   <h2><span data-l="en">What stood out</span><span data-l="pt">O que fugiu do normal</span></h2>
   <p class="lede" id="mk-unusual-lede"></p>
@@ -106,6 +122,38 @@
   <p class="lede" id="mk-heat-lede"></p>
   <div class="table-wrap"><table class="heat mk-heat" id="mk-heat"></table></div>
   <p class="caption" id="mk-source"></p>
+</section>
+</div>
+
+<div class="tab-page" id="page-juros" data-page="juros" role="tabpanel" aria-labelledby="tab-juros">
+<section class="block" id="fi-curves">
+  <div class="mk-title">
+    <h2><span data-l="en">Yield curves</span><span data-l="pt">Curvas de juros</span></h2>
+    <div class="segmented" id="fi-countries" role="group" aria-label="Country" data-pt-aria-label="País"></div>
+  </div>
+  <p class="lede" id="fi-lede"></p>
+  <div class="legend" id="fi-legend"></div>
+  <div class="chart" id="chart-curve" data-height="300"></div>
+</section>
+
+<section class="block" id="fi-rates-section">
+  <h2><span data-l="en">Reference rates</span><span data-l="pt">Juros de referência</span></h2>
+  <p class="lede" id="fi-rates-lede"></p>
+  <div class="table-wrap"><table class="positions fi-table" id="fi-rates"></table></div>
+</section>
+
+<section class="block" id="fi-tesouro" hidden>
+  <h2><span data-l="en">Tesouro Direto today</span><span data-l="pt">Tesouro Direto hoje</span></h2>
+  <p class="lede" id="fi-tesouro-lede"></p>
+  <div class="presets" id="fi-kinds" role="group" aria-label="Bond type" data-pt-aria-label="Tipo de título"></div>
+  <div class="table-wrap"><table class="positions compact fi-bonds" id="fi-bonds"></table></div>
+</section>
+
+<section class="block" id="fi-breakeven" hidden>
+  <h2><span data-l="en">Inflation priced in</span><span data-l="pt">Inflação implícita</span></h2>
+  <p class="lede" id="fi-be-lede"></p>
+  <div class="chart" id="chart-breakeven"></div>
+  <p class="caption" id="fi-source"></p>
 </section>
 </div>
 

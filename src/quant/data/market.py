@@ -337,12 +337,15 @@ def fetch_series(
     offline: bool = False,
     pause: float = 0.2,
     workers: int = 6,
+    adjusted: bool = False,
+    prefix: str = "overview",
 ) -> dict[str, Series]:
     """Download Yahoo series for an overview, tolerating failures one by one.
 
     Unlike :func:`update_market_data`, nothing here is a holding: a symbol that fails and has
     no cached copy is simply left out, and the currency is whatever the source reports. Prices
-    are the closes as quoted (not adjusted for dividends), as market summaries show them.
+    are the closes as quoted (not adjusted for dividends), as market summaries show them, unless
+    ``adjusted`` asks for total-return prices. ``prefix`` keeps each use in its own cache files.
     """
     now = now if now is not None else pd.Timestamp.now(tz="UTC")
     jobs: dict[str, Future[Quote]] = {}
@@ -353,12 +356,12 @@ def fetch_series(
                 time.sleep(pause)
     out: dict[str, Series] = {}
     for symbol in symbols:
-        path = _cache_file(cache_dir, "overview", symbol)
+        path = _cache_file(cache_dir, prefix, symbol)
         try:
             if offline:
                 raise ConnectionError("offline mode")
             quote = jobs[symbol].result()
-            quoted = quote.close if quote.close is not None else quote.prices
+            quoted = quote.close if quote.close is not None and not adjusted else quote.prices
             series = quoted.dropna()
             series = series[series.index >= start.normalize()]
             if series.empty:

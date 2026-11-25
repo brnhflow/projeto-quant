@@ -101,11 +101,11 @@ function renderMarketGroups() {
   $("mk-groups").innerHTML = MK_GROUPS.filter(([g]) => g !== "stocks").map(([g, label]) => {
     const items = MK_ITEMS.filter((it) => it.group === g);
     if (!items.length) return "";
-    return `<div class="mk-group"><h3>${label}</h3>` + items.map((it) => {
+    return `<div class="mk-group"><h3>${label}</h3>` + items.map((it, i) => {
       const v = it.change[mkPeriod];
-      return `<div class="mk-row" data-mk-sym="${esc(it.symbol)}"><div class="mk-name"><strong>${esc(mkName(it))}</strong><small>${esc(it.short)}</small></div>` +
+      return `<div class="mk-row" style="--i:${i}" data-mk-sym="${esc(it.symbol)}"><div class="mk-name"><strong>${esc(mkName(it))}</strong><small>${esc(it.short)}</small></div>` +
         `<span class="mk-level">${mkLevel(it)}</span>${mkSpark(it)}` +
-        `<span class="mk-change ${mkTone(v)}">${mkUnusual(it, mkPeriod) ? `<i class="mk-flag" title="${esc(L("Fora do normal", "Unusual move"))}"></i>` : ""}${mkChange(it, v)}</span></div>`;
+        `<span class="mk-change ${mkTone(v)}">${mkUnusual(it, mkPeriod) ? `<i class="mk-flag" title="${esc(L("Fora do normal", "Unusual move"))}"></i>` : ""}${arrow(v)}${mkChange(it, v)}</span></div>`;
     }).join("") + `</div>`;
   }).join("");
 }
@@ -123,9 +123,9 @@ function renderMarketUnusual() {
     const z = it.z[mkPeriod], v = it.change[mkPeriod], link = mkLink(it.corr);
     const color = v >= 0 ? "var(--pos)" : "var(--neg)";
     const width = Math.min(1, Math.abs(z) / reach) * 100;
-    return `<li data-mk-sym="${esc(it.symbol)}"><span class="mk-rank">${k + 1}</span>` +
+    return `<li style="--i:${k}" data-mk-sym="${esc(it.symbol)}"><span class="mk-rank">${k + 1}</span>` +
       `<span class="mk-u-name"><strong>${esc(mkName(it))}</strong><small>${esc(it.short)}</small></span>` +
-      `<span class="mk-change ${mkTone(v)}">${mkChange(it, v)}</span>` +
+      `<span class="mk-change ${mkTone(v)}">${arrow(v)}${mkChange(it, v)}</span>` +
       `<span class="mk-u-meter"><span class="mk-track"><span class="mk-fill" style="width:${width}%;background:${color}"></span><span class="mk-mark" style="left:${(MK_Z / reach) * 100}%"></span></span>` +
       `<span>${fmt.num(Math.abs(z), 1)}× ${L("o normal", "the usual")}</span>` +
       (link ? `<span class="mk-link" title="${esc(L("Correlação semanal com a sua carteira no último ano", "Weekly correlation with your portfolio over the last year"))}">` +
@@ -202,7 +202,13 @@ if (MK) {
   page.addEventListener("click", (ev) => {
     const period = ev.target.closest("[data-mk]");
     const region = ev.target.closest("[data-mk-region]");
-    if (period) { mkPeriod = period.dataset.mk; renderMarket(); return; }
+    if (period) {
+      mkPeriod = period.dataset.mk;
+      renderMarket();
+      // The numbers that changed fade in, so the switch reads as an update rather than a jump.
+      if (!STILL.matches) page.querySelectorAll(".mk-groups, .mk-unusual, .mk-heat tbody").forEach((n) => { n.classList.remove("swap"); void n.offsetWidth; n.classList.add("swap"); });
+      return;
+    }
     if (region) { mkRegion = region.dataset.mkRegion; renderMarketMoversHeader(); renderMovers(); }
   });
   page.addEventListener("pointermove", (ev) => {
@@ -215,4 +221,108 @@ if (MK) {
     const row = ev.target.closest("[data-mk-sym]");
     if (row && !row.contains(ev.relatedTarget)) hideTip();
   });
+}
+
+// ---------------------------------------------------------------- fear and greed
+const FG = D.sentiment || {};
+const FG_STOCKS = FG.stocks, FG_CRYPTO = FG.crypto;
+const FG_LABEL = {
+  extreme_fear: L("Medo extremo", "Extreme fear"), fear: L("Medo", "Fear"), neutral: L("Neutro", "Neutral"),
+  greed: L("Ganância", "Greed"), extreme_greed: L("Ganância extrema", "Extreme greed"),
+};
+const FG_BANDS = [[0, 25, "extreme_fear"], [25, 45, "fear"], [45, 55, "neutral"], [55, 75, "greed"], [75, 100, "extreme_greed"]];
+const fgColor = (key) => ({
+  extreme_fear: "var(--neg)", fear: "color-mix(in srgb, var(--neg) 55%, var(--ink-3))", neutral: "var(--ink-3)",
+  greed: "color-mix(in srgb, var(--pos) 55%, var(--ink-3))", extreme_greed: "var(--pos)",
+})[key];
+const fgBand = (v) => (FG_BANDS.find(([lo, hi]) => v < hi) || FG_BANDS[4])[2];
+const FG_PARTS = {
+  momentum: [L("Momento", "Momentum"), (v) => L(`S&P 500 ${abs(v * 100, 1)}% ${v >= 0 ? "acima" : "abaixo"} da média de 125 dias`, `S&P 500 ${abs(v * 100, 1)}% ${v >= 0 ? "above" : "below"} its 125-day average`)],
+  strength: [L("Força", "Strength"), (v) => (v > -0.0005 ? L("S&P 500 na máxima de 52 semanas", "S&P 500 at its 52-week high") : L(`S&P 500 ${abs(v * 100, 1)}% abaixo da máxima de 52 semanas`, `S&P 500 ${abs(v * 100, 1)}% below its 52-week high`))],
+  volatility: [L("Volatilidade", "Volatility"), (v) => L(`VIX ${abs(v * 100, 0)}% ${v >= 0 ? "acima" : "abaixo"} da média de 50 dias`, `VIX ${abs(v * 100, 0)}% ${v >= 0 ? "above" : "below"} its 50-day average`)],
+  safe_haven: [L("Porto seguro", "Safe haven"), (v) => L(`Ações ${abs(v * 100, 1)} p.p. ${v >= 0 ? "à frente" : "atrás"} do Tesouro em 20 dias`, `Stocks ${abs(v * 100, 1)} pp ${v >= 0 ? "ahead of" : "behind"} Treasuries over 20 days`)],
+  junk: [L("Títulos de risco", "Junk bonds"), (v) => L(`Alto risco ${abs(v * 100, 1)} p.p. ${v >= 0 ? "à frente" : "atrás"} do Tesouro em 20 dias`, `High yield ${abs(v * 100, 1)} pp ${v >= 0 ? "ahead of" : "behind"} Treasuries over 20 days`)],
+};
+
+// Half-dial: five coloured bands, a needle that sweeps in from zero, the score in the middle.
+function fgGauge(score) {
+  const cx = 120, cy = 118, r = 92, w = 16;
+  const pt = (v, rad) => { const a = Math.PI * (1 - v / 100); return [cx + rad * Math.cos(a), cy - rad * Math.sin(a)]; };
+  const arc = (a, b) => { const [x0, y0] = pt(a, r), [x1, y1] = pt(b, r); return `M${x0.toFixed(1)},${y0.toFixed(1)}A${r},${r} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)}`; };
+  const bands = FG_BANDS.map(([lo, hi, key]) => {
+    const on = fgBand(score) === key;
+    return `<path d="${arc(lo + (lo ? 0.8 : 0), hi - (hi < 100 ? 0.8 : 0))}" stroke="${fgColor(key)}" stroke-width="${w}" fill="none" opacity="${on ? 1 : 0.32}"/>`;
+  }).join("");
+  const ticks = [0, 25, 50, 75, 100].map((v) => { const [x, y] = pt(v, r - w - 6); return `<text x="${x.toFixed(1)}" y="${(y + 3).toFixed(1)}" text-anchor="middle" class="fg-tick">${v}</text>`; }).join("");
+  return `<svg class="fg-gauge" viewBox="0 0 240 132" role="img" aria-label="${esc(`${fmt.num(score, 0)} / 100, ${FG_LABEL[fgBand(score)]}`)}">${bands}${ticks}` +
+    `<g class="fg-needle" style="--to:${(score * 1.8).toFixed(1)}deg"><path d="M${cx - r + 22},${cy} L${cx},${cy - 4} L${cx},${cy + 4} Z" fill="var(--ink)"/></g>` +
+    `<circle cx="${cx}" cy="${cy}" r="7" fill="var(--ink)"/><circle cx="${cx}" cy="${cy}" r="2.5" fill="var(--paper)"/></svg>`;
+}
+function fgCard(title, source, g) {
+  const then = [[L("1 semana", "1 week"), g.week], [L("1 mês", "1 month"), g.month], [L("1 ano", "1 year"), g.year]].filter(([, v]) => v !== null && v !== undefined);
+  return `<article class="fg-card"><header><strong>${title}</strong><small>${source}</small></header>${fgGauge(g.score)}` +
+    `<p class="fg-score"><span class="count-up">${fmt.num(g.score, 0)}</span><span class="fg-label" style="color:${fgColor(g.label)}">${FG_LABEL[g.label]}</span></p>` +
+    `<ul class="fg-then">${then.map(([label, v]) => `<li><small>${L("Há", "")} ${label}${L("", " ago")}</small><span>${fmt.num(v, 0)}</span><em class="${g.score - v > 0.5 ? "up" : g.score - v < -0.5 ? "down" : ""}">${arrow(g.score - v, 0)}${fmt.num(Math.abs(g.score - v), 0)}</em></li>`).join("")}</ul></article>`;
+}
+function renderFear() {
+  const section = $("mk-fear-section");
+  if (!MK || !section || (!FG_STOCKS && !FG_CRYPTO)) return;
+  section.hidden = false;
+  const describe = (name, g) => `${name}: <strong style="color:${fgColor(g.label)}">${FG_LABEL[g.label].toLowerCase()}</strong> (${fmt.num(g.score, 0)})`;
+  const parts = [FG_STOCKS && describe(L("ações", "stocks"), FG_STOCKS), FG_CRYPTO && describe(L("cripto", "crypto"), FG_CRYPTO)].filter(Boolean);
+  const month = FG_STOCKS && FG_STOCKS.month !== null ? L(` Há um mês, as ações marcavam ${fmt.num(FG_STOCKS.month, 0)}.`, ` A month ago stocks read ${fmt.num(FG_STOCKS.month, 0)}.`) : "";
+  const contrarian = [FG_STOCKS, FG_CRYPTO].some((g) => g && (g.label === "extreme_fear" || g.label === "extreme_greed"))
+    ? L(" Leituras extremas costumam ser lidas ao contrário (\"compre no medo\"), mas isso é uma hipótese, não uma regra testada aqui.", " Extreme readings are often read the other way (\"buy the fear\"), but that is a hypothesis, not a rule tested here.") : "";
+  $("mk-fear-lede").innerHTML = L(`Hoje o humor está assim: ${parts.join("; ")}.`, `Mood today: ${parts.join("; ")}.`).replace(/^(.)/, (c) => c.toUpperCase()) + month + contrarian;
+  $("fg-grid").innerHTML = (FG_STOCKS ? fgCard(L("Ações (EUA)", "Stocks (US)"), L("Termômetro do projeto, 5 medidas", "This project's gauge, 5 measures"), FG_STOCKS) : "") +
+    (FG_CRYPTO ? fgCard(L("Cripto", "Crypto"), "alternative.me", FG_CRYPTO) : "");
+  $("fg-parts-title").hidden = !FG_STOCKS;
+  $("fg-parts").innerHTML = FG_STOCKS ? FG_STOCKS.parts.map((p, i) => {
+    const [name, say] = FG_PARTS[p.key];
+    const band = p.score === null ? "neutral" : fgBand(p.score);
+    return `<div class="fg-part" style="--i:${i}"><div class="fg-part-head"><strong>${name}</strong><span style="color:${fgColor(band)}">${p.score === null ? "—" : fmt.num(p.score, 0)}</span></div>` +
+      `<div class="fg-bar"><span class="fg-fill" style="width:${p.score || 0}%;background:${fgColor(band)}"></span></div><small>${p.value === null ? "" : esc(say(p.value))}</small></div>`;
+  }).join("") : "";
+  const key = (color, label) => `<span class="key"><span class="swatch" style="background:${color}"></span>${label}</span>`;
+  $("fg-legend").innerHTML = (FG_STOCKS ? key(cssVar("--s1"), L("Ações (EUA)", "Stocks (US)")) : "") + (FG_CRYPTO ? key(cssVar("--s2"), L("Cripto", "Crypto")) : "");
+  countUp(section);
+}
+function renderFearChart() {
+  const host = $("chart-fear");
+  if (!host || (!FG_STOCKS && !FG_CRYPTO)) return;
+  const height = +host.dataset.height || 210;
+  const { svg, width } = svgFor(host, height);
+  const m = { left: 34, right: 12, top: 8, bottom: 26 };
+  const series = [[FG_STOCKS, cssVar("--s1"), L("Ações", "Stocks")], [FG_CRYPTO, cssVar("--s2"), L("Cripto", "Crypto")]].filter(([g]) => g)
+    .map(([g, color, name]) => { const t0 = parseDate(g.history.start).t; return { color, name, pts: g.history.t.map((t, i) => [t0 + t * 864e5, g.history.v[i]]) }; });
+  const t0 = Math.min(...series.map((s) => s.pts[0][0])), t1 = Math.max(...series.map((s) => s.pts[s.pts.length - 1][0]));
+  const x = (t) => m.left + ((t - t0) / (t1 - t0 || 1)) * (width - m.left - m.right);
+  const y = (v) => m.top + ((100 - v) / 100) * (height - m.top - m.bottom);
+  FG_BANDS.forEach(([lo, hi, key]) => el("rect", { x: m.left, width: width - m.left - m.right, y: y(hi), height: y(lo) - y(hi), fill: fgColor(key), opacity: 0.09 }, svg));
+  const axis = el("g", { class: "axis" }, svg);
+  [0, 25, 50, 75, 100].forEach((v) => { el("line", { class: "gridline", x1: m.left, x2: width - m.right, y1: y(v), y2: y(v) }, axis); text(axis, m.left - 6, y(v) + 4, String(v), { "text-anchor": "end" }); });
+  const months = [];
+  for (let d = new Date(t0); d.getTime() <= t1; d.setUTCMonth(d.getUTCMonth() + 1)) months.push(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+  const step = Math.max(1, Math.ceil(months.length / Math.max(2, Math.floor(width / 80))));
+  months.filter((t, i) => t >= t0 && i % step === 0).forEach((t) => { const d = new Date(t); text(axis, x(t), height - 8, d.getUTCMonth() === 0 ? `${MONTHS[0]} ${d.getUTCFullYear()}` : MONTHS[d.getUTCMonth()], { "text-anchor": "middle" }); });
+  series.forEach((s) => el("path", { class: "line", d: "M" + s.pts.map(([t, v]) => `${x(t).toFixed(1)},${y(v).toFixed(1)}`).join("L"), stroke: s.color, "stroke-width": 1.8, fill: "none", pathLength: 1 }, svg));
+  const cross = el("line", { class: "crosshair", y1: m.top, y2: height - m.bottom, visibility: "hidden" }, svg);
+  const dots = series.map((s) => el("circle", { class: "dot", r: 4, fill: s.color, visibility: "hidden" }, svg));
+  const hit = el("rect", { class: "hit", x: m.left, y: 0, width: width - m.left - m.right, height }, svg);
+  const move = (ev) => {
+    const r = svg.getBoundingClientRect();
+    const t = t0 + (((ev.clientX - r.left) / r.width) * width - m.left) / (width - m.left - m.right) * (t1 - t0);
+    cross.setAttribute("x1", x(t)); cross.setAttribute("x2", x(t)); cross.setAttribute("visibility", "visible");
+    const rows = [];
+    series.forEach((s, k) => {
+      let best = s.pts[0];
+      for (const p of s.pts) if (Math.abs(p[0] - t) < Math.abs(best[0] - t)) best = p;
+      dots[k].setAttribute("cx", x(best[0])); dots[k].setAttribute("cy", y(best[1])); dots[k].setAttribute("visibility", "visible");
+      rows.push({ label: s.name, value: `${fmt.num(best[1], 0)} · ${FG_LABEL[fgBand(best[1])]}`, color: s.color });
+    });
+    showTip(tipHtml(dateLong(new Date(t).toISOString().slice(0, 10)), rows), ev);
+  };
+  hit.addEventListener("pointermove", move);
+  hit.addEventListener("pointerdown", move);
+  hit.addEventListener("pointerleave", () => { cross.setAttribute("visibility", "hidden"); dots.forEach((d) => d.setAttribute("visibility", "hidden")); hideTip(); });
 }
