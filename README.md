@@ -25,6 +25,9 @@ rebalancing. Every model comes with the test that says whether to trust it.
   [Read the note](docs/research/var-backtest.md)
 - **C++20 core.** Rolling VaR, bootstrap, Monte Carlo and a backtest engine, 6–20× faster than
   NumPy and checked against it on every push.
+- **Weights with error bars.** The minimum-variance portfolio is re-solved on 300 bootstrap
+  resamples to show how much each weight is signal; two solvers (active set, FISTA in C++)
+  check each other.
 - **Rules backtested with costs.** A 10% volatility target lifts the demo's Sharpe from 1.02 to
   1.34 and cuts its worst drawdown from −19.8% to −12.1%.
 - **What professionals report.** Tearsheet, Brinson attribution, time- and money-weighted returns
@@ -144,6 +147,7 @@ CI builds it on every push, runs the C++ unit tests (CTest), checks every kernel
 | Filtered historical simulation VaR, 20,000 days | 29.8 ms | 2.2 ms | 13.4× |
 | Stationary bootstrap, 2,000 resamples of 2,500 days | 145 ms | 18.8 ms | 7.7× |
 | Monte Carlo, 2,000 paths of 5 years | 123 ms | 7.4 ms | 16.7× |
+| Minimum variance on 300 resamples of a year, 10 assets | 87 ms | 7.8 ms | 11.1× |
 | Ledoit-Wolf, 300 days x 50 assets | 0.1 ms | 0.5 ms | 0.2× (NumPy is used) |
 | Walk-forward rule backtest | reference in Python | C++ engine | checked to 1e-12 |
 
