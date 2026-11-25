@@ -404,14 +404,14 @@ function placeThumb(group) {
 function watchSegmented() {
   const groups = () => document.querySelectorAll(".segmented");
   const queue = new Set();
-  let frame = 0;
-  const flush = () => { frame = 0; queue.forEach(placeThumb); queue.clear(); };
+  const flush = () => { queue.forEach(placeThumb); queue.clear(); };
   new MutationObserver((records) => {
     records.forEach((r) => {
       const group = (r.target.closest ? r.target : r.target.parentElement).closest(".segmented");
       if (group) queue.add(group);
     });
-    if (queue.size && !frame) frame = requestAnimationFrame(flush);
+    // The observer already runs after the DOM change, before paint: place the pills now.
+    if (queue.size) flush();
   }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["aria-pressed"] });
   groups().forEach(placeThumb);
   window.addEventListener("resize", () => groups().forEach(placeThumb));

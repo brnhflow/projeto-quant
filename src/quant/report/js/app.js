@@ -76,6 +76,8 @@ function showTab(name, push) {
   animate($("page-" + tab));
   updateNudges();
   moveInk();
+  // Controls that were on a hidden tab had no width until now.
+  $("page-" + tab).querySelectorAll(".segmented").forEach(placeThumb);
 }
 $("tabs").addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-tab]");
@@ -204,7 +206,7 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ret
 themeSwitch($("theme"), retheme);
 startLive();
 watchSegmented();
-requestAnimationFrame(moveInk);
+moveInk();
 // The tab bar casts a shadow once it is pinned to the top of the window.
 if ("IntersectionObserver" in window) {
   const pin = document.createElement("div");
