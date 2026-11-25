@@ -6,6 +6,7 @@
 #include <random>
 #include <vector>
 
+#include "quant/allocation.hpp"
 #include "quant/backtest.hpp"
 #include "quant/covariance.hpp"
 #include "quant/risk.hpp"
@@ -151,7 +152,39 @@ void ledoit_wolf_keeps_a_well_estimated_matrix() {
     check(near(r.covariance[1], r.covariance[2]), "symmetric");
 }
 
+// Two assets: the minimum-variance share of the first is (s22 - s12) / (s11 + s22 - 2 s12).
+void min_variance_of_two_assets_is_the_closed_form() {
+    const std::vector<double> s = {0.04, 0.006, 0.006, 0.01};
+    const auto w = quant::min_variance(s, 2, 0.0, 1.0);
+    const double expected = (0.01 - 0.006) / (0.04 + 0.01 - 0.012);
+    check(near(w[0], expected, 1e-10) && near(w[1], 1.0 - expected, 1e-10), "two-asset closed form");
+    const auto capped = quant::min_variance(s, 2, 0.0, 0.6);
+    check(near(capped[1], 0.6, 1e-12) && near(capped[0], 0.4, 1e-12), "the cap binds on the low-variance asset");
+}
+
+void projection_lands_on_the_capped_simplex() {
+    const std::vector<double> v = {0.9, 0.5, -0.2, 0.1};
+    std::vector<double> w(4);
+    quant::project_capped_simplex(v, 0.0, 0.5, w);
+    const double sum = w[0] + w[1] + w[2] + w[3];
+    check(near(sum, 1.0) && near(w[0], 0.5) && w[2] == 0.0, "projection respects the sum and the limits");
+}
+
+void resampling_is_reproducible_across_thread_counts() {
+    std::mt19937_64 rng(11);
+    std::normal_distribution<double> z(0.0, 0.01);
+    const std::size_t n = 300, p = 4;
+    std::vector<double> x(n * p);
+    for (double& v : x) v = z(rng);
+    const auto one = quant::resampled_min_variance(x, n, p, 40, 10.0, 0.0, 1.0, 5, 1);
+    const auto many = quant::resampled_min_variance(x, n, p, 40, 10.0, 0.0, 1.0, 5, 4);
+    check(one == many, "same weights with 1 and 4 threads");
+}
+
 int main() {
+    min_variance_of_two_assets_is_the_closed_form();
+    projection_lands_on_the_capped_simplex();
+    resampling_is_reproducible_across_thread_counts();
     ledoit_wolf_matches_a_hand_computed_case();
     ledoit_wolf_keeps_a_well_estimated_matrix();
     simulation_of_a_constant_log_return_is_exact();

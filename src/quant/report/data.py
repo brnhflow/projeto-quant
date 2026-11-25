@@ -10,9 +10,11 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, cast
 
+import numpy as np
 import pandas as pd
 
 from quant.align import align_to_dates
+from quant.allocation import min_variance, resampled_weights
 from quant.attribution import return_attribution
 from quant.benchmark import compare
 from quant.brinson import brinson_fachler, style_r2, style_weights
@@ -271,6 +273,41 @@ def _covariance(base_prices: pd.DataFrame, order: list[str]) -> dict[str, Any] |
         "matrix": [
             [_num(float(matrix[i, j]), 10) for j in range(len(order))] for i in range(len(order))
         ],
+    }
+
+
+STABILITY_SAMPLES = 300
+STABILITY_BLOCK = 20.0
+
+
+def _stability(base_prices: pd.DataFrame, risky: list[str]) -> dict[str, Any] | None:
+    """How much the minimum-variance weights move when the covariance is re-estimated.
+
+    Same window and Ledoit-Wolf covariance as the rebalancing page; each of
+    :data:`STABILITY_SAMPLES` stationary-bootstrap resamples of the daily returns gets its own
+    estimate and its own solution. ``change`` is the average share of the portfolio that would
+    trade between the full-sample answer and a resample's (half the L1 distance).
+    """
+    if len(risky) < 2:
+        return None
+    returns = simple_returns(base_prices[risky]).iloc[-COVARIANCE_DAYS:]
+    if len(returns) < MIN_DAYS_COVARIANCE:
+        return None
+    x = returns.to_numpy(dtype=float)
+    point = min_variance(ledoit_wolf(returns)[0].to_numpy(dtype=float))
+    draws = resampled_weights(x, STABILITY_SAMPLES, STABILITY_BLOCK, seed=7)
+    ordered = draws.copy()
+    ordered.sort(axis=0)
+    lo, mid, hi = (ordered[int(q * (len(draws) - 1))] for q in (0.05, 0.5, 0.95))
+    change = float(np.abs(draws - point).sum(axis=1).mean() / 2)
+    return {
+        "assets": risky,
+        "samples": STABILITY_SAMPLES,
+        "point": [_num(float(v), 4) for v in point],
+        "lo": [_num(float(v), 4) for v in lo],
+        "median": [_num(float(v), 4) for v in mid],
+        "hi": [_num(float(v), 4) for v in hi],
+        "change": _num(change, 4),
     }
 
 
@@ -1517,6 +1554,7 @@ def build_report_data(
             for a in order
         ],
         "covariance": _covariance(base_prices, order),
+        "stability": _stability(base_prices, [a for a in order if _kind(holdings, a) != "cash"]),
         "currencies": [
             {
                 "code": str(c),

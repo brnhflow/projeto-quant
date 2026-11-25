@@ -19,6 +19,8 @@ Ordered by how useful each step is for managing a real portfolio. A step ships o
 | 7c | Historical, EWMA and filtered historical VaR compared on each portfolio, with tomorrow's forecast | The report's comparison uses the same code as the research note |
 | 10 | C++ core for the rolling VaR models and the bootstrap | Matches NumPy (bit for bit / 1e-12) and the speed-up is measured in CI |
 | 11 | English interface | Every string in both languages; no Portuguese left in the English page |
+| 8a | Long-only minimum variance with limits; resampled stability of the weights (C++ in parallel) | Active set and FISTA agree to 1e-8 and pass the KKT conditions; two-asset and unconstrained closed forms |
+| 9 | Walk-forward backtests of buy and hold, calendar, bands and volatility targeting, with costs; probabilistic and deflated Sharpe | The C++ engine matches the Python reference to 1e-12; PSR and DSR match closed forms |
 
 ## Next
 
@@ -29,15 +31,8 @@ picks the lots with the lowest tax.
 
 *Done when:* the tax matches hand-computed cases from each country's rules.
 
-### 8. Allocation with constraints
-Minimum variance and a mean-variance frontier on the Ledoit-Wolf covariance, long only, with
-per-asset limits. The report must show how much the weights move when the inputs change
-slightly, because they usually move a lot.
+### 8b. Mean-variance frontier
+The long-only frontier with per-asset limits, with the same resampled ranges as the minimum
+variance (8a), so the page shows how little of the frontier survives estimation error.
 
-*Done when:* the unconstrained solution matches the closed form, and the constrained one matches
-a reference QP solver.
-
-### 9. Backtesting allocation rules
-Walk-forward tests of simple rules (calendar rebalancing, bands, risk parity) with costs and
-point-in-time data. It comes late on purpose: this is where overfitting and look-ahead hide
-best.
+*Done when:* each frontier point passes the KKT conditions and the two solvers agree.

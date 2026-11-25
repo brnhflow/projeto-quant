@@ -5,6 +5,8 @@
 // ---------------------------------------------------------------- info icons
 // Keyed by the English title; each entry is [Portuguese, English].
 const INFO = {
+  "How stable is the minimum-variance portfolio?": ["A covariância é reestimada em 300 reamostragens dos retornos diários (bootstrap estacionário, blocos de 20 dias em média, Ledoit-Wolf em cada uma) e a mínima variância é resolvida de novo. A barra vai do 5º ao 95º percentil de cada peso; o ponto é a resposta com todos os dados. Barras largas: o peso vem mais do ruído da amostra do que de um sinal (Michaud, 1989).",
+    "The covariance is re-estimated on 300 resamples of the daily returns (stationary bootstrap, 20-day mean blocks, Ledoit-Wolf on each) and the minimum variance is solved again. Bars run from the 5th to the 95th percentile of each weight; the dot is the full-sample answer. Wide bars mean the weight owes more to sampling noise than to signal (Michaud, 1989)."],
   "Performance": ["Valor diário da carteira em euro, com as quantidades de hoje durante todo o período. Passe o mouse para ver cada dia; escolha um índice para comparar.",
     "Daily portfolio value in euro, holding today's quantities through the period. Hover to read each day; pick an index to compare against."],
   "Drawdown from the previous peak": ["Quanto a carteira estava abaixo do maior valor que já tinha atingido, a cada dia.",

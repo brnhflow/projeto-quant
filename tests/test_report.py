@@ -169,6 +169,19 @@ def test_very_short_history_hides_covariance_based_sections() -> None:
     assert len(whole["attribution"]) == 2
 
 
+def test_minimum_variance_stability_is_reported_with_ranges() -> None:
+    holdings, prices, fx, calendar = _market(300)
+
+    data = build_report_data(holdings, prices, fx, calendar, title="T")
+
+    stab = data["stability"]
+    assert stab is not None
+    assert sum(stab["point"]) == pytest.approx(1.0, abs=1e-3)
+    assert all(lo <= hi for lo, hi in zip(stab["lo"], stab["hi"], strict=True))
+    assert 0 <= stab["change"] <= 1
+    assert data["covariance"]["days"] >= len(stab["assets"])
+
+
 def test_rejects_history_without_two_complete_dates() -> None:
     holdings, prices, fx, calendar = _market(10)
     prices = prices.iloc[:1]
@@ -184,7 +197,7 @@ def test_build_report_returns_a_full_page() -> None:
 
     assert page.startswith("<!DOCTYPE html>")
     assert '"synthetic": true' in page
-    assert page.count("<section") == 20
+    assert page.count("<section") == 21
 
 
 def test_late_starting_asset_is_named_as_the_history_limit() -> None:

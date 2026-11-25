@@ -3,12 +3,14 @@
 // Inputs are read straight from NumPy memory (no copy); outputs are moved into NumPy arrays
 // that own their buffer, so a result of a million doubles crosses into Python without a copy.
 #include <cstdint>
+#include <stdexcept>
 #include <span>
 #include <vector>
 
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
 
+#include "quant/allocation.hpp"
 #include "quant/backtest.hpp"
 #include "quant/covariance.hpp"
 #include "quant/risk.hpp"
@@ -126,4 +128,28 @@ NB_MODULE(quant_core, m) {
             return nb::make_tuple(to_numpy(std::move(out.covariance), p), out.shrinkage);
         },
         nb::arg("returns"), "Ledoit-Wolf covariance (p x p) and the shrinkage, from an n x p matrix of returns.");
+
+    m.def(
+        "min_variance",
+        [](const Matrix& cov, double lower, double upper) {
+            const std::size_t p = cov.shape(0);
+            if (cov.shape(1) != p) throw std::invalid_argument("covariance must be square");
+            return to_numpy(quant::min_variance({cov.data(), p * p}, p, lower, upper));
+        },
+        nb::arg("cov"), nb::arg("lower"), nb::arg("upper"),
+        "Long-only minimum-variance weights within [lower, upper] (FISTA).");
+
+    m.def(
+        "resampled_min_variance",
+        [](const Matrix& x, std::size_t samples, double mean_block, double lower, double upper, std::uint64_t seed) {
+            const std::size_t n = x.shape(0), p = x.shape(1);
+            std::vector<double> out;
+            {
+                nb::gil_scoped_release release;
+                out = quant::resampled_min_variance({x.data(), n * p}, n, p, samples, mean_block, lower, upper, seed);
+            }
+            return to_numpy(std::move(out), p);
+        },
+        nb::arg("returns"), nb::arg("samples"), nb::arg("mean_block"), nb::arg("lower"), nb::arg("upper"),
+        nb::arg("seed"), "Minimum-variance weights on stationary-bootstrap resamples: samples x p.");
 }

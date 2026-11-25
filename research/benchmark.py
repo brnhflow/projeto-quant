@@ -73,6 +73,17 @@ def main() -> int:
     small = np.ascontiguousarray(x[:7500].reshape(750, 10))
     wide = np.ascontiguousarray(x[:15000].reshape(300, 50))
 
+    from quant.allocation import resampled_weights
+
+    year = np.ascontiguousarray(x[:2500].reshape(250, 10))
+
+    def numpy_resampled() -> None:
+        core._core = None  # pyright: ignore[reportPrivateUsage]
+        try:
+            resampled_weights(year, 300, 20.0)
+        finally:
+            core._core = saved  # pyright: ignore[reportPrivateUsage]
+
     cases = [
         (
             "rolling historical VaR (250d)",
@@ -93,6 +104,11 @@ def main() -> int:
             "Monte Carlo, 2,000 paths x 5 years",
             numpy_simulation,
             lambda: simulate_growth(x[:2500], 1260, 2000, demean=True),
+        ),
+        (
+            "resampled min variance, 300 x 250d x 10",
+            numpy_resampled,
+            lambda: resampled_weights(year, 300, 20.0),
         ),
         (
             "Ledoit-Wolf, 750 days x 10 assets",

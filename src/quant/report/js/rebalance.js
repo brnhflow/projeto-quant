@@ -46,6 +46,63 @@ function presetTargets(kind) {
   return out;
 }
 
+// ---------------------------------------------------------------- stability
+// Spread of the minimum-variance weights across bootstrap resamples (quant.allocation).
+const STAB = D.stability;
+const stabLabel = (a) => (positions.find((p) => p.asset === a) || { label: a }).label;
+function renderStability() {
+  $("stability").hidden = !STAB;
+  if (!STAB) return;
+  const widest = STAB.assets.map((a, i) => ({ a, span: STAB.hi[i] - STAB.lo[i] })).sort((x, y) => y.span - x.span)[0];
+  $("stab-lede").innerHTML = L(
+    `Com dados um pouco diferentes, a carteira de mínima variância mudaria em média <strong>${fmt.share(STAB.change, 0)}</strong> do valor. O peso mais incerto é o de <strong>${esc(stabLabel(widest.a))}</strong>: entre ${fmt.share(STAB.lo[STAB.assets.indexOf(widest.a)], 0)} e ${fmt.share(STAB.hi[STAB.assets.indexOf(widest.a)], 0)} em 90% das reamostragens.`,
+    `With slightly different data, the minimum-variance portfolio would change by <strong>${fmt.share(STAB.change, 0)}</strong> of its value on average. The least certain weight is <strong>${esc(stabLabel(widest.a))}</strong>: between ${fmt.share(STAB.lo[STAB.assets.indexOf(widest.a)], 0)} and ${fmt.share(STAB.hi[STAB.assets.indexOf(widest.a)], 0)} in 90% of resamples.`);
+  $("stab-legend").innerHTML =
+    `<span class="key"><span class="swatch" style="background:var(--s1-soft);border:1px solid var(--s1)"></span>${L("90% das reamostragens", "90% of resamples")}</span>` +
+    `<span class="key"><span class="swatch" style="background:var(--s1);border-radius:50%"></span>${L("Com todos os dados", "Full sample")}</span>` +
+    `<span class="key"><span class="tick-key" style="background:var(--ink-3)"></span>${L("Peso atual", "Current weight")}</span>`;
+}
+function renderStabilityChart() {
+  if (!STAB) return;
+  const risky = positions.filter((p) => p.kind !== "cash");
+  const total = risky.reduce((a, p) => a + p.weight, 0) || 1;
+  const rows = STAB.assets.map((a, i) => ({
+    label: stabLabel(a), point: STAB.point[i], lo: STAB.lo[i], hi: STAB.hi[i], median: STAB.median[i],
+    now: ((risky.find((p) => p.asset === a) || { weight: 0 }).weight) / total,
+  })).sort((x, y) => y.point - x.point);
+  const host = $("chart-stability");
+  const rowH = 34, m = { left: 150, right: 120, top: 6, bottom: 22 };
+  const height = m.top + m.bottom + rows.length * rowH;
+  const { svg, width } = svgFor(host, height);
+  const top = Math.max(...rows.map((r) => Math.max(r.hi, r.now)), 0.05);
+  const ticks = niceTicks(0, top, 4);
+  const b = ticks[ticks.length - 1];
+  const x = (v) => m.left + (v / b) * (width - m.left - m.right);
+  const axis = el("g", { class: "axis" }, svg);
+  ticks.forEach((t) => {
+    el("line", { class: t === 0 ? "baseline" : "gridline", x1: x(t), x2: x(t), y1: m.top, y2: height - m.bottom }, axis);
+    text(axis, x(t), height - 6, fmt.share(t, 0), { "text-anchor": "middle" });
+  });
+  rows.forEach((r, k) => {
+    const y0 = m.top + k * rowH, mid = y0 + rowH / 2;
+    const g = el("g", {}, svg);
+    const hit = el("rect", { class: "row-hit", x: 0, y: y0, width, height: rowH, rx: 4 }, g);
+    text(g, m.left - 12, mid + 4, r.label, { class: "row-label", "text-anchor": "end" });
+    const bars = el("g", { class: "bars", style: `transform-origin: ${x(0)}px 0; animation-delay: ${k * 35}ms` }, g);
+    el("rect", { x: x(r.lo), y: mid - 7, width: Math.max(2, x(r.hi) - x(r.lo)), height: 14, rx: 4, fill: cssVar("--s1-soft"), stroke: cssVar("--s1"), "stroke-width": 1 }, bars);
+    el("line", { x1: x(r.now), x2: x(r.now), y1: mid - 10, y2: mid + 10, stroke: cssVar("--ink-3"), "stroke-width": 2, "stroke-linecap": "round" }, bars);
+    el("circle", { cx: x(r.point), cy: mid, r: 5, fill: cssVar("--s1"), stroke: cssVar("--paper"), "stroke-width": 2 }, bars);
+    text(g, width - 4, mid + 4, `${fmt.share(r.point, 0)}  (${fmt.share(r.lo, 0)}–${fmt.share(r.hi, 0)})`, { class: "row-value", "text-anchor": "end" });
+    hit.addEventListener("pointermove", (ev) => showTip(tipHtml(r.label, [
+      { label: L("Com todos os dados", "Full sample"), value: fmt.share(r.point, 1), color: cssVar("--s1") },
+      { label: L("Mediana das reamostragens", "Median of resamples"), value: fmt.share(r.median, 1) },
+      { label: L("90% das reamostragens", "90% of resamples"), value: `${fmt.share(r.lo, 1)} ${L("a", "to")} ${fmt.share(r.hi, 1)}` },
+      { label: L("Peso atual (sem caixa)", "Current weight (ex cash)"), value: fmt.share(r.now, 1) },
+    ]), ev));
+    hit.addEventListener("pointerleave", hideTip);
+  });
+}
+
 function renderRebalance() {
   const saved = savedTargets();
   document.querySelector('#reb-presets [data-target="saved"]').hidden = !saved;

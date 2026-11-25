@@ -137,3 +137,27 @@ def ledoit_wolf(returns: npt.NDArray[np.float64]) -> tuple[npt.NDArray[np.float6
         return None
     matrix, shrinkage = _core.ledoit_wolf(np.ascontiguousarray(returns, dtype=np.float64))
     return np.asarray(matrix, dtype=np.float64), float(shrinkage)
+
+
+def min_variance(cov: npt.NDArray[np.float64], lower: float, upper: float) -> Vector | None:
+    """C++ minimum-variance weights within limits (FISTA), or None without the extension."""
+    if _core is None:
+        return None
+    out = _core.min_variance(np.ascontiguousarray(cov, dtype=np.float64), lower, upper)
+    return np.asarray(out, dtype=np.float64)
+
+
+def resampled_min_variance(
+    returns: npt.NDArray[np.float64],
+    samples: int,
+    mean_block: float,
+    lower: float,
+    upper: float,
+    seed: int,
+) -> npt.NDArray[np.float64] | None:
+    """C++ minimum-variance weights on bootstrap resamples (samples x p), or None without it."""
+    if _core is None:
+        return None
+    x = np.ascontiguousarray(returns, dtype=np.float64)
+    out = _core.resampled_min_variance(x, samples, mean_block, lower, upper, seed)
+    return np.asarray(out, dtype=np.float64)

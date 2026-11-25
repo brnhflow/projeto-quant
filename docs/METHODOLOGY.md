@@ -494,12 +494,44 @@ unrelated strategies it would be large.
 normal returns; more data and thinner tails raise it; the expected maximum grows with $N$ and is
 within 2% of the exact value for 20 normals (1.90 against 1.8675); more trials lower the DSR.
 
+## 21. How stable is the minimum-variance portfolio?
+
+`quant.allocation`. The minimum-variance portfolio, long only with optional per-asset limits,
+
+min ½ w'Σw  subject to  1'w = 1,  l ≤ w ≤ u,
+
+is solved on the Ledoit-Wolf covariance of the last year (the same matrix as the rebalancing
+page). Expected returns are left out: they are the noisiest input, and an optimiser fed with them
+mostly amplifies their errors (Michaud, 1989).
+
+The weights still move with the sample. To show how much, the daily return rows are resampled
+300 times with the stationary bootstrap (mean block 20 days, so cross-asset correlation and
+volatility clusters survive), the covariance is re-estimated on each resample and the problem
+solved again. The report shows, per asset, the full-sample weight, the 5th–95th percentile range
+across resamples and today's weight, plus the average share of the portfolio that would trade
+between the full-sample answer and a resample's (half the L1 distance).
+
+Two independent solvers check each other:
+
+| Solver | Where | Method |
+|---|---|---|
+| Primal active set | Python | Solves the equality-constrained problem on the free assets, steps until a limit binds, frees an asset when its Lagrange multiplier has the wrong sign. Exact up to rounding. |
+| FISTA | C++ | Accelerated projected gradient (Beck and Teboulle, 2009), step 1/λmax from power iteration, exact projection onto {1'w = 1, l ≤ w ≤ u} by sorting the kinks of the piecewise-linear sum. |
+
+Both are checked with the KKT conditions (for interior weights the gradient Σw is equal; at the
+lower limit it is at least that value, at the upper limit at most), which certify the optimum of
+a convex problem; against the two-asset closed form and the unconstrained formula
+Σ⁻¹1 / 1'Σ⁻¹1; and against each other to 1e-8. The C++ engine runs the resamples on all cores,
+each with its own SplitMix64-seeded generator, so the result does not depend on the thread
+count.
+
 ## References
 
 - Bailey, D., López de Prado, M. (2012). The Sharpe ratio efficient frontier. *Journal of Risk*, 15(2), 3–44.
 - Bailey, D., López de Prado, M. (2014). The deflated Sharpe ratio. *Journal of Portfolio Management*, 40(5), 94–107.
 - Bacon, C. (2008). *Practical Portfolio Performance Measurement and Attribution*, 2nd ed. Wiley.
 - Basel Committee on Banking Supervision (1996). *Supervisory framework for the use of "backtesting" in conjunction with the internal models approach to market risk capital requirements.*
+- Beck, A., Teboulle, M. (2009). A fast iterative shrinkage-thresholding algorithm for linear inverse problems. *SIAM Journal on Imaging Sciences*, 2(1), 183–202.
 - Brinson, G., Hood, L. R., Beebower, G. (1986). Determinants of portfolio performance. *Financial Analysts Journal*, 42(4), 39–44.
 - Christoffersen, P. (1998). Evaluating interval forecasts. *International Economic Review*, 39(4), 841–862.
 - Duchi, J., Shalev-Shwartz, S., Singer, Y., Chandra, T. (2008). Efficient projections onto the l1-ball for learning in high dimensions. *ICML 2008*.
@@ -507,6 +539,7 @@ within 2% of the exact value for 20 normals (1.90 against 1.8675); more trials l
 - Jorion, P. (2007). *Value at Risk: The New Benchmark for Managing Financial Risk*, 3rd ed. McGraw-Hill.
 - Kupiec, P. (1995). Techniques for verifying the accuracy of risk measurement models. *Journal of Derivatives*, 3(2), 73–84.
 - Ledoit, O., Wolf, M. (2004). A well-conditioned estimator for large-dimensional covariance matrices. *Journal of Multivariate Analysis*, 88(2), 365–411.
+- Michaud, R. (1989). The Markowitz optimization enigma: is "optimized" optimal? *Financial Analysts Journal*, 45(1), 31–42.
 - Moreira, A., Muir, T. (2017). Volatility-managed portfolios. *Journal of Finance*, 72(4), 1611–1644.
 - Politis, D., Romano, J. (1994). The stationary bootstrap. *Journal of the American Statistical Association*, 89(428), 1303–1313.
 - Sharpe, W. F. (1992). Asset allocation: management style and performance measurement. *Journal of Portfolio Management*, 18(2), 7–19.

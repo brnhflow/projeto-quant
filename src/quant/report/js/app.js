@@ -76,6 +76,7 @@ const CHARTS = [
   ["#page-desempenho", renderTearsheetCharts],
   ["#page-desempenho", renderLedgerChart],
   ["#page-desempenho", renderRulesChart],
+  ["#chart-stability", renderStabilityChart],
 ];
 function onScreen(selector) {
   const node = document.querySelector(selector);
@@ -123,6 +124,7 @@ setBadge("semana", Object.values(MOVES).filter((m) => m.unusual).length);
 showTab(location.hash.slice(1), false);
 renderInsights();
 renderRebalance();
+renderStability();
 renderPeriod();
 
 let lastWidth = document.body.clientWidth, pending = 0;

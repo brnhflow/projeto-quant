@@ -6,6 +6,10 @@ before 1.0 the interface may still change.
 ## Unreleased
 
 ### Added
+- Minimum variance with limits and how stable it is: 300 bootstrap re-estimates of the
+  covariance, a 90% range for each weight on the Rebalance tab. Two solvers (active set in
+  Python, FISTA in C++, which also runs the resamples in parallel) checked with the KKT
+  conditions and against each other.
 - Motion in the report: blocks rise as they come into view, lines draw, bars grow, headline
   numbers count up. Off when the system asks for reduced motion.
 - A demo GIF and a "Notes from building it" section in the README.
