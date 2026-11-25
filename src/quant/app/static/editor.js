@@ -90,7 +90,9 @@
     if (existing) { focusQty(keyOf(existing)); return; }
     const row = { symbol: hit.symbol, kind: "instrument", qkind: hit.kind, detail: hit.detail, type: hit.type || typeOf(hit), name: hit.name, exchange: hit.exchange, currency: "", price: null, live: false, quantity: null, loading: true, error: null };
     rows.push(row);
+    justAdded = keyOf(row);
     render();
+    justAdded = "";
     focusQty(keyOf(row));
     await loadQuote(row);
     saveDraft();
@@ -117,6 +119,9 @@
     };
   }
 
+  // The row just added slides in; a quote that arrives flashes its price once.
+  let justAdded = "";
+  const STILL = window.matchMedia("(prefers-reduced-motion: reduce)");
   function render() {
     const table = $("holdings"), body = table.querySelector("tbody");
     table.hidden = rows.length === 0;
@@ -124,7 +129,7 @@
     body.innerHTML = rows.map((r) => {
       const c = cells(r);
       const qtyText = r.quantity === null || !(r.quantity > 0) ? "" : fmtQty(r.quantity);
-      return `<tr data-row="${esc(keyOf(r))}" class="${r.loading ? "row-loading" : ""}">
+      return `<tr data-row="${esc(keyOf(r))}" class="${r.loading ? "row-loading" : ""}${keyOf(r) === justAdded ? " row-new" : ""}">
         <td class="asset" data-cell="asset">${c.asset}</td>
         <td data-cell="exchange">${c.exchange}</td>
         <td data-cell="currency">${c.currency}</td>
@@ -151,7 +156,14 @@
     if (!tr) return;
     const c = cells(r);
     for (const key of Object.keys(c)) tr.querySelector(`[data-cell="${key}"]`).innerHTML = c[key];
+    const arrived = tr.classList.contains("row-loading") && !r.loading && !r.error;
     tr.classList.toggle("row-loading", r.loading);
+    if (arrived) {
+      const cell = tr.querySelector('[data-cell="price"]');
+      cell.classList.remove("flash");
+      void cell.offsetWidth;
+      cell.classList.add("flash");
+    }
     refreshButton();
   }
 
@@ -196,10 +208,17 @@
   $("holdings").addEventListener("click", (ev) => {
     const button = ev.target.closest("[data-remove]");
     if (!button) return;
-    rows = rows.filter((r) => keyOf(r) !== button.dataset.remove);
-    render();
-    saveDraft();
-    $("search").focus();
+    const drop = () => {
+      rows = rows.filter((r) => keyOf(r) !== button.dataset.remove);
+      render();
+      saveDraft();
+      $("search").focus();
+    };
+    // Fade the row out first, unless the system asks for less motion.
+    const tr = button.closest("tr");
+    if (STILL.matches || !tr) { drop(); return; }
+    tr.classList.add("row-gone");
+    setTimeout(drop, 180);
   });
 
   // ---------------------------------------------------------------- search

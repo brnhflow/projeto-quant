@@ -176,3 +176,12 @@
 .holdings .cost { width: 92px; }
 .holdings .since { width: 138px; }
 .holdings th, .holdings td { padding-left: 8px; padding-right: 8px; }
+
+/* Rows: a new asset slides in, a removed one fades out, a quote that arrives flashes once. */
+@keyframes row-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes flash { from { background: var(--s1-soft); } to { background: transparent; } }
+.row-new { animation: row-in .28s cubic-bezier(.2,.7,.2,1); }
+.row-gone { opacity: 0; transform: translateX(12px); transition: opacity .18s ease, transform .18s ease; }
+.flash { animation: flash 1s ease-out; border-radius: 4px; }
+#analyse:not(:disabled):active { transform: translateY(1px); }
+@media (prefers-reduced-motion: reduce) { .row-new, .flash { animation: none; } .row-gone { transition: none; } }
