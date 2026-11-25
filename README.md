@@ -1,51 +1,55 @@
 # projeto-quant
 
-**A portfolio risk lab that checks its own numbers.** It pulls live market data for stocks,
-real-estate funds, ETFs, BDRs and crypto across B3, Europe and the US, and analyses the
-portfolio in euro: a tearsheet, risk, crisis replays, factor exposures, Brinson attribution,
-time- and money-weighted returns from a transaction log, Monte Carlo, dividend income and
-rebalancing. Every model comes with the test that says whether to trust it.
+**A portfolio risk lab that tests its own numbers.** It analyses a real portfolio of stocks,
+funds, bonds and crypto across B3, Europe and the US with live market data, and every estimate
+on the page comes with the test that says how far to trust it.
 
 [![CI](https://github.com/brnhflow/projeto-quant/actions/workflows/ci.yml/badge.svg)](https://github.com/brnhflow/projeto-quant/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.14-3776AB)
 ![C++](https://img.shields.io/badge/C%2B%2B-20-00599C)
-![Tests](https://img.shields.io/badge/tests-400%2B-2f8f6b)
-![Coverage](https://img.shields.io/badge/coverage-94%25-2f8f6b)
+![Tests](https://img.shields.io/badge/tests-470%2B-2f8f6b)
 ![Types](https://img.shields.io/badge/pyright-strict-7b5cc4)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-**[Live demo](https://brnhflow.github.io/projeto-quant/)** · [Methodology](docs/METHODOLOGY.md) · [Research note](docs/research/var-backtest.md) · [Where this makes money](docs/APPLICATIONS.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
+**[Live demo](https://brnhflow.github.io/projeto-quant/)** · [Methodology](docs/METHODOLOGY.md) · [Research](docs/research/) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
 
 ![The demo report: tabs, charts drawing in, hover on the value chart](docs/images/demo.gif)
 
-**Highlights**
+## What the tests found
 
-- **Research with a finding.** Across 7 markets since 2008, historical VaR breaches cluster on
-  every one. In March 2020 the S&P 500 broke its 99% VaR 8 times in 29 days.
-  [Read the note](docs/research/var-backtest.md)
-- **C++20 core.** Rolling VaR, bootstrap, Monte Carlo and a backtest engine, 6–20× faster than
-  NumPy and checked against it on every push.
-- **Weights with error bars.** The minimum-variance portfolio is re-solved on 300 bootstrap
-  resamples to show how much each weight is signal; two solvers (active set, FISTA in C++)
-  check each other.
-- **The market at a glance.** 63 series, from the Ibovespa to the 10-year Treasury, ranked by
-  how unusual their move was rather than how large, with each one's link to your portfolio.
-- **Beyond stocks.** Yield curves of five countries from their own treasuries and central banks,
-  every Tesouro Direto bond with the inflation it prices in, and a fear and greed gauge built
-  from public data with its method stated.
-- **Live, for free.** Crypto tick by tick (Binance WebSocket), exchange rates every minute
-  (Coinbase), and every stock and index every 20 seconds through the local app; the public demo
-  rebuilds itself every half hour while markets are open.
-- **Rules backtested with costs.** A 10% volatility target lifts the demo's Sharpe from 1.02 to
-  1.34 and cuts its worst drawdown from −19.8% to −12.1%.
+- **Historical VaR gets the count of bad days right but not their timing.** On all seven markets
+  tested since 2008, its breaches cluster; in March 2020 the S&P 500 broke its 99% VaR 8 times
+  in 29 days. Filtered historical simulation fixes most of it.
+  [Note](docs/research/var-backtest.md)
+- **A fear and greed gauge does not time the market.** Rebuilt from public data over 4,882 days,
+  it shows no relation with the S&P 500's next week, month or quarter (all |t| < 0.5, Newey-West),
+  and the best timing rule chosen on 2007-2017 lost to holding the index from 2018.
+  [Note](docs/research/fear-greed.md)
+- **The efficient frontier is mostly estimation noise.** Re-estimated on bootstrap resamples of
+  the same history, the return it promises at a given risk moves by tens of percentage points;
+  the report draws the frontier inside that cloud instead of as a single line.
+
+## Highlights
+
+- **Risk that is checked.** VaR from three models backtested with Kupiec, Christoffersen and Basel
+  tests; factor exposures scored out of sample; Monte Carlo bands checked against what happened;
+  bootstrap intervals on the headline figures.
 - **What professionals report.** Tearsheet, Brinson attribution, time- and money-weighted returns
-  from a trade log.
-- **Every model tested.** VaR (Kupiec, Christoffersen, Basel), out-of-sample factor fits,
-  Monte Carlo calibration, bootstrap intervals. 400+ tests, strict typing, CI.
+  from a trade log, crisis replays, rebalancing with costs, rules backtested walk-forward with
+  probabilistic and deflated Sharpe ratios.
+- **Beyond stocks.** Government yield curves for five countries from their own treasuries and
+  central banks, every Tesouro Direto bond with the inflation it prices in, and a market overview
+  ranked by how unusual each move was.
+- **A C++20 core.** Rolling VaR, bootstrap, Monte Carlo, the backtest engine and the portfolio
+  optimiser, 6-20 times faster than NumPy and checked against it on every push.
+- **Live where it is free.** Crypto tick by tick, exchange rates every minute, stocks every 20
+  seconds in the local app; the public demo rebuilds itself with fresh data every half hour
+  while markets are open.
 
 ## Why
 
-I wanted a portfolio tool that tells me when not to believe it. Most portfolio dashboards show numbers. Few say how far those numbers can be trusted. Some
+I wanted a portfolio tool that tells me when not to believe it. Most portfolio dashboards show
+numbers; few say how far those numbers can be trusted. Some
 estimates look exactly as confident on screen as good ones but are not:
 
 - a 95% VaR that is breached on 9% of days;
@@ -68,7 +72,7 @@ When a model fails its test, the report says so in plain language.
 | ![Portfolio editor](docs/images/editor.png) | **Build the portfolio.** Search any listed instrument by name or ticker; every match is returned, not just the top seven. Pick its type from drawn icons and type the quantity. Or import an Excel sheet, and export the portfolio back to one at any time. Optionally add the average price paid and the first purchase date, and the report shows the gain on the money actually invested and its annual money-weighted return (XIRR). Cash in 15 currencies counts too. |
 | ![Tearsheet](docs/images/tearsheet.png) | **Tearsheet.** The one-page summary funds publish: CAGR, Sharpe, Sortino, Calmar, skew and kurtosis against MSCI ACWI, the month-by-month return table with the hit rate against the index, rolling Sharpe and volatility, the five worst drawdowns with their recovery, calendar-year returns and the daily return distribution against a normal. |
 | ![Your result](docs/images/ledger.png) | **Your result.** Import a CSV of every buy and sell. The report gives the time-weighted return (what GIPS requires of fund managers), the money-weighted return of your own cash (XIRR), and realised and unrealised gains by average cost, at each trade date's exchange rate. A Brinson-Fachler attribution splits the gap to MSCI ACWI into allocation, selection and interaction by market, with the index's regional mix estimated by returns-based style analysis. |
-| ![Rules](docs/images/rules.png) | **Rebalancing rules, backtested in C++.** Buy and hold, a monthly calendar, 5% bands and a 10% volatility target, run walk-forward on the portfolio with 0.1% costs on every trade. On the demo the volatility target lifts the Sharpe from 1.02 to 1.34 and cuts the worst drawdown from −19.8% to −12.1%, at the price of a lower return. The Risk tab sizes the portfolio for any target volatility. |
+| ![Rules](docs/images/rules.png) | **Rebalancing rules, backtested in C++.** Buy and hold, a monthly calendar, 5% bands and a 10% volatility target, run walk-forward on the portfolio with 0.1% costs on every trade. The page compares the four rules' Sharpe ratio and worst drawdown and says, with the deflated Sharpe ratio, whether any gain is more than luck. The Risk tab sizes the portfolio for any target volatility. |
 | ![Markets](docs/images/markets.png) | **Markets.** Stock indices, currencies, Treasury yields, commodities, crypto and the largest stocks in Brazil, the US and Europe, over a day, a week, a month, the year and 12 months. The moves that stood out are ranked by size against each series' own typical move, so a jump in a bond yield is not drowned by bitcoin's everyday swings, and each series shows how closely your portfolio follows it. |
 | ![Fixed income](docs/images/fixed-income.png) | **Fixed income.** Government yield curves for Brazil, the US, the euro area, the UK and Japan, today against a month and a year ago, with the policy rate, the 2- and 10-year yields and the slope (an inverted curve is flagged). For Brazil, every Tesouro Direto bond on sale with its rate change, and the inflation the market prices in from fixed-rate against inflation-linked bonds. A fear and greed gauge for stocks, rebuilt from five public measures, sits next to the crypto index on the Markets tab. |
 | ![This week](docs/images/week.png) | **This week.** Assets whose last day or week moved more than 2.5 standard deviations of their own history are flagged, next to the headlines that explain the move. |
@@ -133,6 +137,23 @@ and Bitcoin, tested with the same Kupiec, Christoffersen and Basel checks as the
 ![S&P 500 in early 2020: daily returns and each model's 99% VaR](docs/research/var-covid.svg)
 
 Reproduce with `uv run python research/var_backtest.py`.
+
+**[Does a fear and greed gauge predict the S&P 500? A test, 2007 to 2026](docs/research/fear-greed.md)**
+
+The report's five-part sentiment gauge, rebuilt from public prices over 4,882 days, against the
+next 5, 21 and 63 days of SPY total return, with Newey-West errors, a Holm correction and timing
+rules chosen in one period and judged in the next.
+
+- No relation over the full sample: every |t| is below 0.5 and the gauge explains under 0.1% of
+  forward returns.
+- Without the 2008 crisis a contrarian sign appears at three months (t = -2.38), but on a
+  subsample chosen after the fact and not significant once the three horizons are corrected for.
+- The best of ten timing rules chosen on 2007-2017 returned 13.1% a year from 2018, against
+  15.6% for holding the index.
+
+![Forward 21-day return by gauge band](docs/research/fear-greed.svg)
+
+Reproduce with `uv run python research/fear_greed.py`.
 
 ## C++ core
 
@@ -207,7 +228,7 @@ again next time.
 uv run python -m quant report --holdings data/holdings.example.csv \
     --transactions data/transactions.example.csv                      # same from the CLI
 uv run python scripts/build_site.py                                  # rebuild the live demo
-uv run python -m pytest                                              # 400+ tests
+uv run python -m pytest                                              # 470+ tests
 uv run python -m pyright && uv run ruff check .                      # strict types, lint
 ```
 
