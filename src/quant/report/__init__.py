@@ -9,7 +9,7 @@ from typing import Any
 
 import pandas as pd
 
-from quant.data.market import SeriesStatus
+from quant.data.market import Series, SeriesStatus
 from quant.data.news import Headline
 from quant.data.sources import Quote
 from quant.report.data import PERIODS, Period, build_report_data, period_start
@@ -92,6 +92,7 @@ def build_report(
     news: dict[str, list[Headline] | None] | None = None,
     demo_url: str | None = None,
     transactions: pd.DataFrame | None = None,
+    market: dict[str, Series] | None = None,
 ) -> str:
     """Compute the report data and render it; see :func:`build_report_data` for arguments."""
     data = build_report_data(
@@ -109,5 +110,6 @@ def build_report(
         news=news,
         demo_url=demo_url,
         transactions=transactions,
+        market=market,
     )
     return render_html(data)

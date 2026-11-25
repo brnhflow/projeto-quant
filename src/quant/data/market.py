@@ -315,3 +315,71 @@ def update_market_data(
 
     prices = pd.concat(columns, axis="columns", sort=True)
     return MarketData(prices=prices, fx=fx, status=statuses, details=details)
+
+
+@dataclass(frozen=True)
+class Series:
+    """One downloaded series for the market overview: prices as quoted, and the name."""
+
+    prices: pd.Series
+    name: str = ""
+    currency: str = ""
+    from_cache: bool = False
+
+
+def fetch_series(
+    symbols: list[str],
+    start: pd.Timestamp,
+    cache_dir: Path,
+    *,
+    fetch: Fetch = fetch_json,
+    now: pd.Timestamp | None = None,
+    offline: bool = False,
+    pause: float = 0.2,
+    workers: int = 6,
+) -> dict[str, Series]:
+    """Download Yahoo series for an overview, tolerating failures one by one.
+
+    Unlike :func:`update_market_data`, nothing here is a holding: a symbol that fails and has
+    no cached copy is simply left out, and the currency is whatever the source reports. Prices
+    are the closes as quoted (not adjusted for dividends), as market summaries show them.
+    """
+    now = now if now is not None else pd.Timestamp.now(tz="UTC")
+    jobs: dict[str, Future[Quote]] = {}
+    if not offline:
+        with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+            for symbol in symbols:
+                jobs[symbol] = pool.submit(_download, YAHOO, symbol, "", start, fetch, now)
+                time.sleep(pause)
+    out: dict[str, Series] = {}
+    for symbol in symbols:
+        path = _cache_file(cache_dir, "overview", symbol)
+        try:
+            if offline:
+                raise ConnectionError("offline mode")
+            quote = jobs[symbol].result()
+            quoted = quote.close if quote.close is not None else quote.prices
+            series = quoted.dropna()
+            series = series[series.index >= start.normalize()]
+            if series.empty:
+                raise ValueError("no prices")
+            _save(path, series.rename("price"))
+            meta = {"currency": quote.currency, "start": f"{start:%Y-%m-%d}", "name": quote.name}
+            path.with_suffix(".json").write_text(json.dumps(meta), encoding="utf-8")
+            out[symbol] = Series(series, quote.name, quote.currency)
+        except (ConnectionError, ValueError, DataConfigError):
+            table = _load(path)
+            if table is None or table.empty:
+                continue
+            meta_path = path.with_suffix(".json")
+            meta: dict[str, Any] = (
+                json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+            )
+            series = table["price"].dropna()
+            out[symbol] = Series(
+                series[series.index >= start.normalize()],
+                name=str(meta.get("name", "")),
+                currency=str(meta.get("currency", "")),
+                from_cache=True,
+            )
+    return out

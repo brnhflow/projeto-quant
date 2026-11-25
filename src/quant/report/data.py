@@ -18,13 +18,14 @@ from quant.allocation import min_variance, resampled_weights
 from quant.attribution import return_attribution
 from quant.benchmark import compare
 from quant.brinson import brinson_fachler, style_r2, style_weights
-from quant.data.market import SeriesStatus
+from quant.data.market import Series, SeriesStatus
 from quant.data.news import Headline
 from quant.data.sources import Quote
 from quant.factors import factor_exposure
 from quant.fx import to_base_currency
 from quant.income import outlook
 from quant.ledger import analyse_ledger
+from quant.overview import market_overview
 from quant.performance import xirr
 from quant.returns import portfolio_value, simple_returns
 from quant.risk import (
@@ -1426,6 +1427,7 @@ def build_report_data(
     news: dict[str, list[Headline] | None] | None = None,
     demo_url: str | None = None,
     transactions: pd.DataFrame | None = None,
+    market: dict[str, Series] | None = None,
 ) -> dict[str, Any]:
     """Assemble the report content as plain JSON-ready data.
 
@@ -1465,6 +1467,9 @@ def build_report_data(
     transactions : pd.DataFrame, optional
         Every buy and sell (:func:`quant.ledger.parse_transactions`), matching the holdings;
         adds the time- and money-weighted returns and realised gains.
+    market : dict, optional
+        Market overview series by symbol (:func:`quant.data.market.fetch_series`); adds the
+        market tab, with each series' correlation to this portfolio.
 
     Returns
     -------
@@ -1582,6 +1587,7 @@ def build_report_data(
             base,
         ),
         "moves": unusual_moves(local),
+        "market": market_overview(market, value) if market else None,
         "result": _result(
             holdings, local, fx_rates, position_value, base, pd.Timestamp(value.index[-1])
         ),

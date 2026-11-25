@@ -6,6 +6,7 @@
 // One page at a time; the address keeps the open tab (#renda), so back and forward work.
 const TAB_ICONS = {
   resumo: '<rect x="3" y="3" width="6" height="6" rx="1.3"/><rect x="11" y="3" width="6" height="6" rx="1.3"/><rect x="3" y="11" width="6" height="6" rx="1.3"/><rect x="11" y="11" width="6" height="6" rx="1.3"/>',
+  mercado: '<circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3c2.2 2 3 4.4 3 7s-.8 5-3 7c-2.2-2-3-4.4-3-7s.8-5 3-7z"/>',
   desempenho: '<rect x="3.5" y="2.5" width="13" height="15" rx="1.6"/><path d="M6.5 6.5h7M6.5 9.5h7"/><path d="M6.5 14.5l2-2 1.6 1.2 3.4-3"/>',
   semana: '<rect x="3" y="4.5" width="14" height="12.5" rx="1.8"/><path d="M3 8.5h14M7 3v3M13 3v3"/><path d="M6 13l2-2 2 1.5 3.5-3"/>',
   risco: '<path d="M10 2.8 4 5.2v4.6c0 3.6 2.5 6.3 6 7.4 3.5-1.1 6-3.8 6-7.4V5.2z"/><path d="M10 7v3.6M10 13.2v.1"/>',
@@ -77,6 +78,7 @@ const CHARTS = [
   ["#page-desempenho", renderLedgerChart],
   ["#page-desempenho", renderRulesChart],
   ["#chart-stability", renderStabilityChart],
+  ["#chart-movers", renderMovers],
 ];
 function onScreen(selector) {
   const node = document.querySelector(selector);
@@ -113,6 +115,7 @@ renderTrust();
 renderStress();
 renderFactors();
 renderWatch();
+renderMarket();
 renderFuture();
 renderIncome();
 renderOpportunities();
@@ -121,6 +124,7 @@ renderLedger();
 renderRules();
 renderSizing();
 setBadge("semana", Object.values(MOVES).filter((m) => m.unusual).length);
+setBadge("mercado", marketBadge());
 showTab(location.hash.slice(1), false);
 renderInsights();
 renderRebalance();

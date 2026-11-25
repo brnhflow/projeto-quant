@@ -27,6 +27,7 @@
 
 <nav class="tabs" id="tabs" role="tablist" aria-label="Report sections" data-pt-aria-label="Seções do relatório">
   <button type="button" role="tab" id="tab-resumo" data-tab="resumo" aria-controls="page-resumo" aria-selected="false"><span class="tab-icon" data-icon="resumo"></span><span data-l="en">Overview</span><span data-l="pt">Visão geral</span><span class="tab-badge" id="badge-resumo" hidden></span></button>
+  <button type="button" role="tab" id="tab-mercado" data-tab="mercado" aria-controls="page-mercado" aria-selected="false"><span class="tab-icon" data-icon="mercado"></span><span data-l="en">Markets</span><span data-l="pt">Mercado</span><span class="tab-badge" id="badge-mercado" hidden></span></button>
   <button type="button" role="tab" id="tab-desempenho" data-tab="desempenho" aria-controls="page-desempenho" aria-selected="false"><span class="tab-icon" data-icon="desempenho"></span><span data-l="en">Performance</span><span data-l="pt">Desempenho</span><span class="tab-badge" id="badge-desempenho" hidden></span></button>
   <button type="button" role="tab" id="tab-semana" data-tab="semana" aria-controls="page-semana" aria-selected="false"><span class="tab-icon" data-icon="semana"></span><span data-l="en">This week</span><span data-l="pt">Esta semana</span><span class="tab-badge" id="badge-semana" hidden></span></button>
   <button type="button" role="tab" id="tab-risco" data-tab="risco" aria-controls="page-risco" aria-selected="false"><span class="tab-icon" data-icon="risco"></span><span data-l="en">Risk</span><span data-l="pt">Risco</span><span class="tab-badge" id="badge-risco" hidden></span></button>
@@ -74,6 +75,37 @@
 <section class="block">
   <h2><span data-l="en">Positions</span><span data-l="pt">Posições</span></h2>
   <div class="table-wrap"><table class="positions" id="positions"></table></div>
+</section>
+</div>
+
+<div class="tab-page" id="page-mercado" data-page="mercado" role="tabpanel" aria-labelledby="tab-mercado">
+<section class="block mk-now" id="mk-now">
+  <div class="mk-title">
+    <h2><span data-l="en">Markets now</span><span data-l="pt">O mercado agora</span></h2>
+    <div class="segmented" id="mk-periods" role="group" aria-label="Period" data-pt-aria-label="Período"></div>
+  </div>
+  <p class="lede" id="mk-lede"></p>
+  <div class="mk-groups" id="mk-groups"></div>
+</section>
+
+<section class="block" id="mk-unusual-section">
+  <h2><span data-l="en">What stood out</span><span data-l="pt">O que fugiu do normal</span></h2>
+  <p class="lede" id="mk-unusual-lede"></p>
+  <ol class="mk-unusual" id="mk-unusual"></ol>
+</section>
+
+<section class="block" id="mk-movers-section">
+  <h2><span data-l="en">Biggest stock moves</span><span data-l="pt">Maiores altas e quedas</span></h2>
+  <p class="lede" id="mk-movers-lede"></p>
+  <div class="presets" id="mk-regions" role="group" aria-label="Market" data-pt-aria-label="Mercado"></div>
+  <div class="chart" id="chart-movers"></div>
+</section>
+
+<section class="block" id="mk-heat-section">
+  <h2><span data-l="en">Everything at once</span><span data-l="pt">Tudo de uma vez</span></h2>
+  <p class="lede" id="mk-heat-lede"></p>
+  <div class="table-wrap"><table class="heat mk-heat" id="mk-heat"></table></div>
+  <p class="caption" id="mk-source"></p>
 </section>
 </div>
 

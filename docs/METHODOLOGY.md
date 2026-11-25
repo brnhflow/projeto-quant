@@ -525,6 +525,34 @@ a convex problem; against the two-asset closed form and the unconstrained formul
 each with its own SplitMix64-seeded generator, so the result does not depend on the thread
 count.
 
+## 22. Market overview
+
+`quant.overview`. A fixed list of 63 series is downloaded with each report: 8 stock indices,
+5 exchange rates, 2 US Treasury yields, 6 commodity futures, 3 cryptocurrencies and the 39
+largest stocks of Brazil, the US and Europe. Prices are the closes as quoted (not adjusted for
+dividends), as market summaries show them. A series that fails to download and has no cached
+copy is left out; one more than 10 days behind the newest is treated as stale and left out.
+
+**Windows.** Each series is measured on its own calendar. The day is the previous observation;
+the week, month and year are the last observation on or before the same calendar date a week,
+a month or a year earlier; year to date starts from the last close of the previous year.
+Calendar dates keep crypto, which trades at weekends, comparable with stocks.
+
+**Change.** A price return, except for yields, which change in percentage points.
+
+**How unusual.** z = change / (σ · √n), with σ the standard deviation of daily changes over the
+250 sessions before the last 5 (so a large recent move does not inflate its own yardstick) and
+n the number of sessions in the window. Moves are ranked by |z|, not by size: a 0.3-point move
+in a yield that moves 0.05 a day outranks a 6% day in a cryptocurrency that moves 4% on an
+ordinary day. |z| ≥ 2 is flagged; under a normal distribution that happens in about 5% of
+windows, a little more often with fat tails, so it is a reading aid rather than a test.
+
+**Link to the portfolio.** Pearson correlation of weekly (Friday-to-Friday) changes over the last
+52 weeks between each series and the portfolio's value in euro. Weekly rather than daily
+because Tokyo, São Paulo and New York close hours apart, and daily returns of markets that do not
+close together understate their correlation (the asynchronous-trading bias of Scholes and
+Williams, 1977).
+
 ## References
 
 - Bailey, D., López de Prado, M. (2012). The Sharpe ratio efficient frontier. *Journal of Risk*, 15(2), 3–44.
@@ -542,5 +570,6 @@ count.
 - Michaud, R. (1989). The Markowitz optimization enigma: is "optimized" optimal? *Financial Analysts Journal*, 45(1), 31–42.
 - Moreira, A., Muir, T. (2017). Volatility-managed portfolios. *Journal of Finance*, 72(4), 1611–1644.
 - Politis, D., Romano, J. (1994). The stationary bootstrap. *Journal of the American Statistical Association*, 89(428), 1303–1313.
+- Scholes, M., Williams, J. (1977). Estimating betas from nonsynchronous data. *Journal of Financial Economics*, 5(3), 309–327.
 - Sharpe, W. F. (1992). Asset allocation: management style and performance measurement. *Journal of Portfolio Management*, 18(2), 7–19.
 - Vasicek, O. (1973). A note on using cross-sectional information in Bayesian estimation of security betas. *Journal of Finance*, 28(5), 1233–1239.

@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from quant.data.market import Series
 from quant.fx import to_base_currency
 from quant.report import PERIODS, build_report, build_report_data, period_start, render_html
 from quant.report.data import MIN_DAYS_VAR, backtest_window
@@ -197,7 +198,7 @@ def test_build_report_returns_a_full_page() -> None:
 
     assert page.startswith("<!DOCTYPE html>")
     assert '"synthetic": true' in page
-    assert page.count("<section") == 21
+    assert page.count("<section") == 25
 
 
 def test_late_starting_asset_is_named_as_the_history_limit() -> None:
@@ -305,3 +306,19 @@ def test_three_var_models_are_compared_on_the_same_days() -> None:
     assert [m["key"] for m in models["items"]] == ["HS", "EWMA", "FHS"]
     assert len({m["days"] for m in models["items"]}) == 1  # same tested days for all three
     assert all(m["next"] > 0 for m in models["items"])
+
+
+def test_market_overview_is_added_with_the_portfolio_correlation() -> None:
+    holdings, prices, fx, calendar = _market(300)
+    # One overview series is the portfolio's own first asset: their link must be strong.
+    market = {
+        "^GSPC": Series(prices["A"].rename("price"), "S&P 500", "USD"),
+        "NOPE": Series(prices["B"].rename("price")),  # not in the overview list: ignored
+    }
+
+    data = build_report_data(holdings, prices, fx, calendar, title="T", market=market)
+
+    overview = data["market"]
+    assert [i["symbol"] for i in overview["items"]] == ["^GSPC"]
+    assert overview["items"][0]["corr"] > 0.3
+    assert build_report_data(holdings, prices, fx, calendar, title="T")["market"] is None

@@ -6,6 +6,14 @@ before 1.0 the interface may still change.
 ## Unreleased
 
 ### Added
+- **Markets tab**: stock indices, currencies, US Treasury yields, commodities, crypto and the
+  39 largest stocks in Brazil, the US and Europe, over a day, week, month, year to date and 12
+  months. Moves are ranked by how unusual they were (the change over the series' own typical
+  move for that many sessions), and each series shows its weekly correlation with the
+  portfolio. Downloaded with every report, failures tolerated one by one.
+- **Excel import and export** in the editor: the positions and the transaction log as a
+  formatted .xlsx, read back from .xlsx or CSV (including semicolon files with 1.234,5
+  numbers), headers in either language, with undo.
 - Minimum variance with limits and how stable it is: 300 bootstrap re-estimates of the
   covariance, a 90% range for each weight on the Rebalance tab. Two solvers (active set in
   Python, FISTA in C++, which also runs the resamples in parallel) checked with the KKT

@@ -10,9 +10,17 @@ from pathlib import Path
 import pandas as pd
 
 from quant.data.http import fetch_bytes, fetch_json
-from quant.data.market import Fetch, MarketData, SeriesStatus, update_market_data
+from quant.data.market import (
+    Fetch,
+    MarketData,
+    Series,
+    SeriesStatus,
+    fetch_series,
+    update_market_data,
+)
 from quant.data.news import Headline, google_news_url, news_query, parse_google_news
 from quant.ledger import check_against_holdings
+from quant.overview import overview_symbols
 from quant.report import build_report
 from quant.stress import HISTORY_START, PROXIES
 
@@ -44,6 +52,7 @@ def proxy_holdings() -> pd.DataFrame:
 
 
 FetchText = Callable[[str], bytes]
+OVERVIEW_DAYS = 420  # a year of history plus room for the typical-move estimate
 NO_NEWS_KINDS = {"ETF", "MUTUALFUND"}  # funds rarely make news of their own
 
 
@@ -111,7 +120,17 @@ def analyse_portfolio(
     start = (now - pd.Timedelta(days=round(years * 365.25))).tz_convert(None).normalize()
     long_start = min(start, HISTORY_START)
     # The indices download while the holdings do; news starts as soon as names are known.
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        overview_job = pool.submit(
+            fetch_series,
+            overview_symbols(),
+            (now - pd.Timedelta(days=OVERVIEW_DAYS)).tz_convert(None).normalize(),
+            cache,
+            fetch=fetch,
+            now=now,
+            offline=offline,
+            pause=pause,
+        )
         index_job = pool.submit(
             update_market_data,
             proxy_holdings(),
@@ -135,6 +154,11 @@ def analyse_portfolio(
         except (ConnectionError, ValueError):
             proxy_prices = None
         news = news_job.result() if news_job is not None else {}
+        market_series: dict[str, Series] | None
+        try:
+            market_series = overview_job.result()
+        except (ConnectionError, ValueError, OSError):
+            market_series = None  # the overview is optional; the portfolio report still builds
 
     # Cash is worth 1 every business day up to today; the report must end on the last day
     # a real asset has a price, or the latest move would show as a 0% "phantom" day.
@@ -154,5 +178,6 @@ def analyse_portfolio(
         news=news,
         demo_url=demo_url,
         transactions=transactions,
+        market=market_series,
     )
     return Analysis(page, market.status)
