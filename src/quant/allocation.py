@@ -59,13 +59,30 @@ def _start(lo: Vector, hi: Vector) -> Vector:
 
 
 def min_variance(cov: Matrix, lower: float = 0.0, upper: float = 1.0) -> Vector:
-    """Long-only minimum-variance weights within ``[lower, upper]`` (primal active set).
+    """Long-only minimum-variance weights within ``[lower, upper]`` (primal active set)."""
+    s = np.asarray(cov, dtype=float)
+    return _active_set(s, np.zeros(s.shape[0]), lower, upper)
+
+
+def mean_variance(
+    cov: Matrix, mu: Vector, gamma: float, lower: float = 0.0, upper: float = 1.0
+) -> Vector:
+    """Weights minimising ``w'Sw / 2 - gamma mu'w`` in the limits; ``gamma = 0`` is min variance.
+
+    ``gamma`` is the return the investor asks per unit of variance: as it grows, the solution
+    walks up the efficient frontier towards the asset with the highest ``mu``.
+    """
+    s = np.asarray(cov, dtype=float)
+    return _active_set(s, gamma * np.asarray(mu, dtype=float), lower, upper)
+
+
+def _active_set(s: Matrix, linear: Vector, lower: float, upper: float) -> Vector:
+    """Minimise ``w'Sw / 2 - linear'w`` with ``sum(w) = 1`` and ``lower <= w <= upper``.
 
     Each step solves the problem with the assets at a limit held there (one linear system),
     moves towards that solution as far as the limits allow, and frees a held asset only when its
-    Lagrange multiplier says the variance would fall by letting it go.
+    Lagrange multiplier says the objective would fall by letting it go.
     """
-    s = np.asarray(cov, dtype=float)
     p = s.shape[0]
     lo, hi = _bounds(p, lower, upper)
     w = _start(lo, hi)
@@ -78,7 +95,7 @@ def min_variance(cov: Matrix, lower: float = 0.0, upper: float = 1.0) -> Vector:
             target = w.copy()
         else:
             ff = s[np.ix_(free, free)]
-            fixed = s[np.ix_(free, held)] @ w[held]
+            fixed = s[np.ix_(free, held)] @ w[held] - linear[free]
             a = np.linalg.solve(ff, np.ones(int(free.sum())))
             c = np.linalg.solve(ff, fixed)
             budget = 1 - float(w[held].sum())
@@ -104,26 +121,33 @@ def min_variance(cov: Matrix, lower: float = 0.0, upper: float = 1.0) -> Vector:
                 held[hit] = True
                 continue
         # At the optimum of the current working set: check the held assets' multipliers.
-        g = s @ w
+        g = s @ w - linear
         lam = float(g[~held].mean()) if (~held).any() else float(g.mean())
         # At the lower limit, the gradient must be at least lam; at the upper one, at most.
         at_lo = (held & (w <= lo + tol)).astype(float)
         at_hi = (held & (w >= hi - tol)).astype(float)
         wrong = at_lo * (lam - g) + at_hi * (g - lam)
         worst = int(wrong.argmax())
-        if wrong[worst] <= 1e-14 * max(1.0, abs(lam)):
+        if wrong[worst] <= 1e-12 * max(float(np.abs(g).max()), 1e-300):
             return w
         held[worst] = False
     raise RuntimeError("active set did not converge")
 
 
-def kkt_gap(cov: Matrix, w: Vector, lower: float = 0.0, upper: float = 1.0) -> float:
+def kkt_gap(
+    cov: Matrix,
+    w: Vector,
+    lower: float = 0.0,
+    upper: float = 1.0,
+    linear: Vector | None = None,
+) -> float:
     """Largest violation of the optimality conditions, relative to the gradient's size.
 
-    For a convex problem these conditions are sufficient: zero (to rounding) means optimal.
+    ``linear`` is ``gamma * mu`` for a mean-variance problem (zero for minimum variance). For a
+    convex problem these conditions are sufficient: zero (to rounding) means optimal.
     """
     s = np.asarray(cov, dtype=float)
-    g = s @ w
+    g = s @ w - (0.0 if linear is None else linear)
     tol = 1e-9
     interior = (w > lower + tol) & (w < upper - tol)
     lam = float(g[interior].mean()) if interior.any() else float(np.median(g))
@@ -175,4 +199,64 @@ def resampled_weights(
     for k in range(samples):
         cov, _ = _ledoit_wolf_numpy(x[_block_indices(n, mean_block, rng)])
         out[k] = min_variance(cov, lower, upper)
+    return out
+
+
+def frontier_gammas(cov: Matrix, mu: Vector, points: int) -> Vector:
+    """Risk-aversion grid for the frontier: 0 (minimum variance) then log-spaced upwards.
+
+    The scale ``max variance / spread of mu`` is where return starts to outweigh variance;
+    three orders of magnitude around it run from near minimum variance to the top corner.
+    """
+    s = np.asarray(cov, dtype=float)
+    m = np.asarray(mu, dtype=float)
+    spread = float(m.max() - m.min())
+    if points < 2 or spread <= 0:
+        return np.zeros(1)
+    scale = float(s.diagonal().max()) / spread
+    out = np.zeros(points)
+    out[1:] = scale * np.logspace(-2, 1, points - 1)
+    return out
+
+
+def frontier(
+    cov: Matrix, mu: Vector, gammas: Vector, lower: float = 0.0, upper: float = 1.0
+) -> Matrix:
+    """Efficient-frontier weights, one row per risk aversion in ``gammas``."""
+    return np.array([mean_variance(cov, mu, float(g), lower, upper) for g in gammas])
+
+
+def resampled_frontiers(
+    returns: Any,
+    gammas: Vector,
+    samples: int = 60,
+    mean_block: float = 20.0,
+    lower: float = 0.0,
+    upper: float = 1.0,
+    seed: int = 1,
+) -> npt.NDArray[np.float64]:
+    """Frontiers estimated from resamples: ``samples x len(gammas) x 2`` of (volatility, return).
+
+    Each resample of the return rows gets its own mean returns and Ledoit-Wolf covariance, its own
+    frontier, and that frontier's risk and return as the resample itself estimates them, per
+    year. The spread of these curves is how uncertain the frontier is.
+    """
+    x = np.ascontiguousarray(returns, dtype=np.float64)
+    n, p = x.shape
+    if n < 20:
+        raise ValueError("need at least 20 rows")
+    _bounds(p, lower, upper)
+    g = np.ascontiguousarray(gammas, dtype=np.float64)
+    fast = core.resampled_frontiers(x, g, samples, mean_block, lower, upper, seed)
+    if fast is not None:
+        return fast
+    rng = np.random.default_rng(seed)
+    out = np.empty((samples, len(g), 2))
+    for k in range(samples):
+        rows = x[_block_indices(n, mean_block, rng)]
+        cov, _ = _ledoit_wolf_numpy(rows)
+        mu = rows.mean(axis=0)
+        for j, gamma in enumerate(g):
+            w = mean_variance(cov, mu, float(gamma), lower, upper)
+            out[k, j] = (np.sqrt(max(float(w @ cov @ w), 0.0) * 252), float(mu @ w) * 252)
     return out

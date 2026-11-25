@@ -20,6 +20,7 @@ Ordered by how useful each step is for managing a real portfolio. A step ships o
 | 10 | C++ core for the rolling VaR models and the bootstrap | Matches NumPy (bit for bit / 1e-12) and the speed-up is measured in CI |
 | 11 | English interface | Every string in both languages; no Portuguese left in the English page |
 | 8a | Long-only minimum variance with limits; resampled stability of the weights (C++ in parallel) | Active set and FISTA agree to 1e-8 and pass the KKT conditions; two-asset and unconstrained closed forms |
+| 8b | Long-only mean-variance frontier with 60 resampled frontiers around it (C++ in parallel) | Every point passes the KKT conditions; FISTA matches the active set to 1e-7; a constant tilt leaves minimum variance unchanged |
 | 9 | Walk-forward backtests of buy and hold, calendar, bands and volatility targeting, with costs; probabilistic and deflated Sharpe | The C++ engine matches the Python reference to 1e-12; PSR and DSR match closed forms |
 
 ## Next
@@ -30,9 +31,3 @@ R$20,000 and 15% otherwise; Italy: 26%, 12.5% on government bonds), and a sale p
 picks the lots with the lowest tax.
 
 *Done when:* the tax matches hand-computed cases from each country's rules.
-
-### 8b. Mean-variance frontier
-The long-only frontier with per-asset limits, with the same resampled ranges as the minimum
-variance (8a), so the page shows how little of the frontier survives estimation error.
-
-*Done when:* each frontier point passes the KKT conditions and the two solvers agree.

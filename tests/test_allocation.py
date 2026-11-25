@@ -4,7 +4,15 @@ import numpy as np
 import pytest
 
 from quant import core
-from quant.allocation import kkt_gap, min_variance, resampled_weights
+from quant.allocation import (
+    frontier,
+    frontier_gammas,
+    kkt_gap,
+    mean_variance,
+    min_variance,
+    resampled_frontiers,
+    resampled_weights,
+)
 from quant.risk import _ledoit_wolf_numpy  # pyright: ignore[reportPrivateUsage]
 
 needs_core = pytest.mark.skipif(
@@ -130,3 +138,78 @@ def test_cpp_resampling_agrees_with_numpy_in_distribution() -> None:
     assert fast is not None
     np.testing.assert_allclose(fast.mean(axis=0), slow.mean(axis=0), atol=0.02)
     np.testing.assert_allclose(fast.std(axis=0), slow.std(axis=0), rtol=0.25, atol=0.005)
+
+
+# ---------------------------------------------------------------- mean-variance and the frontier
+
+
+def test_zero_risk_aversion_is_minimum_variance_and_a_flat_tilt_changes_nothing() -> None:
+    s = _cov(6, seed=5)
+    mu = np.random.default_rng(2).normal(0.0004, 0.0002, 6)
+
+    assert mean_variance(s, mu, 0.0) == pytest.approx(min_variance(s), abs=1e-12)
+    assert mean_variance(s, np.full(6, 0.3), 1.0) == pytest.approx(min_variance(s), abs=1e-12)
+
+
+def test_mean_variance_satisfies_its_optimality_conditions_within_limits() -> None:
+    s = _cov(8, seed=6)
+    mu = np.random.default_rng(3).normal(0.0, 0.01, 8)
+    for gamma, lo, hi in ((0.5, 0.0, 1.0), (2.0, 0.0, 0.3), (1.0, 0.02, 0.4)):
+        w = mean_variance(s, mu, gamma, lo, hi)
+        assert w.sum() == pytest.approx(1.0, abs=1e-12)
+        assert w.min() >= lo - 1e-12 and w.max() <= hi + 1e-12
+        assert kkt_gap(s, w, lo, hi, gamma * mu) < 1e-10
+
+
+def test_the_frontier_trades_risk_for_return_monotonically() -> None:
+    s = _cov(5, seed=8)
+    mu = np.array([0.0002, 0.0005, 0.0003, 0.0008, 0.0001])
+    gammas = frontier_gammas(s, mu, 12)
+
+    weights = frontier(s, mu, gammas)
+
+    vol = np.sqrt(np.einsum("ij,jk,ik->i", weights, s, weights))
+    ret = weights @ mu
+    assert gammas[0] == 0 and (gammas[1:] > gammas[:-1]).all()
+    assert (vol[1:] - vol[:-1] >= -1e-12).all() and (ret[1:] - ret[:-1] >= -1e-15).all()
+    assert weights[-1].argmax() == mu.argmax()  # the riskiest end leans on the best asset
+
+
+def test_resampled_frontiers_have_the_right_shape_and_start_at_minimum_variance() -> None:
+    x = _returns(400, 4, seed=9) + 0.0003
+    gammas = np.array([0.0, 0.5, 2.0])
+
+    curves = resampled_frontiers(x, gammas, samples=30, mean_block=10, seed=4)
+
+    assert curves.shape == (30, 3, 2)
+    assert (curves[:, :, 0] > 0).all()
+    # Along each curve a larger gamma (less risk aversion) never lowers the volatility.
+    vol = curves[:, :, 0]
+    assert (vol[:, 1:] - vol[:, :-1] >= -1e-9).all()
+
+
+@needs_core
+def test_cpp_mean_variance_matches_the_active_set() -> None:
+    for seed in range(4):
+        s = _cov(9, seed)
+        mu = np.random.default_rng(seed).normal(0.0, 0.01, 9)
+        for gamma, lo, hi in ((0.3, 0.0, 1.0), (1.5, 0.0, 0.2)):
+            fast = core.mean_variance(s, gamma * mu, lo, hi)
+            assert fast is not None
+            assert fast == pytest.approx(mean_variance(s, mu, gamma, lo, hi), abs=1e-7)
+
+
+@needs_core
+def test_cpp_frontiers_agree_with_numpy_in_distribution() -> None:
+    x = _returns(400, 4, seed=10) + 0.0003
+    gammas = np.array([0.0, 1.0])
+    fast = core.resampled_frontiers(x, gammas, 300, 10.0, 0.0, 1.0, 1)
+    saved = core._core  # pyright: ignore[reportPrivateUsage]
+    core._core = None  # pyright: ignore[reportPrivateUsage]
+    try:
+        slow = resampled_frontiers(x, gammas, samples=300, mean_block=10, seed=1)
+    finally:
+        core._core = saved  # pyright: ignore[reportPrivateUsage]
+
+    assert fast is not None
+    np.testing.assert_allclose(fast.mean(axis=0), slow.mean(axis=0), rtol=0.1, atol=0.01)

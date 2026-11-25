@@ -5,16 +5,24 @@ All numbers come from the tested functions in :mod:`quant`; the HTML page only d
 
 from __future__ import annotations
 
+import itertools
 import math
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, cast
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from quant.align import align_to_dates
-from quant.allocation import min_variance, resampled_weights
+from quant.allocation import (
+    frontier,
+    frontier_gammas,
+    min_variance,
+    resampled_frontiers,
+    resampled_weights,
+)
 from quant.attribution import return_attribution
 from quant.benchmark import compare
 from quant.brinson import brinson_fachler, style_r2, style_weights
@@ -316,6 +324,71 @@ def _stability(base_prices: pd.DataFrame, risky: list[str]) -> dict[str, Any] | 
         "median": [_num(float(v), 4) for v in mid],
         "hi": [_num(float(v), 4) for v in hi],
         "change": _num(change, 4),
+    }
+
+
+FRONTIER_POINTS = 14
+FRONTIER_SAMPLES = 60
+
+
+def _frontier(
+    base_prices: pd.DataFrame, risky: list[str], weights_now: pd.Series
+) -> dict[str, Any] | None:
+    """Long-only efficient frontier on the report's history, and the frontiers of resamples.
+
+    Mean returns and the Ledoit-Wolf covariance are estimated on every daily return of the
+    report's window. The same frontier re-estimated on stationary-bootstrap resamples shows how
+    much of it is estimation noise: the spread is the point (Michaud, 1989).
+    """
+    if len(risky) < 2:
+        return None
+    returns = simple_returns(base_prices[risky]).dropna()
+    if len(returns) < 120:
+        return None
+    x = returns.to_numpy(dtype=float)
+    mu = x.mean(axis=0)
+    try:
+        cov = ledoit_wolf(returns)[0].to_numpy(dtype=float)
+        gammas = frontier_gammas(cov, mu, FRONTIER_POINTS)
+        weights = frontier(cov, mu, gammas)
+        curves = resampled_frontiers(x, gammas, FRONTIER_SAMPLES, STABILITY_BLOCK, seed=11)
+    except (RuntimeError, ValueError, np.linalg.LinAlgError):
+        return None
+
+    def point(w: npt.NDArray[np.float64]) -> list[float | None]:
+        vol = math.sqrt(max(float(w @ cov @ w), 0.0) * 252)
+        return [_num(vol, 4), _num(float(mu @ w) * 252, 4)]
+
+    now = weights_now.reindex(risky).fillna(0.0).to_numpy(dtype=float)
+    now = now / now.sum() if now.sum() > 0 else np.full(len(risky), 1 / len(risky))
+    here = point(now)
+    # Return each resampled frontier offers at the portfolio's own volatility.
+    at_vol: list[float] = []
+    vol_now = here[0] or 0.0
+    for c in curves:
+        pairs = sorted((float(v), float(r)) for v, r in c)
+        for (v0, r0), (v1, r1) in itertools.pairwise(pairs):
+            if v0 <= vol_now <= v1:
+                at_vol.append(r0 if v1 == v0 else r0 + (vol_now - v0) * (r1 - r0) / (v1 - v0))
+                break
+    band = None
+    if len(at_vol) >= FRONTIER_SAMPLES // 2:
+        ordered = sorted(at_vol)
+        band = {
+            "lo": _num(ordered[int(0.05 * (len(ordered) - 1))], 4),
+            "hi": _num(ordered[int(0.95 * (len(ordered) - 1))], 4),
+            "count": len(at_vol),
+        }
+    return {
+        "assets": risky,
+        "days": len(returns),
+        "full": [point(w) for w in weights],
+        "weights": [[_num(float(v), 3) for v in w] for w in (weights[0], weights[-1])],
+        "curves": [[[_num(float(v), 4), _num(float(r), 4)] for v, r in c] for c in curves],
+        "current": here,
+        "equal": point(np.full(len(risky), 1 / len(risky))),
+        "band": band,
+        "samples": FRONTIER_SAMPLES,
     }
 
 
@@ -1574,6 +1647,9 @@ def build_report_data(
         ],
         "covariance": _covariance(base_prices, order),
         "stability": _stability(base_prices, [a for a in order if _kind(holdings, a) != "cash"]),
+        "frontier": _frontier(
+            base_prices, [a for a in order if _kind(holdings, a) != "cash"], weights_now
+        ),
         "currencies": [
             {
                 "code": str(c),

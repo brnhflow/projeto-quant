@@ -161,3 +161,32 @@ def resampled_min_variance(
     x = np.ascontiguousarray(returns, dtype=np.float64)
     out = _core.resampled_min_variance(x, samples, mean_block, lower, upper, seed)
     return np.asarray(out, dtype=np.float64)
+
+
+def mean_variance(
+    cov: npt.NDArray[np.float64], linear: Vector, lower: float, upper: float
+) -> Vector | None:
+    """C++ weights minimising ``w'Sw / 2 - linear'w`` within limits, or None without it."""
+    if _core is None:
+        return None
+    out = _core.mean_variance(
+        np.ascontiguousarray(cov, dtype=np.float64), _vector(linear), lower, upper
+    )
+    return np.asarray(out, dtype=np.float64)
+
+
+def resampled_frontiers(
+    returns: npt.NDArray[np.float64],
+    gammas: Vector,
+    samples: int,
+    mean_block: float,
+    lower: float,
+    upper: float,
+    seed: int,
+) -> npt.NDArray[np.float64] | None:
+    """C++ frontiers on bootstrap resamples (samples x points x 2), or None without it."""
+    if _core is None:
+        return None
+    x = np.ascontiguousarray(returns, dtype=np.float64)
+    out = _core.resampled_frontiers(x, _vector(gammas), samples, mean_block, lower, upper, seed)
+    return np.asarray(out, dtype=np.float64).reshape(samples, len(gammas), 2)

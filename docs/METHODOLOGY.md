@@ -525,6 +525,28 @@ a convex problem; against the two-asset closed form and the unconstrained formul
 each with its own SplitMix64-seeded generator, so the result does not depend on the thread
 count.
 
+### 21b. The efficient frontier and its uncertainty
+
+The same solvers handle the mean-variance problem
+
+min ½ w'Σw − γ μ'w  subject to  1'w = 1,  l ≤ w ≤ u,
+
+where γ ≥ 0 is the return asked per unit of variance (γ = 0 is the minimum variance). μ and Σ
+are the mean and the Ledoit-Wolf covariance of every daily euro return in the report's window.
+γ runs over 0 and 13 log-spaced values around max(diag Σ) / (max μ − min μ), the scale at which
+return starts to outweigh variance, which spans the frontier from its left end to the riskiest
+corner. Each point passes the KKT conditions with the linear term included.
+
+To show how much of the frontier is estimation noise, it is re-estimated on 60
+stationary-bootstrap resamples of the return rows (mean block 20 days): each resample gets its own
+μ and Σ, its own frontier, and that frontier's risk and return measured with the resample's own
+estimates. Most resampled frontiers lie above the full-sample one. That is the optimiser's
+in-sample optimism: each resample takes its own noise for signal and puts the most weight on
+whichever asset happened to do best in it (Michaud, 1989). The page reports, at the portfolio's
+volatility, the 5th–95th percentile of the return the resampled frontiers promise. The C++ engine
+runs the resamples in parallel; a constant added to every expected return leaving the minimum
+variance unchanged, and a strong view filling one asset to its cap, are among its unit tests.
+
 ## 22. Market overview
 
 `quant.overview`. A fixed list of 63 series is downloaded with each report: 8 stock indices,

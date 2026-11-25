@@ -6,6 +6,10 @@ before 1.0 the interface may still change.
 ## Unreleased
 
 ### Added
+- **Efficient frontier with its uncertainty** on the Rebalance tab: the long-only mean-variance
+  frontier and 60 resampled frontiers around it, with the range of return they promise at the
+  portfolio's volatility. Mean-variance added to both solvers (active set in Python, FISTA in
+  C++, resamples in parallel), checked with the KKT conditions and against each other.
 - **Live prices, free**: a "Your portfolio now" panel and a live market tab. Through the local
   app, Yahoo quotes every 20 seconds via a new `/api/live` route (cached 15 s); crypto tick by
   tick from Binance's public WebSocket; exchange rates every minute from Coinbase where the app

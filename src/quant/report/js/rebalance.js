@@ -219,3 +219,98 @@ $("reb-presets").addEventListener("click", (ev) => {
   document.querySelectorAll("#reb-presets .chip").forEach((c) => c.setAttribute("aria-pressed", String(c === chip)));
   updateRebalance();
 });
+
+// ---------------------------------------------------------------- efficient frontier
+const FR = D.frontier;
+function renderFrontier() {
+  $("frontier").hidden = !FR;
+  if (!FR) return;
+  const [vNow, rNow] = FR.current;
+  // What the full-sample frontier offers at the portfolio's own volatility.
+  const curve = FR.full.filter((p) => p[0] !== null);
+  let onCurve = null;
+  for (let i = 1; i < curve.length; i++) {
+    const [v0, r0] = curve[i - 1], [v1, r1] = curve[i];
+    if (v0 <= vNow && vNow <= v1) { onCurve = v1 === v0 ? r1 : r0 + ((vNow - v0) * (r1 - r0)) / (v1 - v0); break; }
+  }
+  const band = FR.band;
+  $("fr-lede").innerHTML = L(
+    `Com ${fmt.int(FR.days)} dias de dados, sua carteira rendeu ${fmt.pct(rNow, 1)} ao ano com ${fmt.share(vNow, 1)} de volatilidade` +
+      (onCurve !== null ? `; na mesma volatilidade, a fronteira estimada promete <strong>${fmt.pct(onCurve, 1)}</strong>. ` : ". ") +
+      (band ? `Refazendo a conta em ${FR.samples} reamostragens do mesmo histórico, essa promessa vai de <strong>${fmt.pct(band.lo, 0)} a ${fmt.pct(band.hi, 0)}</strong> ao ano. ` : "") +
+      `Os retornos médios do passado são o dado mais ruidoso de uma otimização, e cada reamostragem toma o próprio ruído por sinal: a fronteira é um palpite com intervalo largo, não um mapa.`,
+    `With ${fmt.int(FR.days)} days of data, your portfolio returned ${fmt.pct(rNow, 1)} a year at ${fmt.share(vNow, 1)} volatility` +
+      (onCurve !== null ? `; at the same volatility the estimated frontier promises <strong>${fmt.pct(onCurve, 1)}</strong>. ` : ". ") +
+      (band ? `Redoing the estimate on ${FR.samples} resamples of the same history, that promise runs from <strong>${fmt.pct(band.lo, 0)} to ${fmt.pct(band.hi, 0)}</strong> a year. ` : "") +
+      `Past mean returns are the noisiest input to an optimiser, and each resample takes its own noise for signal: the frontier is a guess with a wide band, not a map.`);
+  const key = (style, label) => `<span class="key"><span class="${style}"></span>${label}</span>`;
+  $("fr-legend").innerHTML =
+    key("tick-key fr-k-full", L("Fronteira com todos os dados", "Frontier, full sample")) +
+    key("tick-key fr-k-cloud", L(`${FR.samples} fronteiras reamostradas`, `${FR.samples} resampled frontiers`)) +
+    `<span class="key"><span class="swatch" style="background:${cssVar("--s2")};border-radius:50%"></span>${L("Sua carteira", "Your portfolio")}</span>` +
+    `<span class="key"><span class="swatch" style="background:${cssVar("--ink-2")};border-radius:50%"></span>${L("Pesos iguais", "Equal weights")}</span>`;
+}
+function renderFrontierChart() {
+  if (!FR) return;
+  const host = $("chart-frontier");
+  const height = +host.dataset.height || 340;
+  const { svg, width } = svgFor(host, height);
+  const m = { left: 56, right: 18, top: 12, bottom: 34 };
+  const pts = FR.full.concat(...FR.curves, [FR.current, FR.equal]).filter((p) => p[0] !== null && p[1] !== null);
+  const vols = pts.map((p) => p[0]), rets = pts.map((p) => p[1]);
+  // Clip the cloud's outliers so a few wild resamples do not squash the picture.
+  const q = (arr, f) => { const s = arr.slice().sort((a, b) => a - b); return s[Math.floor(f * (s.length - 1))]; };
+  const xTicks = niceTicks(Math.max(0, q(vols, 0.01) * 0.9), q(vols, 0.99) * 1.05, 5);
+  const yTicks = niceTicks(Math.min(0, q(rets, 0.02)), q(rets, 0.98), 5);
+  const x0 = xTicks[0], x1 = xTicks[xTicks.length - 1], y0 = yTicks[0], y1 = yTicks[yTicks.length - 1];
+  const x = (v) => m.left + ((v - x0) / (x1 - x0)) * (width - m.left - m.right);
+  const y = (v) => m.top + ((y1 - v) / (y1 - y0)) * (height - m.top - m.bottom);
+  const axis = el("g", { class: "axis" }, svg);
+  yTicks.forEach((t) => {
+    el("line", { class: t === 0 ? "baseline" : "gridline", x1: m.left, x2: width - m.right, y1: y(t), y2: y(t) }, axis);
+    text(axis, m.left - 8, y(t) + 4, fmt.pct(t, 0), { "text-anchor": "end" });
+  });
+  xTicks.forEach((t) => text(axis, x(t), height - 14, fmt.share(t, 0), { "text-anchor": "middle" }));
+  text(axis, width - m.right, height - 1, L("volatilidade anual", "annual volatility"), { "text-anchor": "end" });
+  text(axis, m.left - 8, m.top - 2, L("retorno anual", "annual return"), { "text-anchor": "start", dx: 8 });
+  const clip = el("clipPath", { id: "fr-clip" }, el("defs", {}, svg));
+  el("rect", { x: m.left, y: m.top, width: width - m.left - m.right, height: height - m.top - m.bottom }, clip);
+  const plot = el("g", { "clip-path": "url(#fr-clip)" }, svg);
+  const path = (curve) => "M" + curve.filter((p) => p[0] !== null).map(([v, r]) => `${x(v).toFixed(1)},${y(r).toFixed(1)}`).join("L");
+  const cloud = el("g", { class: "fr-cloud" }, plot);
+  FR.curves.forEach((c) => el("path", { d: path(c), stroke: cssVar("--s1"), "stroke-width": 1, fill: "none", opacity: 0.16 }, cloud));
+  el("path", { class: "line", d: path(FR.full), stroke: cssVar("--s1"), "stroke-width": 2.6, fill: "none", pathLength: 1 }, plot);
+  const marks = [
+    { p: FR.full[0], label: L("Mínima variância", "Minimum variance"), color: cssVar("--s1"), r: 4.5 },
+    { p: FR.equal, label: L("Pesos iguais", "Equal weights"), color: cssVar("--ink-2"), r: 5.5 },
+    { p: FR.current, label: L("Sua carteira", "Your portfolio"), color: cssVar("--s2"), r: 6.5 },
+  ];
+  // Labels sit to the right of their point; one that would overlap a label already placed moves
+  // down, with a thin leader back to its point.
+  const placed = [];
+  marks.slice().sort((a, b) => y(a.p[1]) - y(b.p[1])).forEach((mk) => {
+    const g = el("g", { class: "fr-mark" }, svg);
+    const px = x(mk.p[0]), py = y(mk.p[1]);
+    el("circle", { cx: px, cy: py, r: mk.r, fill: mk.color, stroke: cssVar("--card"), "stroke-width": 2 }, g);
+    const label = text(g, 0, 0, mk.label, { class: "row-value fr-label" });
+    const w = label.getComputedTextLength() + 6;
+    let lx = px + 46, ly = py - 14;
+    if (lx + w > width - m.right) lx = px - 46 - w;
+    for (const b of placed) if (lx < b.x + b.w && lx + w > b.x && Math.abs(ly - b.y) < 16) ly = b.y + 17;
+    placed.push({ x: lx, y: ly, w });
+    label.setAttribute("x", lx);
+    label.setAttribute("y", ly + 4);
+    el("line", { x1: px + (lx > px ? mk.r + 2 : -mk.r - 2), y1: py, x2: lx > px ? lx - 3 : lx + w + 3, y2: ly, stroke: cssVar("--ink-3"), "stroke-width": 1 }, g);
+    const hit = el("circle", { cx: x(mk.p[0]), cy: y(mk.p[1]), r: 14, fill: "transparent" }, g);
+    hit.addEventListener("pointermove", (ev) => showTip(tipHtml(mk.label, [
+      { label: L("Volatilidade anual", "Annual volatility"), value: fmt.share(mk.p[0], 1) },
+      { label: L("Retorno anual estimado", "Estimated annual return"), value: fmt.pct(mk.p[1], 1) },
+    ]), ev));
+    hit.addEventListener("pointerleave", hideTip);
+  });
+  if (FR.band) {
+    const bx = x(FR.current[0]);
+    el("line", { x1: bx, x2: bx, y1: y(FR.band.hi), y2: y(FR.band.lo), stroke: cssVar("--s2"), "stroke-width": 2, "stroke-dasharray": "3 3" }, svg);
+    [FR.band.lo, FR.band.hi].forEach((v) => el("line", { x1: bx - 6, x2: bx + 6, y1: y(v), y2: y(v), stroke: cssVar("--s2"), "stroke-width": 2 }, svg));
+  }
+}

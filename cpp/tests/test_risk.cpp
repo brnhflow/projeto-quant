@@ -181,7 +181,40 @@ void resampling_is_reproducible_across_thread_counts() {
     check(one == many, "same weights with 1 and 4 threads");
 }
 
+// Adding the same number to every expected return changes nothing: the weights sum to 1.
+void a_constant_tilt_leaves_minimum_variance_unchanged() {
+    const std::vector<double> s = {0.04, 0.006, 0.002, 0.006, 0.01, 0.001, 0.002, 0.001, 0.02};
+    const std::vector<double> flat = {0.3, 0.3, 0.3};
+    const auto base = quant::min_variance(s, 3, 0.0, 1.0);
+    const auto tilted = quant::mean_variance(s, flat, 3, 0.0, 1.0);
+    for (std::size_t i = 0; i < 3; ++i) check(near(base[i], tilted[i], 1e-9), "constant tilt is ignored");
+}
+
+// A large expected return on one asset fills it up to its limit.
+void a_strong_view_fills_the_asset_to_its_cap() {
+    const std::vector<double> s = {0.04, 0.006, 0.006, 0.01};
+    const std::vector<double> view = {10.0, 0.0};
+    const auto w = quant::mean_variance(s, view, 2, 0.0, 0.7);
+    check(near(w[0], 0.7, 1e-10) && near(w[1], 0.3, 1e-10), "the favoured asset stops at its cap");
+}
+
+void frontiers_are_reproducible_across_thread_counts() {
+    std::mt19937_64 rng(3);
+    std::normal_distribution<double> z(0.0004, 0.01);
+    const std::size_t n = 260, p = 3;
+    std::vector<double> x(n * p);
+    for (double& v : x) v = z(rng);
+    const std::vector<double> gammas = {0.0, 0.5, 2.0};
+    const auto one = quant::resampled_frontiers(x, n, p, gammas, 32, 10.0, 0.0, 1.0, 9, 1);
+    const auto many = quant::resampled_frontiers(x, n, p, gammas, 32, 10.0, 0.0, 1.0, 9, 4);
+    check(one == many, "same frontiers with 1 and 4 threads");
+    check(one.size() == 32 * 3 * 2, "samples x gammas x (volatility, return)");
+}
+
 int main() {
+    a_constant_tilt_leaves_minimum_variance_unchanged();
+    a_strong_view_fills_the_asset_to_its_cap();
+    frontiers_are_reproducible_across_thread_counts();
     min_variance_of_two_assets_is_the_closed_form();
     projection_lands_on_the_capped_simplex();
     resampling_is_reproducible_across_thread_counts();

@@ -1122,3 +1122,10 @@ button:active:not(:disabled), .ghost:active { transform: scale(0.97); }
 .tabs-wrap { transition: box-shadow 200ms ease; }
 .tabs-wrap.stuck { box-shadow: 0 6px 16px -10px rgba(15, 23, 42, 0.35); }
 @media (prefers-reduced-motion: reduce) { .chart.redraw svg { animation: none; } }
+
+/* ---------------------------------------------------------------- efficient frontier */
+.legend .tick-key.fr-k-full { width: 22px; height: 0; background: none; border-top: 3px solid var(--s1); vertical-align: middle; }
+.legend .tick-key.fr-k-cloud { width: 22px; height: 0; background: none; border-top: 1px solid color-mix(in srgb, var(--s1) 45%, transparent); vertical-align: middle; }
+.anim .fr-cloud { animation: fade 1.2s ease-out .2s both; }
+.anim .fr-mark { animation: fade .5s ease-out .9s both; }
+.fr-label { paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }

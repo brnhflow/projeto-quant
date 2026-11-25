@@ -1,4 +1,4 @@
-// Minimum-variance weights with limits, and their spread under resampling.
+// Minimum-variance and mean-variance weights with limits, and their spread under resampling.
 //
 // Mirrors quant.allocation, with a different algorithm on purpose so the two check each other:
 // Python uses a primal active set; this file uses accelerated projected gradient (FISTA,
@@ -79,15 +79,17 @@ inline double largest_eigenvalue(std::span<const double> s, std::size_t p) {
     return lambda;
 }
 
-// min w'Sw/2 with sum(w) = 1, lo <= w <= hi. S is p x p, row-major, positive semi-definite.
-inline std::vector<double> min_variance(std::span<const double> s, std::size_t p, double lo, double hi,
-                                        double tol = 1e-13, int max_iter = 100000) {
+// min w'Sw/2 - linear'w with sum(w) = 1, lo <= w <= hi. S is p x p, row-major, positive
+// semi-definite; linear is gamma * mu for a mean-variance problem, empty for minimum variance.
+inline std::vector<double> mean_variance(std::span<const double> s, std::span<const double> linear, std::size_t p,
+                                         double lo, double hi, double tol = 1e-13, int max_iter = 100000) {
     if (p == 0 || s.size() != p * p) throw std::invalid_argument("covariance must be p x p");
+    if (!linear.empty() && linear.size() != p) throw std::invalid_argument("linear term must have p entries");
     if (!(lo >= 0.0 && lo <= hi) || lo * static_cast<double>(p) > 1.0 + 1e-12 ||
         hi * static_cast<double>(p) < 1.0 - 1e-12)
         throw std::invalid_argument("no weights within the limits add up to 1");
     const double lipschitz = largest_eigenvalue(s, p);
-    std::vector<double> w(p), prev(p), y(p), grad(p), step(p);
+    std::vector<double> w(p), prev(p), y(p), step(p);
     std::vector<double> start(p, 1.0 / static_cast<double>(p));
     project_capped_simplex(start, lo, hi, w);
     if (lipschitz <= 0.0) return w;
@@ -95,7 +97,7 @@ inline std::vector<double> min_variance(std::span<const double> s, std::size_t p
     double t = 1.0;
     for (int it = 0; it < max_iter; ++it) {
         for (std::size_t a = 0; a < p; ++a) {
-            double acc = 0.0;
+            double acc = linear.empty() ? 0.0 : -linear[a];
             for (std::size_t b = 0; b < p; ++b) acc += s[a * p + b] * y[b];
             step[a] = y[a] - acc / lipschitz;
         }
@@ -112,6 +114,47 @@ inline std::vector<double> min_variance(std::span<const double> s, std::size_t p
     return w;
 }
 
+inline std::vector<double> min_variance(std::span<const double> s, std::size_t p, double lo, double hi,
+                                        double tol = 1e-13, int max_iter = 100000) {
+    return mean_variance(s, {}, p, lo, hi, tol, max_iter);
+}
+
+// Rows of one stationary-bootstrap resample into `rows` (n x p). Resample k draws the same rows for
+// a given seed whichever thread runs it.
+inline void resample_rows(std::span<const double> data, std::size_t n, std::size_t p, double mean_block,
+                          std::uint64_t seed, std::size_t k, std::vector<double>& rows) {
+    std::mt19937_64 rng(splitmix64(seed ^ splitmix64(k)));
+    std::geometric_distribution<std::size_t> length(1.0 / mean_block);
+    std::uniform_int_distribution<std::size_t> pick(0, n - 1);
+    std::size_t filled = 0;
+    while (filled < n) {
+        const std::size_t start = pick(rng);
+        const std::size_t len = std::min(length(rng) + 1, n - filled);
+        for (std::size_t j = 0; j < len; ++j) {
+            const double* src = data.data() + ((start + j) % n) * p;
+            std::copy(src, src + p, rows.data() + (filled + j) * p);
+        }
+        filled += len;
+    }
+}
+
+// Run work(first, last) over [0, samples) on up to `threads` threads (0: all cores).
+template <class Work>
+inline void parallel_samples(std::size_t samples, unsigned threads, Work work) {
+    unsigned count = threads != 0 ? threads : std::max(1u, std::thread::hardware_concurrency());
+    count = static_cast<unsigned>(std::min<std::size_t>(count, std::max<std::size_t>(1, samples / 8)));
+    if (count <= 1) {
+        work(std::size_t{0}, samples);
+        return;
+    }
+    std::vector<std::jthread> pool;
+    const std::size_t chunk = (samples + count - 1) / count;
+    for (unsigned i = 0; i < count; ++i) {
+        const std::size_t first = i * chunk, last = std::min(samples, first + chunk);
+        if (first < last) pool.emplace_back(work, first, last);
+    }
+}
+
 // `samples` x p weights; `data` holds n rows of p returns, row-major.
 inline std::vector<double> resampled_min_variance(std::span<const double> data, std::size_t n, std::size_t p,
                                                   std::size_t samples, double mean_block, double lo, double hi,
@@ -120,40 +163,51 @@ inline std::vector<double> resampled_min_variance(std::span<const double> data, 
     if (data.size() != n * p) throw std::invalid_argument("data size is not n * p");
     if (!(mean_block >= 1.0)) throw std::invalid_argument("mean_block must be at least 1");
     std::vector<double> out(samples * p);
-    auto work = [&](std::size_t first, std::size_t last) {
+    parallel_samples(samples, threads, [&](std::size_t first, std::size_t last) {
         std::vector<double> rows(n * p);
-        std::geometric_distribution<std::size_t> length(1.0 / mean_block);
         for (std::size_t k = first; k < last; ++k) {
-            std::mt19937_64 rng(splitmix64(seed ^ splitmix64(k)));
-            std::uniform_int_distribution<std::size_t> pick(0, n - 1);
-            std::size_t filled = 0;
-            while (filled < n) {
-                const std::size_t start = pick(rng);
-                const std::size_t len = std::min(length(rng) + 1, n - filled);
-                for (std::size_t j = 0; j < len; ++j) {
-                    const double* src = data.data() + ((start + j) % n) * p;
-                    std::copy(src, src + p, rows.data() + (filled + j) * p);
-                }
-                filled += len;
-            }
+            resample_rows(data, n, p, mean_block, seed, k, rows);
             const Shrunk cov = ledoit_wolf(rows, n, p);
             const std::vector<double> w = min_variance(cov.covariance, p, lo, hi);
             std::copy(w.begin(), w.end(), out.begin() + static_cast<std::ptrdiff_t>(k * p));
         }
-    };
-    unsigned count = threads != 0 ? threads : std::max(1u, std::thread::hardware_concurrency());
-    count = static_cast<unsigned>(std::min<std::size_t>(count, std::max<std::size_t>(1, samples / 8)));
-    if (count <= 1) {
-        work(0, samples);
-        return out;
-    }
-    std::vector<std::jthread> pool;
-    const std::size_t chunk = (samples + count - 1) / count;
-    for (unsigned i = 0; i < count; ++i) {
-        const std::size_t first = i * chunk, last = std::min(samples, first + chunk);
-        if (first < last) pool.emplace_back(work, first, last);
-    }
-    pool.clear();  // join before returning
+    });
+    return out;
+}
+
+// Efficient frontiers estimated on resamples: samples x gammas x 2 of (annual volatility, annual
+// return), each measured with the resample's own mean returns and Ledoit-Wolf covariance.
+inline std::vector<double> resampled_frontiers(std::span<const double> data, std::size_t n, std::size_t p,
+                                               std::span<const double> gammas, std::size_t samples,
+                                               double mean_block, double lo, double hi, std::uint64_t seed,
+                                               unsigned threads = 0) {
+    if (n < 20) throw std::invalid_argument("need at least 20 rows");
+    if (data.size() != n * p) throw std::invalid_argument("data size is not n * p");
+    if (!(mean_block >= 1.0)) throw std::invalid_argument("mean_block must be at least 1");
+    const std::size_t g = gammas.size();
+    std::vector<double> out(samples * g * 2);
+    parallel_samples(samples, threads, [&](std::size_t first, std::size_t last) {
+        std::vector<double> rows(n * p), mu(p), linear(p);
+        for (std::size_t k = first; k < last; ++k) {
+            resample_rows(data, n, p, mean_block, seed, k, rows);
+            const Shrunk cov = ledoit_wolf(rows, n, p);
+            std::fill(mu.begin(), mu.end(), 0.0);
+            for (std::size_t r = 0; r < n; ++r)
+                for (std::size_t a = 0; a < p; ++a) mu[a] += rows[r * p + a];
+            for (double& m : mu) m /= static_cast<double>(n);
+            for (std::size_t j = 0; j < g; ++j) {
+                for (std::size_t a = 0; a < p; ++a) linear[a] = gammas[j] * mu[a];
+                const std::vector<double> w = mean_variance(cov.covariance, linear, p, lo, hi);
+                double var = 0.0, ret = 0.0;
+                for (std::size_t a = 0; a < p; ++a) {
+                    ret += mu[a] * w[a];
+                    for (std::size_t b = 0; b < p; ++b) var += w[a] * cov.covariance[a * p + b] * w[b];
+                }
+                out[(k * g + j) * 2] = std::sqrt(std::max(var, 0.0) * 252.0);
+                out[(k * g + j) * 2 + 1] = ret * 252.0;
+            }
+        }
+    });
     return out;
 }
 

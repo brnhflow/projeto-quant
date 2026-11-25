@@ -152,4 +152,32 @@ NB_MODULE(quant_core, m) {
         },
         nb::arg("returns"), nb::arg("samples"), nb::arg("mean_block"), nb::arg("lower"), nb::arg("upper"),
         nb::arg("seed"), "Minimum-variance weights on stationary-bootstrap resamples: samples x p.");
+
+    m.def(
+        "mean_variance",
+        [](const Matrix& cov, const Input& linear, double lower, double upper) {
+            const std::size_t p = cov.shape(0);
+            if (cov.shape(1) != p) throw std::invalid_argument("covariance must be square");
+            return to_numpy(
+                quant::mean_variance({cov.data(), p * p}, view(linear), p, lower, upper));
+        },
+        nb::arg("cov"), nb::arg("linear"), nb::arg("lower"), nb::arg("upper"),
+        "Weights minimising w'Sw/2 - linear'w within [lower, upper] (FISTA).");
+
+    m.def(
+        "resampled_frontiers",
+        [](const Matrix& x, const Input& gammas, std::size_t samples, double mean_block, double lower, double upper,
+           std::uint64_t seed) {
+            const std::size_t n = x.shape(0), p = x.shape(1);
+            std::vector<double> out;
+            {
+                nb::gil_scoped_release release;
+                out = quant::resampled_frontiers({x.data(), n * p}, n, p, view(gammas), samples,
+                                                 mean_block, lower, upper, seed);
+            }
+            return to_numpy(std::move(out), 2);
+        },
+        nb::arg("returns"), nb::arg("gammas"), nb::arg("samples"), nb::arg("mean_block"), nb::arg("lower"),
+        nb::arg("upper"), nb::arg("seed"),
+        "Frontiers on resamples: (samples * len(gammas)) x 2 of (annual volatility, annual return).");
 }

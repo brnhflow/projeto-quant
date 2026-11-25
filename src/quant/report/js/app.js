@@ -130,6 +130,7 @@ const CHARTS = [
   ["#page-desempenho", renderLedgerChart],
   ["#page-desempenho", renderRulesChart],
   ["#chart-stability", renderStabilityChart],
+  ["#chart-frontier", renderFrontierChart],
   ["#chart-movers", renderMovers],
   ["#mk-groups", () => { if (LIVE.dirtyMarket) liveMarket(); }],
   ["#chart-fear", renderFearChart],
@@ -189,6 +190,7 @@ showTab(location.hash.slice(1), false);
 renderInsights();
 renderRebalance();
 renderStability();
+renderFrontier();
 renderPeriod();
 
 let lastWidth = document.body.clientWidth, pending = 0;
@@ -200,6 +202,7 @@ new ResizeObserver(() => {
 }).observe(document.body);
 // Colours are read from the stylesheet when a chart is drawn, so a theme change redraws everything.
 function retheme() {
+  renderFrontier();
   renderMix(); renderTrust(); renderStress(); renderFactors(); renderTearsheet(); renderMarket(); renderFear(); renderFixedIncome(); renderPeriod();
 }
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", retheme);
