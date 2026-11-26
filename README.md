@@ -343,12 +343,13 @@ Things that went wrong, and what they changed:
 | Crypto | Browser, demo and app | Every trade | Binance public WebSocket |
 | Exchange rates | Browser, demo | Every minute | Coinbase public rates |
 | Stocks, ETFs, indices, rates, FX | Local app | Every 20 s (exchange delay, usually up to 15 min) | Yahoo Finance via `/api/live` |
+| Stocks, ETFs, indices, rates, FX | Demo site | Every 20 s, once the worker is deployed | Yahoo Finance via a Cloudflare Worker ([`worker/quotes.js`](worker/quotes.js)) |
 | Everything in the report | Demo site | Every 30 min while markets are open, every 3 h otherwise | GitHub Actions rebuild |
 
 Live prices move the "Your portfolio now" panel and the Markets tab; the risk, performance and
-scenario numbers stay as the report computed them, so every figure still has its test. Stock
-quotes cannot be fetched from a static page (Yahoo does not allow other sites to read them), which
-is why the demo refreshes them by rebuilding rather than in the browser. Truly real-time equity
+scenario numbers stay as the report computed them, so every figure still has its test. A static page cannot read Yahoo itself (Yahoo does not allow other sites to
+read its quotes), so the demo asks a small Cloudflare Worker that does it and caches each quote
+for 15 seconds; without the worker, stocks refresh with each scheduled rebuild. Truly real-time equity
 data needs a paid exchange feed.
 
 ## Data sources

@@ -49,15 +49,24 @@ function takeQuote(sym, price, prev, time, source, open) {
 }
 
 // ---------------------------------------------------------------- feeds
-async function pollApp() {
+// The public demo reads quotes through a small Cloudflare Worker (worker/quotes.js), named in a
+// meta tag when the site is built; the local app answers the same request itself.
+const LIVE_PROXY = ((document.querySelector('meta[name="quant-live-proxy"]') || {}).content || "").replace(/\/$/, "");
+async function pollApp(proxy) {
   if (document.hidden) return;
   const fx = LIVE_FX_NEEDED.map((c) => `${LIVE_BASE}${c}=X`);
   const all = [...new Set(LIVE_HOLD.map((p) => p.symbol).concat(MK_ITEMS.map((i) => i.symbol), fx))];
-  for (let i = 0; i < all.length; i += 150) {
-    const chunk = all.slice(i, i + 150);
-    const r = await fetch(`/api/live?symbols=${encodeURIComponent(chunk.join(","))}`, { headers: { "X-Quant-App": "1" } });
+  const size = proxy ? 45 : 150;  // the worker's free tier allows 50 outgoing requests per call
+  const endpoint = proxy ? `${proxy}/quotes?symbols=` : "/api/live?symbols=";
+  const headers = proxy ? {} : { "X-Quant-App": "1" };
+  const chunks = [];
+  for (let i = 0; i < all.length; i += size) chunks.push(all.slice(i, i + size));
+  const replies = await Promise.all(chunks.map(async (chunk) => {
+    const r = await fetch(endpoint + encodeURIComponent(chunk.join(",")), { headers });
     if (!r.ok) throw new Error(`live ${r.status}`);
-    const data = await r.json();
+    return r.json();
+  }));
+  for (const data of replies) {
     for (const [sym, q] of Object.entries(data.quotes)) {
       const fxMatch = new RegExp(`^${LIVE_BASE}([A-Z]{3})=X$`).exec(sym);
       if (fxMatch) LIVE.fx[fxMatch[1]] = { rate: q.price, time: q.time, source: "Yahoo" };
@@ -250,9 +259,19 @@ function startLive() {
   const tryApp = isServed && D.editUrl
     ? pollApp().then(() => { LIVE.mode = "app"; setInterval(() => pollApp().catch(() => {}), 20000); }).catch(() => false)
     : Promise.resolve(false);
-  tryApp.then((ok) => {
+  tryApp.then(async (ok) => {
     if (LIVE.mode === "app") return;
-    // No local app: currencies from Coinbase; stocks keep the report's close (the site rebuilds on a schedule).
+    // The demo's worker gives every quote; without it, currencies come from Coinbase and stocks keep
+    // the report's close until the next scheduled rebuild.
+    if (LIVE_PROXY) {
+      try {
+        await pollApp(LIVE_PROXY);
+        LIVE.mode = "app";
+        setInterval(() => pollApp(LIVE_PROXY).catch(() => {}), 20000);
+        document.addEventListener("visibilitychange", () => { if (!document.hidden) pollApp(LIVE_PROXY).catch(() => {}); });
+        return;
+      } catch { /* worker unreachable: fall back below */ }
+    }
     pollCoinbase();
     setInterval(pollCoinbase, 60000);
     return ok;

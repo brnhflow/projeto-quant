@@ -47,6 +47,8 @@ jobs:
         run: uv sync --frozen
       - name: Build the demo with today's data
         # Exit code 1 means a series came from the cache after a failed download: still publish.
+        env:
+          QUANT_LIVE_PROXY: ${{ vars.QUANT_LIVE_PROXY }}  # the Cloudflare Worker in worker/, if deployed
         run: uv run --frozen python scripts/build_site.py || [ $? -eq 1 ]
       - uses: actions/upload-pages-artifact@v5.0.0
         if: steps.mode.outputs.publish == 'true'

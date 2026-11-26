@@ -9,6 +9,8 @@ dividends and headlines are downloaded at build time, so the page is a dated sna
 
 from __future__ import annotations
 
+import html
+import os
 import sys
 from pathlib import Path
 
@@ -39,11 +41,15 @@ PREVIEW = f"""
 
 
 def with_preview(page: str) -> str:
-    """Add the link-preview tags after the viewport tag."""
+    """Add the link-preview tags, and the live-quote worker's address when one is set."""
     anchor = '<meta name="viewport" content="width=device-width, initial-scale=1">'
     if anchor not in page:
         raise ValueError("viewport tag not found in the report template")
-    return page.replace(anchor, anchor + PREVIEW, 1)
+    extra = PREVIEW
+    proxy = os.environ.get("QUANT_LIVE_PROXY", "").strip()
+    if proxy.startswith("https://"):
+        extra += f'\n<meta name="quant-live-proxy" content="{html.escape(proxy)}">'
+    return page.replace(anchor, anchor + extra, 1)
 
 
 def main() -> int:
