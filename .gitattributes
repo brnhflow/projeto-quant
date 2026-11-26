@@ -1,3 +1,9 @@
 * text=auto eol=lf
 *.png binary
 *.parquet binary
+
+# Generated files: built by scripts/build_site.py and research/build_paper.py, not written by hand.
+# They stay out of GitHub's language statistics.
+docs/index.html linguist-generated=true
+docs/paper/*.html linguist-documentation=true
+docs/research/*.svg linguist-generated=true

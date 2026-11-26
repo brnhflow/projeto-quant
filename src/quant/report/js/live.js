@@ -56,7 +56,7 @@ async function pollApp(proxy) {
   if (document.hidden) return;
   const fx = LIVE_FX_NEEDED.map((c) => `${LIVE_BASE}${c}=X`);
   const all = [...new Set(LIVE_HOLD.map((p) => p.symbol).concat(MK_ITEMS.map((i) => i.symbol), fx))];
-  const size = proxy ? 45 : 150;  // the worker's free tier allows 50 outgoing requests per call
+  const size = proxy ? 100 : 150;  // the worker takes up to 100 symbols per call
   const endpoint = proxy ? `${proxy}/quotes?symbols=` : "/api/live?symbols=";
   const headers = proxy ? {} : { "X-Quant-App": "1" };
   const chunks = [];
