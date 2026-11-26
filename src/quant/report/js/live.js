@@ -201,9 +201,10 @@ function renderLive() {
   const fxLive = LIVE_FX_NEEDED.filter((c) => LIVE.fx[c]);
   const tone = (v) => (v > 0 ? "up" : v < 0 ? "down" : "");
   $("live-pill").innerHTML = livePill();
+  const freeNote = D.demo ? L(" Fontes gratuitas apenas: um feed profissional em tempo real seria pago.", " Free sources only: a professional real-time feed would be paid.") : "";
   $("live-lede").innerHTML = L(
     `${liveCount} de ${LIVE_HOLD.length} ativos com preço ao vivo${fxLive.length ? ` e câmbio ao vivo (${fxLive.join(", ")})` : ""}; os demais usam o último fechamento do relatório, de ${dateLong(D.asOf)}. Os números das outras seções continuam os do relatório.`,
-    `${liveCount} of ${LIVE_HOLD.length} assets with live prices${fxLive.length ? ` and live exchange rates (${fxLive.join(", ")})` : ""}; the rest use the report's last close, from ${dateLong(D.asOf)}. Numbers in the other sections stay as the report computed them.`);
+    `${liveCount} of ${LIVE_HOLD.length} assets with live prices${fxLive.length ? ` and live exchange rates (${fxLive.join(", ")})` : ""}; the rest use the report's last close, from ${dateLong(D.asOf)}. Numbers in the other sections stay as the report computed them.`) + freeNote;
   const figs = $("live-figs");
   if (!figs.dataset.built) {
     const fig = (key, label) => `<div class="reb-fig" data-k="${key}"><p class="label">${label}</p><p class="value"><span class="arr-slot"></span><span class="num"></span></p><p class="note"></p></div>`;

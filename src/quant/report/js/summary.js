@@ -23,8 +23,10 @@ function renderHeader() {
     (D.synthetic ? `<span class="flag">${L("Dados simulados", "Simulated data")}</span>` : "");
   if (D.demo) {
     const link = `<a href="${esc(D.demo)}" rel="noopener">${esc(D.demo.replace(/^https:\/\//, ""))}</a>`;
-    addNotice(L(`<strong>Demonstração.</strong> Carteira fictícia com dados reais de mercado de ${esc(dateLong(D.asOf))}. Código, metodologia e testes em ${link}.`,
-      `<strong>Demo.</strong> A made-up portfolio on real market data as of ${esc(dateLong(D.asOf))}. Code, methodology and tests at ${link}.`));
+    addNotice(L(`<strong>Demonstração.</strong> Carteira fictícia com dados reais de mercado de ${esc(dateLong(D.asOf))}. Código, metodologia e testes em ${link}. ` +
+        `Por ser um projeto de portfólio, usa só fontes gratuitas: cripto e câmbio atualizam ao vivo, ações e índices com o atraso das bolsas (em geral até 15 minutos) e nem sempre todos ao mesmo tempo. Cotações profissionais em tempo real exigem assinaturas pagas.`,
+      `<strong>Demo.</strong> A made-up portfolio on real market data as of ${esc(dateLong(D.asOf))}. Code, methodology and tests at ${link}. ` +
+        `As a portfolio project it uses free sources only: crypto and exchange rates update live, stocks and indices with the exchanges' delay (usually up to 15 minutes) and not always all at once. Professional real-time quotes need paid subscriptions.`));
   }
   renderHistoryLimit();
   renderSources();
